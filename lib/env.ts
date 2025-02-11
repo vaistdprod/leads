@@ -30,22 +30,21 @@ export function getEnv() {
       })
     };
 
-    // Add more detailed logging here
+    // Add more detailed logging here, specifically for the Supabase variables
+    console.log("NEXT_PUBLIC_SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
+    console.log("NEXT_PUBLIC_SUPABASE_ANON_KEY:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
     console.log("Environment variables before validation:", envToValidate);
+
+    // Explicitly check for missing required variables *before* Zod validation
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      throw new Error('Missing Supabase environment variables (NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY). Check Vercel configuration.');
+    }
 
     const result = envSchema.safeParse(envToValidate);
 
     if (!result.success) {
       console.error('❌ Invalid environment variables:', result.error.flatten().fieldErrors);
-      
-      if (!isDevelopment) {
-        throw new Error('Required environment variables are missing');
-      }
-
-      // In development, use default values
-      validatedEnv = envSchema.parse(defaultValues);
-      console.log("⚠️ Using development defaults for environment variables.");
-      return validatedEnv;
+      throw new Error('Invalid environment variables. See console for details.');
     }
 
     validatedEnv = result.data;
