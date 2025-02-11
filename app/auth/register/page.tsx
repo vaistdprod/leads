@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,13 +9,14 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabase/client';
 import { isDevelopment } from '@/lib/env';
+import { Logo } from '@/components/ui/logo';
 
 const passwordRequirements = [
   { label: 'At least one lowercase letter (a-z)', regex: /[a-z]/ },
   { label: 'At least one uppercase letter (A-Z)', regex: /[A-Z]/ },
   { label: 'At least one number (0-9)', regex: /[0-9]/ },
   { label: 'At least one special character (!@#$%^&*()_+-=[]{};\':"|<>?,./`~)', regex: /[!@#$%^&*()_+\-=\[\]{};\\':"\\|,.<>?/`~]/ },
-  { label: 'Minimum 6 characters', regex: /.{6,}/ }
+  { label: 'Minimum 8 characters', regex: /.{8,}/ } // Updated to 8 characters
 ];
 
 export default function RegisterPage() {
@@ -23,14 +24,16 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const validatePassword = (password: string) => {
     return passwordRequirements.every(req => req.regex.test(password));
   };
 
   const validateForm = () => {
-    if (!email || !password || !confirmPassword) {
+    if (!email || !password || !confirmPassword || !inviteCode) {
       toast.error('Please fill in all fields');
       return false;
     }
@@ -54,23 +57,71 @@ export default function RegisterPage() {
     return true;
   };
 
+  const handleGoogleSignIn = async () => {
+    try {
+      setGoogleLoading(true);
+
+      // First verify the invite code and email match
+      const { data: invite, error: inviteError } = await supabase
+        .from('invites')
+        .select('*')
+        .eq('code', inviteCode)
+        .eq('used', false)
+        .eq('allowed_email', email)
+        .single();
+
+      if (inviteError || !invite) {
+        toast.error('Invalid invite code or email mismatch');
+        return;
+      }
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+          redirectTo: `${window.location.origin}/auth/callback?invite=${inviteCode}`,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      console.error('Google sign in error:', error);
+      toast.error('Failed to sign in with Google');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
     
     setLoading(true);
 
     try {
-      // In development mode, simulate success after a short delay
-      if (isDevelopment) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        toast.success('Registration successful! Redirecting...');
-        router.push('/setup/welcome');
+      // Verify invite code and email match
+      const { data: invite, error: inviteError } = await supabase
+        .from('invites')
+        .select('*')
+        .eq('code', inviteCode)
+        .eq('used', false)
+        .eq('allowed_email', email)
+        .single();
+
+      if (inviteError || !invite) {
+        toast.error('Invalid invite code or email mismatch');
         return;
       }
 
-      const { error: signUpError, data } = await supabase.auth.signUp({
+      // Register user
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -94,9 +145,29 @@ export default function RegisterPage() {
       }
 
       if (data?.user) {
+        // Mark invite as used
+        const { error: updateError } = await supabase
+          .from('invites')
+          .update({
+            used: true,
+            used_by: data.user.id,
+            used_at: new Date().toISOString()
+          })
+          .eq('id', invite.id);
+
+        if (updateError) {
+          console.error("Error updating invite:", updateError);
+          toast.error("Failed to update invite status");
+          return;
+        }
+
+        // Create user profile
         const { error: profileError } = await supabase
           .from('user_profiles')
-          .insert([{ id: data.user.id, setup_completed: false }]);
+          .insert([{ 
+            id: data.user.id, 
+            setup_completed: false 
+          }]);
 
         if (profileError) {
           console.error("Error creating user profile:", profileError);
@@ -118,16 +189,29 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <Card className="w-full max-w-md p-8">
-        <div className="text-center mb-8">
+        <div className="flex flex-col items-center mb-8">
+          <Logo className="mb-4" size={60} />
           <h1 className="text-2xl font-bold">Create Account</h1>
-          <p className="text-muted-foreground">
-            Start automating your lead processing
-          </p>
+          <p className="text-muted-foreground">Join our platform</p>
         </div>
 
         <form onSubmit={handleRegister} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="inviteCode">Invite Code</Label>
+            <Input
+              id="inviteCode"
+              type="text"
+              placeholder="Enter your invite code"
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              required
+              className="w-full"
+              disabled={loading || googleLoading}
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -138,8 +222,40 @@ export default function RegisterPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               className="w-full"
-              disabled={loading}
+              disabled={loading || googleLoading}
             />
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Or continue with
+              </span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleGoogleSignIn}
+            disabled={loading || googleLoading || !inviteCode || !email}
+            className="w-full"
+          >
+            {googleLoading ? 'Connecting...' : 'Sign in with Google'}
+          </Button>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Or create password
+              </span>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -151,7 +267,7 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               className="w-full"
-              disabled={loading}
+              disabled={loading || googleLoading}
             />
             <div className="text-sm space-y-1">
               <p className="font-medium text-muted-foreground">Password requirements:</p>
@@ -182,14 +298,14 @@ export default function RegisterPage() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               className="w-full"
-              disabled={loading}
+              disabled={loading || googleLoading}
             />
           </div>
 
           <Button
             type="submit"
             className="w-full"
-            disabled={loading}
+            disabled={loading || googleLoading}
           >
             {loading ? 'Creating Account...' : 'Create Account'}
           </Button>
@@ -199,7 +315,7 @@ export default function RegisterPage() {
           <Button
             variant="link"
             onClick={() => router.push('/auth/login')}
-            disabled={loading}
+            disabled={loading || googleLoading}
           >
             Already have an account? Log in
           </Button>

@@ -11,7 +11,6 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().optional(),
   SUPABASE_JWT_SECRET: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
-  // Add these if you are using them in the code, even if optional.
   POSTGRES_URL: z.string().optional(),
   POSTGRES_PRISMA_URL: z.string().optional(),
   POSTGRES_URL_NON_POOLING: z.string().optional(),
@@ -43,24 +42,11 @@ export function getEnv() {
       POSTGRES_HOST: process.env.POSTGRES_HOST,
     };
 
-    // Log the raw values *before* Zod validation.
-    console.log("Environment variables before validation:", envToValidate);
-
     try {
       validatedEnv = envSchema.parse(envToValidate);
-      console.log("✅ Environment variables are valid:", validatedEnv);
     } catch (error) {
-      console.error('❌ Invalid environment variables:', error);
-      throw new Error('Invalid environment variables. See console for details.');
+      throw new Error('Invalid environment variables');
     }
-
-    // Warn if optional variables are missing
-    if (!validatedEnv.GOOGLE_CLIENT_ID) console.warn("⚠️ GOOGLE_CLIENT_ID is not set");
-    if (!validatedEnv.GOOGLE_CLIENT_SECRET) console.warn("⚠️ GOOGLE_CLIENT_SECRET is not set");
-    if (!validatedEnv.GOOGLE_REDIRECT_URI) console.warn("⚠️ GOOGLE_REDIRECT_URI is not set");
-    if (!validatedEnv.GEMINI_API_KEY) console.warn("⚠️ GEMINI_API_KEY is not set");
-    if (!validatedEnv.SUPABASE_JWT_SECRET) console.warn("⚠️ SUPABASE_JWT_SECRET is not set");
-    if (!validatedEnv.SUPABASE_SERVICE_ROLE_KEY) console.warn("⚠️ SUPABASE_SERVICE_ROLE_KEY is not set");
   }
 
   return validatedEnv;
