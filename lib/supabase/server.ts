@@ -5,8 +5,8 @@ import { getEnv } from '../env';
 export function createServerSupabaseClient(cookieStore: any) {
   const env = getEnv();
   return createServerClient<Database>(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    env.NEXT_PUBLIC_LEAD_SUPABASE_URL,
+    env.NEXT_PUBLIC_LEAD_SUPABASE_ANON_KEY,
     {
       cookies: {
         get(name: string) {

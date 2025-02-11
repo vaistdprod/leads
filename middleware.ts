@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getEnv } from './lib/env'
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -19,30 +20,10 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    // Check development mode auth first
-    if (process.env.NODE_ENV === 'development') {
-      const devAuth = request.cookies.get('dev_auth')?.value === 'true';
-      const devToken = request.cookies.get('sb-dev-auth-token')?.value;
-      
-      if (devAuth && devToken) {
-        // Copy development auth cookies to response to maintain them
-        const cookies = request.cookies.getAll();
-        cookies.forEach(cookie => {
-          if (cookie.name.startsWith('dev_auth') || cookie.name.startsWith('sb-dev-auth-token')) {
-            response.cookies.set(cookie.name, cookie.value, {
-              path: '/',
-              maxAge: 86400,
-              sameSite: 'lax',
-            });
-          }
-        });
-        return response;
-      }
-    }
-
+    const env = getEnv();
     const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0',
+      env.NEXT_PUBLIC_LEAD_SUPABASE_URL,
+      env.NEXT_PUBLIC_LEAD_SUPABASE_ANON_KEY,
       {
         cookies: {
           get(name: string) {
