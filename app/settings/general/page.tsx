@@ -23,8 +23,8 @@ import { supabase } from '@/lib/supabase/client';
 import BackButton from '@/components/ui/back-button';
 
 const generalSettingsSchema = z.object({
-  blacklistSheetId: z.string().min(1, 'Required'),
-  contactsSheetId: z.string().min(1, 'Required'),
+  blacklistSheetId: z.string().min(1, 'Povinné pole'),
+  contactsSheetId: z.string().min(1, 'Povinné pole'),
   autoExecutionEnabled: z.boolean(),
   cronSchedule: z.string().optional(),
 });
@@ -44,9 +44,13 @@ export default function GeneralSettingsPage() {
 
   const loadSettings = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+
       const { data: settings, error } = await supabase
         .from('settings')
         .select('*')
+        .eq('user_id', user.id)
         .single();
 
       if (error) throw error;
@@ -60,8 +64,8 @@ export default function GeneralSettingsPage() {
         });
       }
     } catch (error) {
-      console.error('Failed to load settings:', error);
-      toast.error('Failed to load settings. Using defaults.');
+      console.error('Nepodařilo se načíst nastavení:', error);
+      toast.error('Nepodařilo se načíst nastavení. Používám výchozí hodnoty.');
     } finally {
       setLoading(false);
     }
@@ -69,6 +73,9 @@ export default function GeneralSettingsPage() {
 
   const onSubmit = async (values: z.infer<typeof generalSettingsSchema>) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+
       const { error } = await supabase
         .from('settings')
         .update({
@@ -78,14 +85,14 @@ export default function GeneralSettingsPage() {
           cron_schedule: values.cronSchedule,
           updated_at: new Date().toISOString(),
         })
-        .single();
+        .eq('user_id', user.id);
 
       if (error) throw error;
 
-      toast.success('Settings saved successfully');
+      toast.success('Nastavení bylo úspěšně uloženo');
     } catch (error) {
-      console.error('Failed to save settings:', error);
-      toast.error('Failed to save settings. Please try again.');
+      console.error('Nepodařilo se uložit nastavení:', error);
+      toast.error('Nepodařilo se uložit nastavení. Zkuste to prosím znovu.');
     }
   };
 
@@ -96,10 +103,10 @@ export default function GeneralSettingsPage() {
   return (
     <div className="container mx-auto py-8">
       <Card className="p-6">
-      <div className="flex justify-between items-start">
+        <div className="flex justify-between items-start">
           <BackButton />
-          <h1 className="text-2xl font-bold mb-6">General Settings</h1>
-          <div></div> {/* Empty div for spacing */}
+          <h1 className="text-2xl font-bold mb-6">Obecná Nastavení</h1>
+          <div></div>
         </div>
 
         <Form {...form}>
@@ -109,12 +116,12 @@ export default function GeneralSettingsPage() {
               name="blacklistSheetId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Blacklist Sheet ID</FormLabel>
+                  <FormLabel>ID Blacklist Sheetu</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
                   <FormDescription>
-                    The ID of your Google Sheet containing blacklisted emails.
+                    ID Google Sheetu obsahujícího blacklist emailů.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -126,12 +133,12 @@ export default function GeneralSettingsPage() {
               name="contactsSheetId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Contacts Sheet ID</FormLabel>
+                  <FormLabel>ID Kontaktů Sheetu</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
                   <FormDescription>
-                    The ID of your Google Sheet containing contacts to process.
+                    ID Google Sheetu obsahujícího kontakty ke zpracování.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -145,10 +152,10 @@ export default function GeneralSettingsPage() {
                 <FormItem className="flex items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
                     <FormLabel className="text-base">
-                      Automatic Execution
+                      Automatické Spouštění
                     </FormLabel>
                     <FormDescription>
-                      Enable automatic processing of contacts on a schedule.
+                      Povolit automatické zpracování kontaktů podle rozvrhu.
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -167,12 +174,12 @@ export default function GeneralSettingsPage() {
                 name="cronSchedule"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Schedule (Cron Expression)</FormLabel>
+                    <FormLabel>Rozvrh (Cron Výraz)</FormLabel>
                     <FormControl>
                       <Input {...field} placeholder="0 0 * * *" />
                     </FormControl>
                     <FormDescription>
-                      When to run the processing (in cron format).
+                      Kdy spouštět zpracování (v cron formátu).
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -180,7 +187,7 @@ export default function GeneralSettingsPage() {
               />
             )}
 
-            <Button type="submit">Save Settings</Button>
+            <Button type="submit">Uložit Nastavení</Button>
           </form>
         </Form>
       </Card>

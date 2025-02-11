@@ -24,7 +24,7 @@ export default function GoogleSettingsPage() {
       setAuthState(data);
     } catch (error) {
       console.error('Failed to load Google auth state:', error);
-      toast.error('Failed to load Google authentication status');
+      toast.error('Nepodařilo se načíst stav Google autentizace');
     } finally {
       setLoading(false);
     }
@@ -46,10 +46,10 @@ export default function GoogleSettingsPage() {
       }
 
       setAuthState({ isAuthenticated: false });
-      toast.success('Google authentication revoked successfully');
+      toast.success('Google autentizace byla úspěšně zrušena');
     } catch (error) {
       console.error('Failed to revoke Google auth:', error);
-      toast.error('Failed to revoke Google authentication');
+      toast.error('Nepodařilo se zrušit Google autentizaci');
     }
   };
 
@@ -71,22 +71,22 @@ export default function GoogleSettingsPage() {
       <Card className="p-6">
         <div className="flex justify-between items-start">
           <BackButton />
-          <h1 className="text-2xl font-bold mb-6">Google Integration</h1>
+          <h1 className="text-2xl font-bold mb-6">Google Integrace</h1>
           <div></div>
         </div>
 
         <div className="space-y-6">
           <div className="bg-muted p-4 rounded-lg">
-            <h3 className="font-semibold mb-2">Status</h3>
+            <h3 className="font-semibold mb-2">Stav</h3>
             <p className="text-muted-foreground">
               {authState.isAuthenticated
-                ? 'Connected to Google'
-                : 'Not connected to Google'}
+                ? 'Připojeno ke Google'
+                : 'Nepřipojeno ke Google'}
             </p>
             {authState.isAuthenticated && authState.expiryDate && (
               <div className="mt-4 space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  Token expires: {new Date(authState.expiryDate).toLocaleString()}
+                  Token vyprší: {new Date(authState.expiryDate).toLocaleString()}
                 </p>
               </div>
             )}
@@ -98,13 +98,13 @@ export default function GoogleSettingsPage() {
                 variant="destructive"
                 onClick={handleRevoke}
               >
-                Revoke Access
+                Zrušit přístup
               </Button>
             ) : (
               <Button
                 onClick={handleGoogleAuth}
               >
-                Connect Google Account
+                Připojit Google účet
               </Button>
             )}
           </div>

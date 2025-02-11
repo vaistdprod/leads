@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { supabase, isDevelopment } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/client';
+import { isDevelopment } from '@/lib/env';
+import { useAuth } from '@/lib/hooks/use-auth';
 
 export default function SettingsLayout({
   children,
@@ -12,57 +14,17 @@ export default function SettingsLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [isLoading, setIsLoading] = useState(true);
+  const { isLoading, isAuthenticated, setupCompleted } = useAuth();
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        // Check if we're in development mode
-        if (isDevelopment) {
-          const isDevAuth = localStorage.getItem('dev_auth') === 'true';
-          if (!isDevAuth) {
-            router.push('/auth/login');
-            return;
-          }
-          setIsLoading(false);
-          return;
-        }
-
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Auth error:', error);
-          router.push('/auth/login');
-          return;
-        }
-
-        if (!session) {
-          router.push('/auth/login');
-          return;
-        }
-
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        router.push('/auth/login');
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        router.replace('/auth/login');
+      } else if (setupCompleted === false) {
+        router.replace('/setup/welcome');
       }
-    };
-
-    checkAuth();
-
-    // Set up auth state listener
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT' || !session) {
-        router.push('/auth/login');
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [router]);
+    }
+  }, [isLoading, isAuthenticated, setupCompleted, router]);
 
   const currentTab = pathname.split('/').pop() || 'general';
 
@@ -70,7 +32,7 @@ export default function SettingsLayout({
     router.push(`/settings/${value}`);
   };
 
-  if (isLoading) {
+  if (isLoading || !isAuthenticated || !setupCompleted) {
     return (
       <div className="container mx-auto py-8 px-4">
         <div className="animate-pulse">
@@ -85,9 +47,9 @@ export default function SettingsLayout({
     <div className="container mx-auto py-8 px-4">
       <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-8">
         <TabsList className="grid grid-cols-3 w-full">
-          <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="general">Obecné</TabsTrigger>
           <TabsTrigger value="google">Google</TabsTrigger>
-          <TabsTrigger value="ai">AI Settings</TabsTrigger>
+          <TabsTrigger value="ai">AI Nastavení</TabsTrigger>
         </TabsList>
         {children}
       </Tabs>

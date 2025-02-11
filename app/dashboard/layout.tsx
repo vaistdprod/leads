@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { supabase, isDevelopment, isDevAuthenticated } from '@/lib/supabase/client';
 import { useTheme } from 'next-themes';
-import { MoonIcon, SunIcon } from 'lucide-react';
+import { MoonIcon, SunIcon, Settings } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { useAuth } from '@/lib/hooks/use-auth';
 
 export default function DashboardLayout({
   children,
@@ -15,79 +15,24 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [isLoading, setIsLoading] = useState(true);
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const { isLoading, isAuthenticated, setupCompleted, initialize } = useAuth();
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    initialize();
+  }, [initialize]);
 
   useEffect(() => {
-    const checkAuthAndSetup = async () => {
-      try {
-        if (isDevelopment) {
-          if (!isDevAuthenticated()) {
-            router.push('/auth/login');
-            return;
-          }
-          setIsLoading(false);
-          return;
-        }
-
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Auth error:', error);
-          router.push('/auth/login');
-          return;
-        }
-
-        if (!session) {
-          router.push('/auth/login');
-          return;
-        }
-
-        // Check if setup is completed
-        const { data: profile, setupError } = await supabase
-          .from('user_profiles')
-          .select('setup_completed')
-          .eq('id', session.user.id)
-          .single();
-
-        if (setupError) {
-          console.error("Error fetching user profile:", setupError);
-          // Handle error - maybe show a message, but don't necessarily redirect
-          return;
-        }
-
-        if (!profile?.setup_completed) {
-          router.push('/setup/welcome');
-          return;
-        }
-
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        router.push('/auth/login');
+    if (!isLoading) {
+      if (!isAuthenticated) {
+        router.replace('/auth/login');
+      } else if (setupCompleted === false) {
+        router.replace('/setup/welcome');
       }
-    };
-
-    checkAuthAndSetup();
-
-    // Set up auth state listener
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT' || !session) {
-        router.push('/auth/login');
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [router]);
+    }
+  }, [isLoading, isAuthenticated, setupCompleted, router]);
 
   const currentTab = pathname.split('/').pop() || 'overview';
 
@@ -95,16 +40,29 @@ export default function DashboardLayout({
     router.push(`/dashboard/${value}`);
   };
 
-  if (isLoading) {
+  if (isLoading || !isAuthenticated || !setupCompleted) {
     return (
-      <div className="min-h-screen bg-background animate-pulse" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-center">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="flex justify-end p-4">
-        {mounted ? (
+      <div className="flex justify-between items-center p-4">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => router.push('/settings')}
+        >
+          <Settings className="h-[1.2rem] w-[1.2rem]" />
+          <span className="sr-only">Settings</span>
+        </Button>
+        
+        {mounted && (
           <Button
             variant="ghost"
             size="icon"
@@ -114,13 +72,13 @@ export default function DashboardLayout({
             <MoonIcon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             <span className="sr-only">Toggle theme</span>
           </Button>
-        ) : null}
+        )}
       </div>
       <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-8">
         <TabsList className="container mx-auto px-4 grid grid-cols-3 w-full">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="overview">Přehled</TabsTrigger>
+          <TabsTrigger value="history">Historie</TabsTrigger>
+          <TabsTrigger value="analytics">Analytika</TabsTrigger>
         </TabsList>
         {children}
       </Tabs>

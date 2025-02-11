@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { isDevelopment } from '@/lib/supabase/client';
+import { isDevelopment } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
 

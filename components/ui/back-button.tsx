@@ -8,7 +8,11 @@ export function BackButton() {
   const router = useRouter();
 
   return (
-    <Button variant="outline" onClick={() => router.back()} size="icon">
+    <Button 
+      variant="outline" 
+      onClick={() => router.push('/dashboard')} 
+      size="icon"
+    >
       <ArrowLeft className="h-4 w-4" />
     </Button>
   );

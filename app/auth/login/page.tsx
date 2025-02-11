@@ -8,6 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabase/client';
+import { isDevelopment } from '@/lib/env';
+import { Logo } from '@/components/ui/logo';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,6 +21,16 @@ export default function LoginPage() {
   useEffect(() => {
     const checkSession = async () => {
       try {
+        if (isDevelopment) {
+          const devAuth = localStorage.getItem('dev_auth');
+          if (devAuth === 'true') {
+            router.push('/dashboard');
+            return;
+          }
+          setInitialized(true);
+          return;
+        }
+
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
         
@@ -48,11 +60,6 @@ export default function LoginPage() {
       return false;
     }
 
-    if (password.length < 6) {
-      toast.error('Heslo musí mít alespoň 6 znaků');
-      return false;
-    }
-
     return true;
   };
 
@@ -63,34 +70,44 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      if (isDevelopment) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        localStorage.setItem('dev_auth', 'true');
+        toast.success('Development mode: Login successful');
+        router.push('/dashboard');
+        return;
+      }
+
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (signInError) {
+        console.error('Login error:', signInError);
+        
         if (signInError.message.includes('Invalid login credentials')) {
-          toast.error('Neplatný email nebo heslo');
+          toast.error('Invalid email or password');
         } else if (signInError.message.includes('rate limit')) {
-          toast.error('Příliš mnoho pokusů. Zkuste to prosím později');
+          toast.error('Too many attempts. Please try again in a few minutes');
         } else if (signInError.message.includes('network')) {
-          toast.error('Chyba sítě. Zkontrolujte prosím své připojení');
+          toast.error('Network error. Please check your connection');
         } else {
-          toast.error('Nepodařilo se přihlásit. Zkuste to prosím znovu');
+          toast.error('Login failed. Please try again');
         }
         return;
       }
 
       if (data.session) {
-        toast.success('Přihlášení proběhlo úspěšně');
+        toast.success('Login successful');
         await new Promise(resolve => setTimeout(resolve, 300));
         router.push('/dashboard');
       } else {
-        toast.error('Nepodařilo se získat session. Zkuste to prosím znovu');
+        toast.error('Failed to get session. Please try again');
       }
     } catch (error) {
       console.error('Login error:', error);
-      toast.error('Došlo k neočekávané chybě. Zkuste to prosím později');
+      toast.error('An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -98,10 +115,10 @@ export default function LoginPage() {
 
   if (!initialized) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-full max-w-md p-8">
           <div className="text-center">
-            <p className="text-muted-foreground">Načítání...</p>
+            <p className="text-muted-foreground">Loading...</p>
           </div>
         </Card>
       </div>
@@ -109,9 +126,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <Card className="w-full max-w-md p-8">
-        <div className="text-center mb-8">
+        <div className="flex flex-col items-center mb-8">
+          <Logo className="mb-4" size={60} />
           <h1 className="text-2xl font-bold">Vítejte zpět</h1>
           <p className="text-muted-foreground">Přihlaste se ke svému účtu</p>
         </div>
@@ -139,13 +157,9 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={6}
               className="w-full"
               disabled={loading}
             />
-            <p className="text-sm text-muted-foreground">
-              Musí mít alespoň 6 znaků
-            </p>
           </div>
 
           <Button
@@ -156,16 +170,6 @@ export default function LoginPage() {
             {loading ? 'Přihlašování...' : 'Přihlásit se'}
           </Button>
         </form>
-
-        <div className="mt-4 text-center">
-          <Button
-            variant="link"
-            onClick={() => router.push('/auth/register')}
-            disabled={loading}
-          >
-            Nemáte účet? Zaregistrujte se
-          </Button>
-        </div>
       </Card>
     </div>
   );

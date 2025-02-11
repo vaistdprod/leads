@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -20,8 +21,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import { supabase, isDevelopment, getMockData } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase/client';
+import { isDevelopment } from '@/lib/env';
+import BackButton from '@/components/ui/back-button';
 
 const aiSettingsSchema = z.object({
   geminiApiKey: z.string().min(1, 'Required'),
@@ -67,7 +69,8 @@ export default function AiSettingsPage() {
       let data;
 
       if (isDevelopment) {
-        data = (await getMockData(mockAiSettings)).data;
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        data = mockAiSettings;
       } else {
         const { data: settings, error } = await supabase
           .from('settings')
@@ -91,8 +94,8 @@ export default function AiSettingsPage() {
         });
       }
     } catch (error) {
-      console.error('nepodařilo se načíst nastavení ai:', error);
-      toast.error('nepodařilo se načíst nastavení ai. používám výchozí hodnoty.');
+      console.error('Failed to load AI settings:', error);
+      toast.error('Failed to load AI settings. Using defaults.');
     } finally {
       setLoading(false);
     }
@@ -101,8 +104,8 @@ export default function AiSettingsPage() {
   const onSubmit = async (values: z.infer<typeof aiSettingsSchema>) => {
     try {
       if (isDevelopment) {
-        await getMockData(null);
-        toast.success('vývojový režim: nastavení ai uloženo');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        toast.success('Development mode: AI settings saved');
         return;
       }
 
@@ -119,14 +122,14 @@ export default function AiSettingsPage() {
           email_prompt: values.emailPrompt,
           updated_at: new Date().toISOString(),
         })
-        .single();
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
 
       if (error) throw error;
 
-      toast.success('nastavení ai úspěšně uloženo');
+      toast.success('AI settings saved successfully');
     } catch (error) {
-      console.error('nepodařilo se uložit nastavení ai:', error);
-      toast.error('nepodařilo se uložit nastavení ai. zkuste to prosím znovu.');
+      console.error('Failed to save AI settings:', error);
+      toast.error('Failed to save AI settings. Please try again.');
     }
   };
 
@@ -137,7 +140,11 @@ export default function AiSettingsPage() {
   return (
     <div className="container mx-auto py-8">
       <Card className="p-6">
-        <h1 className="text-2xl font-bold mb-6">nastavení ai</h1>
+        <div className="flex justify-between items-start">
+          <BackButton />
+          <h1 className="text-2xl font-bold mb-6">Nastavení AI</h1>
+          <div></div>
+        </div>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -146,12 +153,12 @@ export default function AiSettingsPage() {
               name="geminiApiKey"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>klíč gemini api</FormLabel>
+                  <FormLabel>Gemini API klíč</FormLabel>
                   <FormControl>
                     <Input type="password" {...field} />
                   </FormControl>
                   <FormDescription>
-                    váš klíč gemini api pro operace ai
+                    Váš Gemini API klíč pro operace AI
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -163,7 +170,7 @@ export default function AiSettingsPage() {
               name="temperature"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>teplota ({field.value})</FormLabel>
+                  <FormLabel>Teplota ({field.value})</FormLabel>
                   <FormControl>
                     <Slider
                       min={0}
@@ -174,7 +181,7 @@ export default function AiSettingsPage() {
                     />
                   </FormControl>
                   <FormDescription>
-                    řídí náhodnost ve výstupu (0 = deterministický, 1 = kreativní)
+                    Řídí náhodnost ve výstupu (0 = deterministický, 1 = kreativní)
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -186,7 +193,7 @@ export default function AiSettingsPage() {
               name="topK"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>top k ({field.value})</FormLabel>
+                  <FormLabel>Top K ({field.value})</FormLabel>
                   <FormControl>
                     <Slider
                       min={1}
@@ -197,7 +204,7 @@ export default function AiSettingsPage() {
                     />
                   </FormControl>
                   <FormDescription>
-                    omezuje počet tokenů zvažovaných pro každý krok
+                    Omezuje počet tokenů zvažovaných pro každý krok
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -209,7 +216,7 @@ export default function AiSettingsPage() {
               name="topP"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>top p ({field.value})</FormLabel>
+                  <FormLabel>Top P ({field.value})</FormLabel>
                   <FormControl>
                     <Slider
                       min={0}
@@ -220,7 +227,7 @@ export default function AiSettingsPage() {
                     />
                   </FormControl>
                   <FormDescription>
-                    řídí rozmanitost výstupu
+                    Řídí rozmanitost výstupu
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -234,10 +241,10 @@ export default function AiSettingsPage() {
                 <FormItem className="flex items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
                     <FormLabel className="text-base">
-                      použít vyhledávání google
+                      Použít vyhledávání Google
                     </FormLabel>
                     <FormDescription>
-                      povolit vyhledávání google pro obohacení potenciálních zákazníků
+                      Povolit vyhledávání Google pro obohacení potenciálních zákazníků
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -255,16 +262,16 @@ export default function AiSettingsPage() {
               name="enrichmentPrompt"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>šablona výzvy k obohacení</FormLabel>
+                  <FormLabel>Šablona výzvy k obohacení</FormLabel>
                   <FormControl>
                     <Textarea
                       {...field}
                       rows={5}
-                      placeholder="zadejte šablonu výzvy pro obohacení potenciálních zákazníků..."
+                      placeholder="Zadejte šablonu výzvy pro obohacení potenciálních zákazníků..."
                     />
                   </FormControl>
                   <FormDescription>
-                    šablona pro generování výzev k obohacení potenciálních zákazníků. použijte {'{firstName}'}, {'{lastName}'} atd. pro proměnné.
+                    Šablona pro generování výzev k obohacení potenciálních zákazníků. Použijte {'{firstName}'}, {'{lastName}'} atd. pro proměnné.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -276,26 +283,34 @@ export default function AiSettingsPage() {
               name="emailPrompt"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>šablona výzvy k emailu</FormLabel>
+                  <FormLabel>Šablona výzvy k emailu</FormLabel>
                   <FormControl>
                     <Textarea
                       {...field}
                       rows={5}
-                      placeholder="zadejte šablonu výzvy pro generování emailu..."
+                      placeholder="Zadejte šablonu výzvy pro generování emailu..."
                     />
                   </FormControl>
                   <FormDescription>
-                    šablona pro generování výzev k emailu. použijte {'{firstName}'}, {'{enrichmentData}'} atd. pro proměnné.
+                    Šablona pro generování výzev k emailu. Použijte {'{firstName}'}, {'{enrichmentData}'} atd. pro proměnné.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <Button type="submit">uložit nastavení ai</Button>
+            <div className="flex justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push('/dashboard')}
+              >
+                Zpět
+              </Button>
+              <Button type="submit">Uložit nastavení</Button>
+            </div>
           </form>
         </Form>
-        <Button onClick={() => router.back()}>zpět</Button>
       </Card>
     </div>
   );

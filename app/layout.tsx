@@ -1,34 +1,48 @@
 import './globals.css';
-    import type { Metadata } from 'next';
-    import { Inter } from 'next/font/google';
-    import { Toaster } from "@/components/ui/sonner";
-    import { ThemeProvider } from "@/components/theme-provider"
+import type { Metadata } from 'next';
+import { Plus_Jakarta_Sans } from 'next/font/google';
+import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/components/theme-provider";
 
-    const inter = Inter({ subsets: ['latin'] });
+const plusJakartaSans = Plus_Jakarta_Sans({ 
+  subsets: ['latin'],
+  variable: '--font-plus-jakarta-sans',
+});
 
-    export const metadata: Metadata = {
-      title: 'Lead Processing Automation',
-      description: 'Automated lead processing and outreach system',
-    };
+export const metadata: Metadata = {
+  title: 'Lead Processing Automation',
+  description: 'Automated lead processing and outreach system',
+  robots: {
+    index: false,
+    follow: false,
+  },
+  icons: {
+    icon: '/favicon.svg',
+  },
+};
 
-    export default function RootLayout({
-      children,
-    }: {
-      children: React.ReactNode;
-    }) {
-      return (
-        <html lang="en" suppressHydrationWarning>
-          <body className={inter.className}>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="system"
-              enableSystem
-              disableTransitionOnChange
-            >
-              {children}
-              <Toaster />
-            </ThemeProvider>
-          </body>
-        </html>
-      );
-    }
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="cs" suppressHydrationWarning className={plusJakartaSans.variable}>
+      <head>
+        <meta name="robots" content="noindex,nofollow" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+      </head>
+      <body className={plusJakartaSans.className}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          {children}
+          <Toaster />
+        </ThemeProvider>
+      </body>
+    </html>
+  );
+}
