@@ -7,45 +7,81 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { supabase } from '@/lib/supabase/client';
+import { supabase, isDevelopment, setDevAuth, simulateDelay, isDevAuthenticated } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
-  // Check if already logged in
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log('Supabase session in login page:', session);
+      try {
+        if (isDevelopment && isDevAuthenticated()) {
+          router.push('/dashboard');
+          return;
+        }
 
-      if (session) {
-        router.push('/dashboard');
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        
+        if (session) {
+          router.push('/dashboard');
+          return;
+        }
+      } catch (error) {
+        console.error('Session check failed:', error);
+      } finally {
+        setInitialized(true);
       }
     };
+
     checkSession();
   }, [router]);
 
+  const validateForm = () => {
+    if (!email || !password) {
+      toast.error('Vyplňte prosím všechna pole');
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error('Zadejte prosím platnou emailovou adresu');
+      return false;
+    }
+
+    if (password.length < 6) {
+      toast.error('Heslo musí mít alespoň 6 znaků');
+      return false;
+    }
+
+    return true;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validateForm()) return;
+    
     setLoading(true);
 
     try {
-      // Test Supabase connection before attempting login
-      try {
-        const { error: pingError } = await supabase.auth.getSession();
-        if (pingError) {
-          throw new Error('Nelze se připojit ke službě ověřování');
+      if (isDevelopment) {
+        await simulateDelay(500);
+        const mockSession = await setDevAuth();
+        if (mockSession) {
+          toast.success('Přihlášení proběhlo úspěšně (vývojový režim)');
+          await simulateDelay(300);
+          router.push('/dashboard');
+        } else {
+          toast.error('Nepodařilo se nastavit vývojový režim');
         }
-      } catch (pingError) {
-        console.error('Connection test failed:', pingError);
-        toast.error('Nelze se připojit ke službě ověřování. Zkuste to prosím později.');
         return;
       }
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -54,30 +90,47 @@ export default function LoginPage() {
         if (signInError.message.includes('Invalid login credentials')) {
           toast.error('Neplatný email nebo heslo');
         } else if (signInError.message.includes('rate limit')) {
-          toast.error('Příliš mnoho pokusů. Zkuste to prosím později.');
+          toast.error('Příliš mnoho pokusů. Zkuste to prosím později');
         } else if (signInError.message.includes('network')) {
-          toast.error('Chyba sítě. Zkontrolujte prosím své připojení a zkuste to znovu.');
+          toast.error('Chyba sítě. Zkontrolujte prosím své připojení');
         } else {
-          toast.error('Nepodařilo se přihlásit. Zkuste to prosím znovu.');
+          toast.error('Nepodařilo se přihlásit. Zkuste to prosím znovu');
         }
         return;
       }
 
-      toast.success('Přihlášení proběhlo úspěšně');
-      router.push('/dashboard');
-    } catch (error: any) {
+      if (data.session) {
+        toast.success('Přihlášení proběhlo úspěšně');
+        await simulateDelay(300);
+        router.push('/dashboard');
+      } else {
+        toast.error('Nepodařilo se získat session. Zkuste to prosím znovu');
+      }
+    } catch (error) {
       console.error('Login error:', error);
-      toast.error('Došlo k neočekávané chybě. Zkuste to prosím později.');
+      toast.error('Došlo k neočekávané chybě. Zkuste to prosím později');
     } finally {
       setLoading(false);
     }
   };
 
+  if (!initialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Card className="w-full max-w-md p-8">
+          <div className="text-center">
+            <p className="text-muted-foreground">Načítání...</p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold">Vítejte Zpět</h1>
+          <h1 className="text-2xl font-bold">Vítejte zpět</h1>
           <p className="text-muted-foreground">Přihlaste se ke svému účtu</p>
         </div>
 
@@ -87,7 +140,7 @@ export default function LoginPage() {
             <Input
               id="email"
               type="email"
-              placeholder="you@example.com"
+              placeholder="vas@email.cz"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -128,7 +181,7 @@ export default function LoginPage() {
             onClick={() => router.push('/auth/register')}
             disabled={loading}
           >
-            Nemáte účet? Zaregistrovat se
+            Nemáte účet? Zaregistrujte se
           </Button>
         </div>
       </Card>

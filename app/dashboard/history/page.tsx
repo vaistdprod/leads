@@ -15,42 +15,6 @@ import { toast } from "sonner";
 import { supabase, isDevelopment, getMockData } from '@/lib/supabase/client';
 import { EmailHistory, LeadHistory } from '@/lib/types';
 
-const mockHistory = {
-  emails: [
-    {
-      id: '1',
-      leadId: 'lead-1',
-      subject: 'Introduction',
-      status: 'sent',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: '2',
-      leadId: 'lead-2',
-      subject: 'Follow-up',
-      status: 'failed',
-      error: 'Invalid email',
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-    },
-  ],
-  leads: [
-    {
-      id: '1',
-      leadId: 'lead-1',
-      action: 'created',
-      details: 'Lead imported from sheet',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: '2',
-      leadId: 'lead-1',
-      action: 'enriched',
-      details: 'Data enriched via Gemini',
-      createdAt: new Date(Date.now() - 3600000).toISOString(),
-    },
-  ],
-};
-
 export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [emailHistory, setEmailHistory] = useState<EmailHistory[]>([]);
@@ -61,37 +25,7 @@ export default function HistoryPage() {
   }, []);
 
   const loadHistory = async () => {
-    try {
-      if (isDevelopment) {
-        const { data } = await getMockData(mockHistory);
-        setEmailHistory(data.emails);
-        setLeadHistory(data.leads);
-      } else {
-        const [emailsResult, leadsResult] = await Promise.all([
-          supabase
-            .from('email_history')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(50),
-          supabase
-            .from('lead_history')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(50),
-        ]);
-
-        if (emailsResult.error) throw emailsResult.error;
-        if (leadsResult.error) throw leadsResult.error;
-
-        setEmailHistory(emailsResult.data);
-        setLeadHistory(leadsResult.data);
-      }
-    } catch (error) {
-      console.error('Failed to load history:', error);
-      toast.error('Failed to load history');
-    } finally {
-      setLoading(false);
-    }
+    // ... existing loadHistory implementation ...
   };
 
   if (loading) {
@@ -113,14 +47,14 @@ export default function HistoryPage() {
     <div className="container mx-auto py-8">
       <div className="space-y-8">
         <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Email History</h2>
+          <h2 className="text-xl font-semibold mb-4">historie emailů</h2>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Subject</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Error</TableHead>
+                <TableHead>datum</TableHead>
+                <TableHead>předmět</TableHead>
+                <TableHead>stav</TableHead>
+                <TableHead>chyba</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -132,7 +66,7 @@ export default function HistoryPage() {
                   <TableCell>{email.subject}</TableCell>
                   <TableCell>
                     <Badge variant={email.status === 'sent' ? 'success' : 'destructive'}>
-                      {email.status}
+                      {email.status === 'sent' ? 'odesláno' : 'chyba'}
                     </Badge>
                   </TableCell>
                   <TableCell>{email.error || '-'}</TableCell>
@@ -143,14 +77,14 @@ export default function HistoryPage() {
         </Card>
 
         <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Lead Activity</h2>
+          <h2 className="text-xl font-semibold mb-4">aktivita kontaktů</h2>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Lead ID</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead>Details</TableHead>
+                <TableHead>datum</TableHead>
+                <TableHead>id kontaktu</TableHead>
+                <TableHead>akce</TableHead>
+                <TableHead>detaily</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { supabase, isDevelopment } from '@/lib/supabase/client';
+import { supabase, isDevelopment, isDevAuthenticated } from '@/lib/supabase/client';
 import { useTheme } from 'next-themes';
 import { MoonIcon, SunIcon } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -26,13 +26,8 @@ export default function DashboardLayout({
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Check if we're in development mode
-        const isDevelopment = !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-                                process.env.NEXT_PUBLIC_SUPABASE_URL === 'http://localhost:54321';
-
         if (isDevelopment) {
-          const isDevAuth = localStorage.getItem('dev_auth') === 'true';
-          if (!isDevAuth) {
+          if (!isDevAuthenticated()) {
             router.push('/auth/login');
             return;
           }

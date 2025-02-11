@@ -141,7 +141,7 @@
         <div className="container mx-auto py-8">
           <div className="space-y-8">
             <Card className="p-6">
-              <h2 className="text-xl font-semibold mb-4">API Usage</h2>
+              <h2 className="text-xl font-semibold mb-4">Využití api</h2>
               <div className="h-[400px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={apiUsage} margin={chartConfig.margin}>
@@ -205,7 +205,7 @@
             </Card>
 
             <Card className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Success Rates</h2>
+              <h2 className="text-xl font-semibold mb-4">Statistiky úspěšnosti</h2>
               <div className="h-[400px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={successRates} margin={chartConfig.margin}>
@@ -255,7 +255,7 @@
             </Card>
             <div className="mt-8">
               <Button asChild variant="outline">
-                <Link href="/dashboard">Go Back</Link>
+                <Link href="/dashboard">Zpět</Link>
               </Button>
             </div>
           </div>

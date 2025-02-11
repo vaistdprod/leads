@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { supabase } from '@/lib/supabase/client';
+import { supabase, isDevelopment } from '@/lib/supabase/client';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -16,19 +16,44 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const validateForm = () => {
+    if (!email || !password || !confirmPassword) {
+      toast.error('Vyplňte prosím všechna pole');
+      return false;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error('Hesla se neshodují');
+      return false;
+    }
+
+    if (password.length < 6) {
+      toast.error('Heslo musí mít alespoň 6 znaků');
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error('Zadejte prosím platnou emailovou adresu');
+      return false;
+    }
+
+    return true;
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!validateForm()) return;
+    
+    setLoading(true);
+
     try {
-      setLoading(true);
-
-      if (password !== confirmPassword) {
-        toast.error('Hesla se neshodují');
-        return;
-      }
-
-      if (password.length < 6) {
-        toast.error('Heslo musí mít alespoň 6 znaků');
+      if (isDevelopment) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        localStorage.setItem('dev_auth', 'true');
+        toast.success('Registrace proběhla úspěšně (vývojový režim)');
+        router.push('/setup/welcome');
         return;
       }
 
@@ -42,26 +67,26 @@ export default function RegisterPage() {
 
       if (signUpError) {
         if (signUpError.message.includes('rate limit')) {
-          toast.error('Příliš mnoho pokusů. Zkuste to prosím později.');
+          toast.error('Příliš mnoho pokusů. Zkuste to prosím později');
         } else if (signUpError.message.includes('valid email')) {
           toast.error('Zadejte prosím platnou emailovou adresu');
         } else if (signUpError.message.includes('password')) {
           toast.error('Heslo musí mít alespoň 6 znaků');
         } else if (signUpError.message.includes('network')) {
-          toast.error('Chyba sítě. Zkontrolujte prosím své připojení a zkuste to znovu.');
+          toast.error('Chyba sítě. Zkontrolujte prosím své připojení');
         } else {
-          toast.error(signUpError.message || 'Registrace selhala. Zkuste to prosím znovu.');
+          toast.error('Registrace selhala. Zkuste to prosím znovu');
         }
         return;
       }
 
       if (data?.user) {
-        toast.success('Registrace proběhla úspěšně! Zkontrolujte prosím svůj email pro ověření účtu.');
+        toast.success('Registrace proběhla úspěšně! Zkontrolujte prosím svůj email');
         router.push('/setup/welcome');
       }
     } catch (error) {
       console.error('Registration error:', error);
-      toast.error('Došlo k neočekávané chybě. Zkuste to prosím později.');
+      toast.error('Došlo k neočekávané chybě. Zkuste to prosím později');
     } finally {
       setLoading(false);
     }
@@ -71,7 +96,7 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <Card className="w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold">Vytvořit Účet</h1>
+          <h1 className="text-2xl font-bold">Vytvořit účet</h1>
           <p className="text-muted-foreground">Začněte s automatizací zpracování potenciálních zákazníků</p>
         </div>
 
@@ -81,7 +106,7 @@ export default function RegisterPage() {
             <Input
               id="email"
               type="email"
-              placeholder="you@example.com"
+              placeholder="vas@email.cz"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -108,7 +133,7 @@ export default function RegisterPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Potvrďte Heslo</Label>
+            <Label htmlFor="confirmPassword">Potvrďte heslo</Label>
             <Input
               id="confirmPassword"
               type="password"
@@ -126,7 +151,7 @@ export default function RegisterPage() {
             className="w-full"
             disabled={loading}
           >
-            {loading ? 'Vytváření účtu...' : 'Vytvořit Účet'}
+            {loading ? 'Vytváření účtu...' : 'Vytvořit účet'}
           </Button>
         </form>
 
@@ -136,7 +161,7 @@ export default function RegisterPage() {
             onClick={() => router.push('/auth/login')}
             disabled={loading}
           >
-            Již máte účet? Přihlásit se
+            Již máte účet? Přihlaste se
           </Button>
         </div>
       </Card>
