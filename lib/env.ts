@@ -30,6 +30,9 @@ export function getEnv() {
       })
     };
 
+    // Add more detailed logging here
+    console.log("Environment variables before validation:", envToValidate);
+
     const result = envSchema.safeParse(envToValidate);
 
     if (!result.success) {
@@ -47,6 +50,9 @@ export function getEnv() {
 
     validatedEnv = result.data;
 
+    // Log validated environment variables
+    console.log("✅ Environment variables are valid:", validatedEnv);
+
     // Warn if optional variables are missing
     if (!validatedEnv.GOOGLE_CLIENT_ID) console.warn("⚠️ GOOGLE_CLIENT_ID is not set");
     if (!validatedEnv.GOOGLE_CLIENT_SECRET) console.warn("⚠️ GOOGLE_CLIENT_SECRET is not set");
@@ -54,8 +60,6 @@ export function getEnv() {
     if (!validatedEnv.GEMINI_API_KEY) console.warn("⚠️ GEMINI_API_KEY is not set");
     if (!validatedEnv.SUPABASE_JWT_SECRET) console.warn("⚠️ SUPABASE_JWT_SECRET is not set");
     if (!validatedEnv.SUPABASE_SERVICE_ROLE_KEY) console.warn("⚠️ SUPABASE_SERVICE_ROLE_KEY is not set");
-
-    console.log("✅ Environment variables are valid");
   }
 
   return validatedEnv;
