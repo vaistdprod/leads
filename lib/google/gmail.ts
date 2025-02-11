@@ -1,4 +1,4 @@
-import { isDevelopment } from '@/lib/supabase/client';
+import { isDevelopment } from '@/lib/env';
 
 export async function sendEmail(to: string, subject: string, body: string) {
   // In development mode, just log the email

@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server';
-import { createMockSession } from '@/lib/supabase/client';
 import { cookies } from 'next/headers';
+import { createMockSession } from '@/lib/supabase/client';
+import { isDevelopment } from '@/lib/env';
 
 export async function POST() {
+  if (!isDevelopment) {
+    return NextResponse.json({ error: 'Mock login only available in development mode' }, { status: 403 });
+  }
+
   const mockSession = createMockSession();
   const sessionString = JSON.stringify(mockSession);
 
-  // Await cookies() call
-  const cookieStore = await cookies();
+  const cookieStore = cookies();
   cookieStore.set('sb-mock-session', sessionString, {
     path: '/',
     httpOnly: true,
@@ -24,9 +28,12 @@ export async function POST() {
 }
 
 export async function GET() {
-  // Await cookies() call
-  const cookieStore = await cookies();
-  const storedSession = await cookieStore.get('sb-mock-session');
+  if (!isDevelopment) {
+    return NextResponse.json({ success: false });
+  }
+
+  const cookieStore = cookies();
+  const storedSession = cookieStore.get('sb-mock-session');
 
   if (!storedSession?.value) {
     return NextResponse.json({ success: false });
