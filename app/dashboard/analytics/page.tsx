@@ -1,0 +1,264 @@
+"use client";
+
+    import { useState, useEffect } from 'react';
+    import { Card } from "@/components/ui/card";
+    import {
+      LineChart,
+      Line,
+      XAxis,
+      YAxis,
+      CartesianGrid,
+      Tooltip,
+      ResponsiveContainer,
+      BarChart,
+      Bar,
+      Legend,
+    } from 'recharts';
+    import { toast } from "sonner";
+    import { supabase, isDevelopment, getMockData } from '@/lib/supabase/client';
+    import { ApiUsage } from '@/lib/types';
+    import Link from 'next/link';
+    import { Button } from '@/components/ui/button';
+
+    const mockAnalytics = {
+      apiUsage: [
+        { date: '2025-01-01', gemini: 150, gmail: 75, sheets: 30, disify: 45 },
+        { date: '2025-01-02', gemini: 180, gmail: 90, sheets: 35, disify: 50 },
+        { date: '2025-01-03', gemini: 120, gmail: 60, sheets: 25, disify: 40 },
+      ],
+      successRates: [
+        { date: '2025-01-01', success: 85, failure: 15 },
+        { date: '2025-01-02', success: 90, failure: 10 },
+        { date: '2025-01-03', success: 88, failure: 12 },
+      ],
+    };
+
+    // Chart configuration
+    const chartConfig = {
+      margin: { top: 20, right: 30, left: 20, bottom: 20 },
+      axisProps: {
+        scale: 'auto',
+        tickCount: 5,
+        tickSize: 6,
+        tickMargin: 6,
+        height: 60,
+        width: 60,
+        fontSize: 12,
+        stroke: 'var(--border)',
+      },
+      tooltipStyle: {
+        backgroundColor: 'var(--background)',
+        border: '1px solid var(--border)',
+        borderRadius: '8px',
+      },
+      lineProps: {
+        strokeWidth: 2,
+        dot: { strokeWidth: 2 },
+        activeDot: { strokeWidth: 2, r: 6 },
+      },
+      barProps: {
+        radius: [4, 4, 0, 0],
+      },
+    };
+
+    export default function AnalyticsPage() {
+      const [loading, setLoading] = useState(true);
+      const [apiUsage, setApiUsage] = useState<any[]>([]);
+      const [successRates, setSuccessRates] = useState<any[]>([]);
+
+      useEffect(() => {
+        loadAnalytics();
+      }, []);
+
+      const loadAnalytics = async () => {
+        try {
+          if (isDevelopment) {
+            const { data } = await getMockData(mockAnalytics);
+            setApiUsage(data.apiUsage);
+            setSuccessRates(data.successRates);
+          } else {
+            // Load API usage data
+            const { data: usageData, error: usageError } = await supabase
+              .from('api_usage')
+              .select('*')
+              .order('created_at', { ascending: true });
+
+            if (usageError) throw usageError;
+
+            // Process API usage data
+            const processedUsage = processApiUsageData(usageData);
+            setApiUsage(processedUsage);
+
+            // Load success rates
+            const { data: successData, error: successError } = await supabase
+              .from('processing_logs')
+              .select('*')
+              .order('created_at', { ascending: true });
+
+            if (successError) throw successError;
+
+            // Process success rates data
+            const processedRates = processSuccessRatesData(successData);
+            setSuccessRates(processedRates);
+          }
+        } catch (error) {
+          console.error('Failed to load analytics:', error);
+          toast.error('Failed to load analytics data');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const processApiUsageData = (data: ApiUsage[]) => {
+        // Group data by date and service
+        const grouped = data.reduce((acc: any, curr) => {
+          const date = new Date(curr.createdAt).toISOString().split('T')[0];
+          if (!acc[date]) {
+            acc[date] = { date, gemini: 0, gmail: 0, sheets: 0, disify: 0 };
+          }
+          acc[date][curr.service]++;
+          return acc;
+        }, {});
+
+        return Object.values(grouped);
+      };
+
+      const processSuccessRatesData = (data: any[]) => {
+        // Group data by date and status
+        const grouped = data.reduce((acc: any, curr) => {
+          const date = new Date(curr.createdAt).toISOString().split('T')[0];
+          if (!acc[date]) {
+            acc[date] = { date, success: 0, failure: 0 };
+          }
+          curr.status === 'success' ? acc[date].success++ : acc[date].failure++;
+          return acc;
+        }, {});
+
+        return Object.values(grouped);
+      };
+
+      return (
+        <div className="container mx-auto py-8">
+          <div className="space-y-8">
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold mb-4">API Usage</h2>
+              <div className="h-[400px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={apiUsage} margin={chartConfig.margin}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="date"
+                      scale={chartConfig.axisProps.scale}
+                      tickCount={chartConfig.axisProps.tickCount}
+                      tickSize={chartConfig.axisProps.tickSize}
+                      tickMargin={chartConfig.axisProps.tickMargin}
+                      height={chartConfig.axisProps.height}
+                      tick={{ fontSize: chartConfig.axisProps.fontSize }}
+                      tickLine={{ stroke: chartConfig.axisProps.stroke }}
+                      axisLine={{ stroke: chartConfig.axisProps.stroke }}
+                      orientation="bottom"
+                    />
+                    <YAxis
+                      scale={chartConfig.axisProps.scale}
+                      tickCount={chartConfig.axisProps.tickCount}
+                      tickSize={chartConfig.axisProps.tickSize}
+                      tickMargin={chartConfig.axisProps.tickMargin}
+                      width={chartConfig.axisProps.width}
+                      tick={{ fontSize: chartConfig.axisProps.fontSize }}
+                      tickLine={{ stroke: chartConfig.axisProps.stroke }}
+                      axisLine={{ stroke: chartConfig.axisProps.stroke }}
+                      orientation="left"
+                    />
+                    <Tooltip contentStyle={chartConfig.tooltipStyle} />
+                    <Legend verticalAlign="top" height={36} />
+                    <Line
+                      type="monotone"
+                      dataKey="gemini"
+                      stroke="hsl(var(--chart-1))"
+                      name="Gemini"
+                      {...chartConfig.lineProps}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="gmail"
+                      stroke="hsl(var(--chart-2))"
+                      name="Gmail"
+                      {...chartConfig.lineProps}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="sheets"
+                      stroke="hsl(var(--chart-3))"
+                      name="Sheets"
+                      {...chartConfig.lineProps}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="disify"
+                      stroke="hsl(var(--chart-4))"
+                      name="Disify"
+                      {...chartConfig.lineProps}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            <Card className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Success Rates</h2>
+              <div className="h-[400px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={successRates} margin={chartConfig.margin}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="date"
+                      scale={chartConfig.axisProps.scale}
+                      tickCount={chartConfig.axisProps.tickCount}
+                      tickSize={chartConfig.axisProps.tickSize}
+                      tickMargin={chartConfig.axisProps.tickMargin}
+                      height={chartConfig.axisProps.height}
+                      tick={{ fontSize: chartConfig.axisProps.fontSize }}
+                      tickLine={{ stroke: chartConfig.axisProps.stroke }}
+                      axisLine={{ stroke: chartConfig.axisProps.stroke }}
+                      orientation="bottom"
+                    />
+                    <YAxis
+                      scale={chartConfig.axisProps.scale}
+                      tickCount={chartConfig.axisProps.tickCount}
+                      tickSize={chartConfig.axisProps.tickSize}
+                      tickMargin={chartConfig.axisProps.tickMargin}
+                      width={chartConfig.axisProps.width}
+                      tick={{ fontSize: chartConfig.axisProps.fontSize }}
+                      tickLine={{ stroke: chartConfig.axisProps.stroke }}
+                      axisLine={{ stroke: chartConfig.axisProps.stroke }}
+                      orientation="left"
+                    />
+                    <Tooltip contentStyle={chartConfig.tooltipStyle} />
+                    <Legend verticalAlign="top" height={36} />
+                    <Bar
+                      dataKey="success"
+                      fill="hsl(var(--chart-2))"
+                      name="Success"
+                      stackId="a"
+                      {...chartConfig.barProps}
+                    />
+                    <Bar
+                      dataKey="failure"
+                      fill="hsl(var(--chart-1))"
+                      name="Failure"
+                      stackId="a"
+                      {...chartConfig.barProps}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+            <div className="mt-8">
+              <Button asChild variant="outline">
+                <Link href="/dashboard">Go Back</Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
