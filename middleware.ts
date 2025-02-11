@@ -1,6 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { getEnv } from './lib/env'
+import { getEnv, isDevelopment } from './lib/env'
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -20,10 +20,13 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
+    // Get environment variables
     const env = getEnv();
+
+    // Create Supabase client
     const supabase = createServerClient(
-      env.NEXT_PUBLIC_LEAD_SUPABASE_URL,
-      env.NEXT_PUBLIC_LEAD_SUPABASE_ANON_KEY,
+      env.NEXT_PUBLIC_SUPABASE_URL,
+      env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       {
         cookies: {
           get(name: string) {
@@ -46,8 +49,20 @@ export async function middleware(request: NextRequest) {
       }
     )
 
+    // Check session
     const { data: { session } } = await supabase.auth.getSession()
 
+    // Allow access in development mode
+    if (isDevelopment) {
+      const devAuth = request.cookies.get('dev_auth')?.value === 'true';
+      const devToken = request.cookies.get('sb-dev-auth-token')?.value;
+      
+      if (devAuth && devToken) {
+        return response;
+      }
+    }
+
+    // Redirect to login if no session
     if (!session) {
       return NextResponse.redirect(new URL('/auth/login', request.url))
     }
