@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { supabase, isDevelopment, setDevAuth, simulateDelay, isDevAuthenticated } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,11 +19,6 @@ export default function LoginPage() {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        if (isDevelopment && isDevAuthenticated()) {
-          router.push('/dashboard');
-          return;
-        }
-
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
         
@@ -68,19 +63,6 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      if (isDevelopment) {
-        await simulateDelay(500);
-        const mockSession = await setDevAuth();
-        if (mockSession) {
-          toast.success('Přihlášení proběhlo úspěšně (vývojový režim)');
-          await simulateDelay(300);
-          router.push('/dashboard');
-        } else {
-          toast.error('Nepodařilo se nastavit vývojový režim');
-        }
-        return;
-      }
-
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -101,7 +83,7 @@ export default function LoginPage() {
 
       if (data.session) {
         toast.success('Přihlášení proběhlo úspěšně');
-        await simulateDelay(300);
+        await new Promise(resolve => setTimeout(resolve, 300));
         router.push('/dashboard');
       } else {
         toast.error('Nepodařilo se získat session. Zkuste to prosím znovu');

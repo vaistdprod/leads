@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { supabase, isDevelopment, getMockData } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 import MockSheetViewer from '@/components/MockSheetViewer';
 
 const generalSettingsSchema = z.object({
@@ -45,31 +45,19 @@ export default function GeneralSettingsPage() {
 
   const loadSettings = async () => {
     try {
-      let data;
+      const { data: settings, error } = await supabase
+        .from('settings')
+        .select('*')
+        .single();
 
-      if (isDevelopment) {
-        data = (await getMockData({
-          blacklist_sheet_id: '1abc...xyz',
-          contacts_sheet_id: '2def...uvw',
-          auto_execution_enabled: false,
-          cron_schedule: '',
-        })).data;
-      } else {
-        const { data: settings, error } = await supabase
-          .from('settings')
-          .select('*')
-          .single();
+      if (error) throw error;
 
-        if (error) throw error;
-        data = settings;
-      }
-
-      if (data) {
+      if (settings) {
         form.reset({
-          blacklistSheetId: data.blacklist_sheet_id || '',
-          contactsSheetId: data.contacts_sheet_id || '',
-          autoExecutionEnabled: data.auto_execution_enabled || false,
-          cronSchedule: data.cron_schedule || '',
+          blacklistSheetId: settings.blacklist_sheet_id || '',
+          contactsSheetId: settings.contacts_sheet_id || '',
+          autoExecutionEnabled: settings.auto_execution_enabled || false,
+          cronSchedule: settings.cron_schedule || '',
         });
       }
     } catch (error) {
@@ -82,12 +70,6 @@ export default function GeneralSettingsPage() {
 
   const onSubmit = async (values: z.infer<typeof generalSettingsSchema>) => {
     try {
-      if (isDevelopment) {
-        await getMockData(null);
-        toast.success('Development mode: Settings saved');
-        return;
-      }
-
       const { error } = await supabase
         .from('settings')
         .update({

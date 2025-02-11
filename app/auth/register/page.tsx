@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { supabase, isDevelopment } from '@/lib/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -49,14 +49,6 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      if (isDevelopment) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        localStorage.setItem('dev_auth', 'true');
-        toast.success('Registrace proběhla úspěšně (vývojový režim)');
-        router.push('/setup/welcome');
-        return;
-      }
-
       const { error: signUpError, data } = await supabase.auth.signUp({
         email,
         password,
@@ -97,7 +89,9 @@ export default function RegisterPage() {
       <Card className="w-full max-w-md p-8">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold">Vytvořit účet</h1>
-          <p className="text-muted-foreground">Začněte s automatizací zpracování potenciálních zákazníků</p>
+          <p className="text-muted-foreground">
+            Začněte s automatizací zpracování potenciálních zákazníků
+          </p>
         </div>
 
         <form onSubmit={handleRegister} className="space-y-4">
