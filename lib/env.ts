@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const isDevelopment = process.env.NODE_ENV === 'development';
 
 const envSchema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url('Invalid Supabase URL'), // Use .url() for URL validation
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url('Invalid Supabase URL'),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, 'Supabase anon key is required'),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
@@ -11,6 +11,14 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().optional(),
   SUPABASE_JWT_SECRET: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+  // Add these if you are using them in the code, even if optional.
+  POSTGRES_URL: z.string().optional(),
+  POSTGRES_PRISMA_URL: z.string().optional(),
+  POSTGRES_URL_NON_POOLING: z.string().optional(),
+  POSTGRES_USER: z.string().optional(),
+  POSTGRES_PASSWORD: z.string().optional(),
+  POSTGRES_DATABASE: z.string().optional(),
+  POSTGRES_HOST: z.string().optional(),
 });
 
 let validatedEnv: z.infer<typeof envSchema> | null = null;
@@ -23,16 +31,25 @@ export function getEnv() {
     };
 
     const envToValidate = {
-      ...process.env,
-      ...(isDevelopment && {
-        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || defaultValues.NEXT_PUBLIC_SUPABASE_URL,
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || defaultValues.NEXT_PUBLIC_SUPABASE_ANON_KEY
-      })
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || (isDevelopment ? defaultValues.NEXT_PUBLIC_SUPABASE_URL : undefined),
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || (isDevelopment ? defaultValues.NEXT_PUBLIC_SUPABASE_ANON_KEY : undefined),
+      GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+      GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
+      GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+      SUPABASE_JWT_SECRET: process.env.SUPABASE_JWT_SECRET,
+      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+      POSTGRES_URL: process.env.POSTGRES_URL,
+      POSTGRES_PRISMA_URL: process.env.POSTGRES_PRISMA_URL,
+      POSTGRES_URL_NON_POOLING: process.env.POSTGRES_URL_NON_POOLING,
+      POSTGRES_USER: process.env.POSTGRES_USER,
+      POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD,
+      POSTGRES_DATABASE: process.env.POSTGRES_DATABASE,
+      POSTGRES_HOST: process.env.POSTGRES_HOST,
     };
 
     // Log the raw values *before* Zod validation.
-    console.log("NEXT_PUBLIC_SUPABASE_URL (raw):", process.env.NEXT_PUBLIC_SUPABASE_URL);
-    console.log("NEXT_PUBLIC_SUPABASE_ANON_KEY (raw):", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+    console.log("Environment variables before validation:", envToValidate);
 
     try {
       validatedEnv = envSchema.parse(envToValidate);
@@ -41,7 +58,6 @@ export function getEnv() {
       console.error('❌ Invalid environment variables:', error);
       throw new Error('Invalid environment variables. See console for details.');
     }
-
 
     // Warn if optional variables are missing
     if (!validatedEnv.GOOGLE_CLIENT_ID) console.warn("⚠️ GOOGLE_CLIENT_ID is not set");
