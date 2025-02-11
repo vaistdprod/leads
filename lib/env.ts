@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const isDevelopment = process.env.NODE_ENV === 'development';
 
 const envSchema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: z.string().min(1, 'Supabase URL is required'),
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url('Invalid Supabase URL'), // Use .url() for URL validation
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, 'Supabase anon key is required'),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
@@ -30,27 +30,18 @@ export function getEnv() {
       })
     };
 
-    // Add more detailed logging here, specifically for the Supabase variables
-    console.log("NEXT_PUBLIC_SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
-    console.log("NEXT_PUBLIC_SUPABASE_ANON_KEY:", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-    console.log("Environment variables before validation:", envToValidate);
+    // Log the raw values *before* Zod validation.
+    console.log("NEXT_PUBLIC_SUPABASE_URL (raw):", process.env.NEXT_PUBLIC_SUPABASE_URL);
+    console.log("NEXT_PUBLIC_SUPABASE_ANON_KEY (raw):", process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
-    // Explicitly check for missing required variables *before* Zod validation
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      throw new Error('Missing Supabase environment variables (NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY). Check Vercel configuration.');
-    }
-
-    const result = envSchema.safeParse(envToValidate);
-
-    if (!result.success) {
-      console.error('❌ Invalid environment variables:', result.error.flatten().fieldErrors);
+    try {
+      validatedEnv = envSchema.parse(envToValidate);
+      console.log("✅ Environment variables are valid:", validatedEnv);
+    } catch (error) {
+      console.error('❌ Invalid environment variables:', error);
       throw new Error('Invalid environment variables. See console for details.');
     }
 
-    validatedEnv = result.data;
-
-    // Log validated environment variables
-    console.log("✅ Environment variables are valid:", validatedEnv);
 
     // Warn if optional variables are missing
     if (!validatedEnv.GOOGLE_CLIENT_ID) console.warn("⚠️ GOOGLE_CLIENT_ID is not set");
