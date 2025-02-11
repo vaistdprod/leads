@@ -1,8 +1,10 @@
 import { z } from 'zod';
 
+export const isDevelopment = process.env.NODE_ENV === 'development';
+
 const envSchema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: z.string().default('http://localhost:54321'),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().default('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'),
+  NEXT_PUBLIC_SUPABASE_URL: z.string().min(1, 'Supabase URL is required'),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, 'Supabase anon key is required'),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_REDIRECT_URI: z.string().optional(),
@@ -12,8 +14,6 @@ const envSchema = z.object({
 });
 
 let validatedEnv: z.infer<typeof envSchema> | null = null;
-
-export const isDevelopment = process.env.NODE_ENV === 'development';
 
 export function getEnv() {
   if (!validatedEnv) {
@@ -29,13 +29,10 @@ export function getEnv() {
     const result = envSchema.safeParse(envToValidate);
 
     if (!result.success) {
-      console.error(
-        "❌ Invalid environment variables:",
-        result.error.flatten().fieldErrors,
-      );
+      console.error('❌ Invalid environment variables:', result.error.flatten().fieldErrors);
       
       if (!isDevelopment) {
-        throw new Error("Invalid environment variables");
+        throw new Error('Required environment variables are missing');
       }
     }
 
@@ -54,10 +51,26 @@ export function getEnv() {
 
     if (result.success) {
       console.log("✅ Environment variables are valid.");
-    } else {
+    } else if (isDevelopment) {
       console.log("⚠️ Using development defaults for environment variables.");
     }
   }
 
   return validatedEnv;
+}
+
+// Helper function to create mock session for development
+export function createMockSession() {
+  if (!isDevelopment) return null;
+  
+  return {
+    user: {
+      id: 'dev-user-id',
+      email: 'dev@example.com',
+      role: 'authenticated',
+    },
+    access_token: 'mock-access-token',
+    refresh_token: 'mock-refresh-token',
+    expires_at: Date.now() + 3600000,
+  };
 }
