@@ -9,25 +9,25 @@ export default function WelcomePage() {
 
   const steps = [
     {
-      title: "Integrace Google",
-      description: "Propojte svůj účet Google pro přístup k Tabulkám a Gmailu.",
+      title: "Google Integration",
+      description: "Connect your Google account to access Sheets and Gmail.",
     },
     {
-      title: "Nastavení Gemini API",
-      description: "Nastavte svůj klíč Gemini API pro obohacení potenciálních zákazníků pomocí AI.",
+      title: "Gemini API Setup",
+      description: "Set up your Gemini API key for AI-powered lead enrichment.",
     },
     {
-      title: "Konfigurace Tabulek",
-      description: "Nakonfigurujte své tabulky kontaktů a blacklistu",
+      title: "Sheets Configuration",
+      description: "Configure your contacts and blacklist sheets.",
     },
   ];
 
   return (
     <Card className="p-8">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold mb-2">Vítejte v nastavení</h1>
+        <h1 className="text-3xl font-bold mb-2">Welcome to Setup</h1>
         <p className="text-muted-foreground">
-          Pojďme nastavit váš systém pro automatizaci zpracování potenciálních zákazníků
+          Let's set up your lead processing automation system.
         </p>
       </div>
 
@@ -50,7 +50,7 @@ export default function WelcomePage() {
           size="lg"
           onClick={() => router.push('/setup/google-auth')}
         >
-          Začít
+          Get Started
         </Button>
       </div>
     </Card>

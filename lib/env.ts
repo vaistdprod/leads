@@ -25,14 +25,9 @@ let validatedEnv: z.infer<typeof envSchema> | null = null;
 
 export function getEnv() {
   if (!validatedEnv) {
-    const defaultValues = {
-      NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54321',
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
-    };
-
     const envToValidate = {
-      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || (isDevelopment ? defaultValues.NEXT_PUBLIC_SUPABASE_URL : undefined),
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || (isDevelopment ? defaultValues.NEXT_PUBLIC_SUPABASE_ANON_KEY : undefined),
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
       GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
       GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
@@ -69,57 +64,4 @@ export function getEnv() {
   }
 
   return validatedEnv;
-}
-
-// Development mode helpers
-export function createMockSession() {
-  if (!isDevelopment) return null;
-  
-  return {
-    user: {
-      id: 'dev-user-id',
-      email: 'dev@example.com',
-      role: 'authenticated',
-    },
-    access_token: 'mock-access-token',
-    refresh_token: 'mock-refresh-token',
-    expires_at: Date.now() + 3600000,
-  };
-}
-
-export function setDevAuth() {
-  if (!isDevelopment) return false;
-
-  const mockSession = createMockSession();
-  if (!mockSession) return false;
-
-  try {
-    // Set both localStorage and cookie
-    localStorage.setItem('dev_auth', 'true');
-    localStorage.setItem('supabase.auth.token', JSON.stringify(mockSession));
-    
-    document.cookie = `dev_auth=true; path=/; max-age=86400; samesite=lax`;
-    document.cookie = `sb-dev-auth-token=${JSON.stringify(mockSession)}; path=/; max-age=86400; samesite=lax`;
-
-    return true;
-  } catch (error) {
-    console.error('Failed to set dev auth:', error);
-    return false;
-  }
-}
-
-export function isDevAuthenticated() {
-  if (!isDevelopment) return false;
-  
-  try {
-    const localAuth = localStorage.getItem('dev_auth') === 'true';
-    const localToken = localStorage.getItem('supabase.auth.token');
-    const cookieAuth = document.cookie.includes('dev_auth=true');
-    const cookieToken = document.cookie.includes('sb-dev-auth-token=');
-
-    return localAuth && localToken && cookieAuth && cookieToken;
-  } catch (error) {
-    console.error('Failed to check dev auth:', error);
-    return false;
-  }
 }

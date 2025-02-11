@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabase/client';
+import BackButton from '@/components/ui/back-button';
 
 export default function SheetSetupPage() {
   const router = useRouter();
@@ -31,7 +32,7 @@ export default function SheetSetupPage() {
       if (error) throw error;
 
       router.push('/setup/complete');
-      toast.success('Sheet IDs successfully saved');
+      toast.success('Sheet IDs saved successfully');
     } catch (error) {
       console.error('Failed to save sheet IDs:', error);
       toast.error('Failed to save settings');
@@ -42,55 +43,50 @@ export default function SheetSetupPage() {
 
   return (
     <Card className="p-8">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold mb-2">Konfigurace tabulek Google</h1>
-        <p className="text-muted-foreground">
-          nastavte své tabulky kontaktů a blacklistu
-        </p>
+      <div className="flex justify-between items-start">
+        <BackButton />
+        <h1 className="text-3xl font-bold mb-2">Google Sheets Configuration</h1>
+        <div></div> {/* Empty div for spacing */}
       </div>
+      <p className="text-muted-foreground">
+        Set up your contacts and blacklist sheets.
+      </p>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="blacklistSheetId">ID tabulky blacklistu</Label>
+          <Label htmlFor="blacklistSheetId">Blacklist Sheet ID</Label>
           <Input
             id="blacklistSheetId"
             value={blacklistSheetId}
             onChange={(e) => setBlacklistSheetId(e.target.value)}
             required
-            placeholder="Zadejte ID tabulky blacklistu"
+            placeholder="Enter Blacklist Sheet ID"
           />
           <p className="text-sm text-muted-foreground">
-            ID najdete v URL tabulky mezi /d/ a /edit
+            You can find the ID in the URL of the sheet between /d/ and /edit
           </p>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="contactsSheetId">ID tabulky kontaktů</Label>
+          <Label htmlFor="contactsSheetId">Contacts Sheet ID</Label>
           <Input
             id="contactsSheetId"
             value={contactsSheetId}
             onChange={(e) => setContactsSheetId(e.target.value)}
             required
-            placeholder="Zadejte ID tabulky kontaktů"
+            placeholder="Enter Contacts Sheet ID"
           />
           <p className="text-sm text-muted-foreground">
-            ID najdete v URL tabulky mezi /d/ a /edit
+            You can find the ID in the URL of the sheet between /d/ and /edit
           </p>
         </div>
 
-        <div className="flex justify-center gap-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.push('/setup/gemini-setup')}
-          >
-            zpět
-          </Button>
+        <div className="flex justify-center">
           <Button
             type="submit"
             disabled={loading || !blacklistSheetId || !contactsSheetId}
           >
-            {loading ? 'Ukládání...' : 'Dokončit nastavení'}
+            {loading ? 'Saving...' : 'Complete Setup'}
           </Button>
         </div>
       </form>

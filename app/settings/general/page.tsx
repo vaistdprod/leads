@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabase/client';
-import MockSheetViewer from '@/components/MockSheetViewer';
+import BackButton from '@/components/ui/back-button';
 
 const generalSettingsSchema = z.object({
   blacklistSheetId: z.string().min(1, 'Required'),
@@ -32,7 +32,6 @@ const generalSettingsSchema = z.object({
 export default function GeneralSettingsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [showMockSheet, setShowMockSheet] = useState(false);
   const form = useForm<z.infer<typeof generalSettingsSchema>>({
     resolver: zodResolver(generalSettingsSchema),
     defaultValues: {
@@ -97,7 +96,11 @@ export default function GeneralSettingsPage() {
   return (
     <div className="container mx-auto py-8">
       <Card className="p-6">
-        <h1 className="text-2xl font-bold mb-6">General Settings</h1>
+      <div className="flex justify-between items-start">
+          <BackButton />
+          <h1 className="text-2xl font-bold mb-6">General Settings</h1>
+          <div></div> {/* Empty div for spacing */}
+        </div>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -111,7 +114,7 @@ export default function GeneralSettingsPage() {
                     <Input {...field} />
                   </FormControl>
                   <FormDescription>
-                    The ID of your Google Sheet containing blacklisted emails
+                    The ID of your Google Sheet containing blacklisted emails.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -128,7 +131,7 @@ export default function GeneralSettingsPage() {
                     <Input {...field} />
                   </FormControl>
                   <FormDescription>
-                    The ID of your Google Sheet containing contacts to process
+                    The ID of your Google Sheet containing contacts to process.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -145,7 +148,7 @@ export default function GeneralSettingsPage() {
                       Automatic Execution
                     </FormLabel>
                     <FormDescription>
-                      Enable automatic processing of contacts on a schedule
+                      Enable automatic processing of contacts on a schedule.
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -169,7 +172,7 @@ export default function GeneralSettingsPage() {
                       <Input {...field} placeholder="0 0 * * *" />
                     </FormControl>
                     <FormDescription>
-                      When to run the processing (in cron format)
+                      When to run the processing (in cron format).
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -180,26 +183,6 @@ export default function GeneralSettingsPage() {
             <Button type="submit">Save Settings</Button>
           </form>
         </Form>
-
-        <div className="mt-8">
-          <Button onClick={() => router.back()}>Go Back</Button>
-          <Button onClick={() => setShowMockSheet(!showMockSheet)}>
-            {showMockSheet ? 'Hide' : 'Show'} Mock Sheet
-          </Button>
-        </div>
-
-        {showMockSheet && (
-          <div className="mt-4">
-            <h2 className="text-lg font-semibold mb-2">Mock Sheet Preview</h2>
-            <MockSheetViewer
-              data={[
-                ['Email', 'First Name', 'Last Name', 'Company', 'Position'],
-                ['john@example.com', 'John', 'Doe', 'Acme Inc', 'CEO'],
-                ['jane@example.com', 'Jane', 'Smith', 'Tech Corp', 'CTO'],
-              ]}
-            />
-          </div>
-        )}
       </Card>
     </div>
   );

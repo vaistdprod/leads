@@ -1,6 +1,5 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { getEnv, isDevelopment } from './lib/env'
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -20,13 +19,10 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    // Get environment variables
-    const env = getEnv();
-
     // Create Supabase client
     const supabase = createServerClient(
-      env.NEXT_PUBLIC_SUPABASE_URL,
-      env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
           get(name: string) {
@@ -52,19 +48,27 @@ export async function middleware(request: NextRequest) {
     // Check session
     const { data: { session } } = await supabase.auth.getSession()
 
-    // Allow access in development mode
-    if (isDevelopment) {
-      const devAuth = request.cookies.get('dev_auth')?.value === 'true';
-      const devToken = request.cookies.get('sb-dev-auth-token')?.value;
-      
-      if (devAuth && devToken) {
-        return response;
-      }
+    if (!session) {
+      // Redirect to login if no session
+      return NextResponse.redirect(new URL('/auth/login', request.url))
     }
 
-    // Redirect to login if no session
-    if (!session) {
-      return NextResponse.redirect(new URL('/auth/login', request.url))
+    // Check if setup is completed
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('setup_completed')
+      .eq('id', session.user.id)
+      .single();
+
+      if (profileError) {
+        console.error("Error fetching user profile:", profileError);
+        // Handle the error appropriately, maybe redirect to an error page
+        return NextResponse.redirect(new URL('/auth/login', request.url));
+      }
+
+    if (!profile?.setup_completed) {
+      // Redirect to setup if not completed
+      return NextResponse.redirect(new URL('/setup/welcome', request.url));
     }
 
     return response

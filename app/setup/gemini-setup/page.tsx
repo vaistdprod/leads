@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabase/client';
+import BackButton from '@/components/ui/back-button';
 
 export default function GeminiSetupPage() {
   const router = useRouter();
@@ -27,10 +28,10 @@ export default function GeminiSetupPage() {
       if (error) throw error;
 
       router.push('/setup/sheet-setup');
-      toast.success('Klíč Gemini API úspěšně uložen');
+      toast.success('Gemini API Key saved successfully');
     } catch (error) {
       console.error('Failed to save Gemini API key:', error);
-      toast.error('Nepodařilo se uložit klíč API');
+      toast.error('Failed to save API key');
     } finally {
       setLoading(false);
     }
@@ -38,50 +39,45 @@ export default function GeminiSetupPage() {
 
   return (
     <Card className="p-8">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold mb-2">Nastavení Gemini API</h1>
-        <p className="text-muted-foreground">
-          Nakonfigurujte svůj klíč Gemini API pro obohacení potenciálních zákazníků pomocí AI
-        </p>
+      <div className="flex justify-between items-start">
+        <BackButton />
+        <h1 className="text-3xl font-bold mb-2">Gemini API Setup</h1>
+        <div></div> {/* Empty div for spacing */}
       </div>
+      <p className="text-muted-foreground">
+        Configure your Gemini API key for AI-powered lead enrichment.
+      </p>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="apiKey">Gemini API Klíč</Label>
+          <Label htmlFor="apiKey">Gemini API Key</Label>
           <Input
             id="apiKey"
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             required
-            placeholder="Zadejte svůj Gemini API klíč"
+            placeholder="Enter your Gemini API key"
           />
           <p className="text-sm text-muted-foreground">
-            Nemáte API klíč?{' '}
+            Don't have an API key?{' '}
             <a
               href="https://makersuite.google.com/app/apikey"
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline"
             >
-              Získejte ho zde
+              Get it here
             </a>
           </p>
         </div>
 
-        <div className="flex justify-center gap-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.push('/setup/google-auth')}
-          >
-            Zpět
-          </Button>
+        <div className="flex justify-center">
           <Button
             type="submit"
             disabled={loading || !apiKey}
           >
-            {loading ? 'Ukládání...' : 'Pokračovat'}
+            {loading ? 'Saving...' : 'Continue'}
           </Button>
         </div>
       </form>

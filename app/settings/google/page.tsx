@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { getAuthUrl } from '@/lib/google/auth';
-import { BackButton } from '@/components/ui/back-button';
+import BackButton from '@/components/ui/back-button';
 
 export default function GoogleSettingsPage() {
   const router = useRouter();
@@ -69,8 +69,11 @@ export default function GoogleSettingsPage() {
   return (
     <div className="container mx-auto py-8">
       <Card className="p-6">
-        <BackButton />
-        <h1 className="text-2xl font-bold mb-6">Google Integration</h1>
+        <div className="flex justify-between items-start">
+          <BackButton />
+          <h1 className="text-2xl font-bold mb-6">Google Integration</h1>
+          <div></div>
+        </div>
 
         <div className="space-y-6">
           <div className="bg-muted p-4 rounded-lg">
