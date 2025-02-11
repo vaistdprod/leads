@@ -17,12 +17,16 @@ let validatedEnv: z.infer<typeof envSchema> | null = null;
 
 export function getEnv() {
   if (!validatedEnv) {
-    // In development, use default values if environment variables are not set
+    const defaultValues = {
+      NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54321',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
+    };
+
     const envToValidate = {
       ...process.env,
       ...(isDevelopment && {
-        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
+        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || defaultValues.NEXT_PUBLIC_SUPABASE_URL,
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || defaultValues.NEXT_PUBLIC_SUPABASE_ANON_KEY
       })
     };
 
@@ -34,32 +38,30 @@ export function getEnv() {
       if (!isDevelopment) {
         throw new Error('Required environment variables are missing');
       }
+
+      // In development, use default values
+      validatedEnv = envSchema.parse(defaultValues);
+      console.log("⚠️ Using development defaults for environment variables.");
+      return validatedEnv;
     }
 
-    validatedEnv = result.success ? result.data : envSchema.parse({
-      NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54321',
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
-    });
+    validatedEnv = result.data;
 
     // Warn if optional variables are missing
-    if (!validatedEnv.GOOGLE_CLIENT_ID) console.warn("⚠️ GOOGLE_CLIENT_ID is not set. Google integration will not work.");
-    if (!validatedEnv.GOOGLE_CLIENT_SECRET) console.warn("⚠️ GOOGLE_CLIENT_SECRET is not set. Google integration will not work.");
-    if (!validatedEnv.GOOGLE_REDIRECT_URI) console.warn("⚠️ GOOGLE_REDIRECT_URI is not set. Google integration will not work.");
-    if (!validatedEnv.GEMINI_API_KEY) console.warn("⚠️ GEMINI_API_KEY is not set. AI features will not work.");
-    if (!validatedEnv.SUPABASE_JWT_SECRET) console.warn("⚠️ SUPABASE_JWT_SECRET is not set. JWT verification might not work as expected.");
-    if (!validatedEnv.SUPABASE_SERVICE_ROLE_KEY) console.warn("⚠️ SUPABASE_SERVICE_ROLE_KEY is not set. Server-side operations might be limited.");
+    if (!validatedEnv.GOOGLE_CLIENT_ID) console.warn("⚠️ GOOGLE_CLIENT_ID is not set");
+    if (!validatedEnv.GOOGLE_CLIENT_SECRET) console.warn("⚠️ GOOGLE_CLIENT_SECRET is not set");
+    if (!validatedEnv.GOOGLE_REDIRECT_URI) console.warn("⚠️ GOOGLE_REDIRECT_URI is not set");
+    if (!validatedEnv.GEMINI_API_KEY) console.warn("⚠️ GEMINI_API_KEY is not set");
+    if (!validatedEnv.SUPABASE_JWT_SECRET) console.warn("⚠️ SUPABASE_JWT_SECRET is not set");
+    if (!validatedEnv.SUPABASE_SERVICE_ROLE_KEY) console.warn("⚠️ SUPABASE_SERVICE_ROLE_KEY is not set");
 
-    if (result.success) {
-      console.log("✅ Environment variables are valid.");
-    } else if (isDevelopment) {
-      console.log("⚠️ Using development defaults for environment variables.");
-    }
+    console.log("✅ Environment variables are valid");
   }
 
   return validatedEnv;
 }
 
-// Helper function to create mock session for development
+// Development mode helpers
 export function createMockSession() {
   if (!isDevelopment) return null;
   
@@ -73,4 +75,41 @@ export function createMockSession() {
     refresh_token: 'mock-refresh-token',
     expires_at: Date.now() + 3600000,
   };
+}
+
+export function setDevAuth() {
+  if (!isDevelopment) return false;
+
+  const mockSession = createMockSession();
+  if (!mockSession) return false;
+
+  try {
+    // Set both localStorage and cookie
+    localStorage.setItem('dev_auth', 'true');
+    localStorage.setItem('supabase.auth.token', JSON.stringify(mockSession));
+    
+    document.cookie = `dev_auth=true; path=/; max-age=86400; samesite=lax`;
+    document.cookie = `sb-dev-auth-token=${JSON.stringify(mockSession)}; path=/; max-age=86400; samesite=lax`;
+
+    return true;
+  } catch (error) {
+    console.error('Failed to set dev auth:', error);
+    return false;
+  }
+}
+
+export function isDevAuthenticated() {
+  if (!isDevelopment) return false;
+  
+  try {
+    const localAuth = localStorage.getItem('dev_auth') === 'true';
+    const localToken = localStorage.getItem('supabase.auth.token');
+    const cookieAuth = document.cookie.includes('dev_auth=true');
+    const cookieToken = document.cookie.includes('sb-dev-auth-token=');
+
+    return localAuth && localToken && cookieAuth && cookieToken;
+  } catch (error) {
+    console.error('Failed to check dev auth:', error);
+    return false;
+  }
 }
