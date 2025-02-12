@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,34 +18,42 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        if (isDevelopment) {
-          const devAuth = localStorage.getItem('dev_auth');
-          if (devAuth === 'true') {
-            window.location.href = '/dashboard';
-            return;
-          }
-          setInitialized(true);
-          return;
-        }
-
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session) {
+  const checkSession = useCallback(async () => {
+    try {
+      if (isDevelopment) {
+        const devAuth = localStorage.getItem('dev_auth');
+        if (devAuth === 'true') {
           window.location.href = '/dashboard';
           return;
         }
-      } catch (error) {
-        console.error('Session check failed:', error);
-      } finally {
         setInitialized(true);
+        return;
       }
-    };
 
-    checkSession();
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        window.location.href = '/dashboard';
+        return;
+      }
+    } catch (error) {
+      console.error('Session check failed:', error);
+    } finally {
+      setInitialized(true);
+    }
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    if (mounted) {
+      checkSession();
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [checkSession]);
 
   const validateForm = () => {
     if (!email || !password) {
