@@ -30,16 +30,15 @@ function RegisterForm() {
   const [isValidToken, setIsValidToken] = useState(false);
 
   useEffect(() => {
-    const token = searchParams.get('signup_token');
-    const emailParam = searchParams.get('email');
-    
-    if (!token || !emailParam) {
-      router.replace('/auth/login');
-      return;
-    }
+    const validateToken = async () => {
+      const token = searchParams.get('signup_token');
+      const emailParam = searchParams.get('email');
+      
+      if (!token || !emailParam) {
+        router.replace('/auth/login');
+        return;
+      }
 
-    // Verify token with Supabase
-    const verifyToken = async () => {
       try {
         const { data, error } = await supabase
           .from('signup_tokens')
@@ -50,6 +49,8 @@ function RegisterForm() {
           .single();
 
         if (error || !data) {
+          console.error('Token validation error:', error);
+          toast.error('Invalid or expired registration link');
           router.replace('/auth/login');
           return;
         }
@@ -57,11 +58,13 @@ function RegisterForm() {
         setIsValidToken(true);
         setEmail(emailParam);
       } catch (error) {
+        console.error('Token validation failed:', error);
+        toast.error('Failed to validate registration link');
         router.replace('/auth/login');
       }
     };
 
-    verifyToken();
+    validateToken();
   }, [router, searchParams]);
 
   const validatePassword = (password: string) => {
@@ -158,7 +161,11 @@ function RegisterForm() {
         // Mark signup token as used
         const { error: tokenError } = await supabase
           .from('signup_tokens')
-          .update({ used: true, used_by: data.user.id, used_at: new Date().toISOString() })
+          .update({ 
+            used: true, 
+            used_by: data.user.id, 
+            used_at: new Date().toISOString() 
+          })
           .eq('token', token);
 
         if (tokenError) {
