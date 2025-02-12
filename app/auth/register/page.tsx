@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -12,45 +12,81 @@ import { isDevelopment } from '@/lib/env';
 import { Logo } from '@/components/ui/logo';
 
 const passwordRequirements = [
-  { label: 'At least one lowercase letter (a-z)', regex: /[a-z]/ },
-  { label: 'At least one uppercase letter (A-Z)', regex: /[A-Z]/ },
-  { label: 'At least one number (0-9)', regex: /[0-9]/ },
-  { label: 'At least one special character (!@#$%^&*()_+-=[]{};\':"|<>?,./`~)', regex: /[!@#$%^&*()_+\-=\[\]{};\\':"\\|,.<>?/`~]/ },
-  { label: 'Minimum 8 characters', regex: /.{8,}/ } // Updated to 8 characters
+  { label: 'Alespoň jedno malé písmeno (a-z)', regex: /[a-z]/ },
+  { label: 'Alespoň jedno velké písmeno (A-Z)', regex: /[A-Z]/ },
+  { label: 'Alespoň jedno číslo (0-9)', regex: /[0-9]/ },
+  { label: 'Alespoň jeden speciální znak (!@#$%^&*()_+-=[]{};\':"|<>?,./`~)', regex: /[!@#$%^&*()_+\-=\[\]{};\\':"\\|,.<>?/`~]/ },
+  { label: 'Minimálně 8 znaků', regex: /.{8,}/ }
 ];
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [isValidToken, setIsValidToken] = useState(false);
+
+  useEffect(() => {
+    const token = searchParams.get('signup_token');
+    const emailParam = searchParams.get('email');
+    
+    if (!token || !emailParam) {
+      router.replace('/auth/login');
+      return;
+    }
+
+    // Verify token with Supabase
+    const verifyToken = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('signup_tokens')
+          .select('*')
+          .eq('token', token)
+          .eq('email', emailParam)
+          .eq('used', false)
+          .single();
+
+        if (error || !data) {
+          router.replace('/auth/login');
+          return;
+        }
+
+        setIsValidToken(true);
+        setEmail(emailParam);
+      } catch (error) {
+        router.replace('/auth/login');
+      }
+    };
+
+    verifyToken();
+  }, [router, searchParams]);
 
   const validatePassword = (password: string) => {
     return passwordRequirements.every(req => req.regex.test(password));
   };
 
   const validateForm = () => {
-    if (!email || !password || !confirmPassword || !inviteCode) {
-      toast.error('Please fill in all fields');
+    if (!email || !password || !confirmPassword) {
+      toast.error('Vyplňte prosím všechna pole');
       return false;
     }
 
     if (password !== confirmPassword) {
-      toast.error('Passwords do not match');
+      toast.error('Hesla se neshodují');
       return false;
     }
 
     if (!validatePassword(password)) {
-      toast.error('Password does not meet all requirements');
+      toast.error('Heslo nesplňuje všechny požadavky');
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      toast.error('Please enter a valid email address');
+      toast.error('Zadejte prosím platnou emailovou adresu');
       return false;
     }
 
@@ -60,20 +96,7 @@ export default function RegisterPage() {
   const handleGoogleSignIn = async () => {
     try {
       setGoogleLoading(true);
-
-      // First verify the invite code and email match
-      const { data: invite, error: inviteError } = await supabase
-        .from('invites')
-        .select('*')
-        .eq('code', inviteCode)
-        .eq('used', false)
-        .eq('allowed_email', email)
-        .single();
-
-      if (inviteError || !invite) {
-        toast.error('Invalid invite code or email mismatch');
-        return;
-      }
+      const token = searchParams.get('signup_token');
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -82,7 +105,7 @@ export default function RegisterPage() {
             access_type: 'offline',
             prompt: 'consent',
           },
-          redirectTo: `${window.location.origin}/auth/callback?invite=${inviteCode}`,
+          redirectTo: `${window.location.origin}/auth/callback?signup_token=${token}`,
         },
       });
 
@@ -93,7 +116,7 @@ export default function RegisterPage() {
       }
     } catch (error) {
       console.error('Google sign in error:', error);
-      toast.error('Failed to sign in with Google');
+      toast.error('Přihlášení přes Google selhalo');
     } finally {
       setGoogleLoading(false);
     }
@@ -106,26 +129,13 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // Verify invite code and email match
-      const { data: invite, error: inviteError } = await supabase
-        .from('invites')
-        .select('*')
-        .eq('code', inviteCode)
-        .eq('used', false)
-        .eq('allowed_email', email)
-        .single();
+      const token = searchParams.get('signup_token');
 
-      if (inviteError || !invite) {
-        toast.error('Invalid invite code or email mismatch');
-        return;
-      }
-
-      // Register user
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?signup_token=${token}`,
         },
       });
 
@@ -133,31 +143,27 @@ export default function RegisterPage() {
         console.error('Signup error:', signUpError);
         
         if (signUpError.message.includes('weak_password')) {
-          toast.error('Password is too weak. Please follow all requirements');
+          toast.error('Heslo je příliš slabé. Dodržujte prosím všechny požadavky');
         } else if (signUpError.message.includes('email')) {
-          toast.error('Please enter a valid email address');
+          toast.error('Zadejte prosím platnou emailovou adresu');
         } else if (signUpError.message.includes('rate limit')) {
-          toast.error('Too many attempts. Please try again in a few minutes');
+          toast.error('Příliš mnoho pokusů. Zkuste to prosím později');
         } else {
-          toast.error('Registration failed: ' + signUpError.message);
+          toast.error('Registrace selhala: ' + signUpError.message);
         }
         return;
       }
 
       if (data?.user) {
-        // Mark invite as used
-        const { error: updateError } = await supabase
-          .from('invites')
-          .update({
-            used: true,
-            used_by: data.user.id,
-            used_at: new Date().toISOString()
-          })
-          .eq('id', invite.id);
+        // Mark signup token as used
+        const { error: tokenError } = await supabase
+          .from('signup_tokens')
+          .update({ used: true, used_by: data.user.id, used_at: new Date().toISOString() })
+          .eq('token', token);
 
-        if (updateError) {
-          console.error("Error updating invite:", updateError);
-          toast.error("Failed to update invite status");
+        if (tokenError) {
+          console.error("Error updating token:", tokenError);
+          toast.error("Nepodařilo se aktualizovat stav registrace");
           return;
         }
 
@@ -171,58 +177,47 @@ export default function RegisterPage() {
 
         if (profileError) {
           console.error("Error creating user profile:", profileError);
-          toast.error("Failed to create user profile");
+          toast.error("Nepodařilo se vytvořit uživatelský profil");
           return;
         }
 
-        toast.success('Registration successful! Please check your email');
+        toast.success('Registrace úspěšná! Zkontrolujte prosím svůj email');
         router.push('/setup/welcome');
       } else {
-        toast.error('No user data received');
+        toast.error('Nebyla přijata žádná data o uživateli');
       }
     } catch (error) {
       console.error('Registration error:', error);
-      toast.error('An unexpected error occurred');
+      toast.error('Došlo k neočekávané chybě');
     } finally {
       setLoading(false);
     }
   };
+
+  if (!isValidToken) {
+    return null; // Don't render anything while validating token
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <Card className="w-full max-w-md p-8">
         <div className="flex flex-col items-center mb-8">
           <Logo className="mb-4" size={60} />
-          <h1 className="text-2xl font-bold">Create Account</h1>
-          <p className="text-muted-foreground">Join our platform</p>
+          <h1 className="text-2xl font-bold">Vytvořit účet</h1>
+          <p className="text-muted-foreground">Připojte se k naší platformě</p>
         </div>
 
         <form onSubmit={handleRegister} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="inviteCode">Invite Code</Label>
-            <Input
-              id="inviteCode"
-              type="text"
-              placeholder="Enter your invite code"
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value)}
-              required
-              className="w-full"
-              disabled={loading || googleLoading}
-            />
-          </div>
-
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
-              placeholder="your@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={true}
               className="w-full"
-              disabled={loading || googleLoading}
             />
           </div>
 
@@ -232,7 +227,7 @@ export default function RegisterPage() {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
+                Nebo pokračujte pomocí
               </span>
             </div>
           </div>
@@ -241,10 +236,10 @@ export default function RegisterPage() {
             type="button"
             variant="outline"
             onClick={handleGoogleSignIn}
-            disabled={loading || googleLoading || !inviteCode || !email}
+            disabled={loading || googleLoading}
             className="w-full"
           >
-            {googleLoading ? 'Connecting...' : 'Sign in with Google'}
+            {googleLoading ? 'Připojování...' : 'Přihlásit se přes Google'}
           </Button>
 
           <div className="relative">
@@ -253,13 +248,13 @@ export default function RegisterPage() {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-background px-2 text-muted-foreground">
-                Or create password
+                Nebo vytvořte heslo
               </span>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Heslo</Label>
             <Input
               id="password"
               type="password"
@@ -270,7 +265,7 @@ export default function RegisterPage() {
               disabled={loading || googleLoading}
             />
             <div className="text-sm space-y-1">
-              <p className="font-medium text-muted-foreground">Password requirements:</p>
+              <p className="font-medium text-muted-foreground">Požadavky na heslo:</p>
               <ul className="list-none space-y-1">
                 {passwordRequirements.map((req, index) => (
                   <li
@@ -290,7 +285,7 @@ export default function RegisterPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <Label htmlFor="confirmPassword">Potvrdit heslo</Label>
             <Input
               id="confirmPassword"
               type="password"
@@ -307,7 +302,7 @@ export default function RegisterPage() {
             className="w-full"
             disabled={loading || googleLoading}
           >
-            {loading ? 'Creating Account...' : 'Create Account'}
+            {loading ? 'Vytváření účtu...' : 'Vytvořit účet'}
           </Button>
         </form>
 
@@ -317,7 +312,7 @@ export default function RegisterPage() {
             onClick={() => router.push('/auth/login')}
             disabled={loading || googleLoading}
           >
-            Already have an account? Log in
+            Již máte účet? Přihlaste se
           </Button>
         </div>
       </Card>
