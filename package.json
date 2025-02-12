@@ -7,12 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "supabase:start": "supabase start",
-    "supabase:stop": "supabase stop",
-    "supabase:status": "supabase status",
-    "supabase:reset": "supabase db reset",
-    "supabase:push": "supabase db push",
-    "supabase:gen-types": "supabase gen types typescript --local > lib/database.types.ts"
+    "supabase:gen-types": "supabase gen types typescript --project-id dhfoloononavleqjpwnz > lib/database.types.ts",
+    "supabase:migration:new": "supabase migration new",
+    "supabase:migration:push": "supabase db push --db-url $POSTGRES_URL"
   },
   "dependencies": {
     "@google/generative-ai": "^0.1.3",
