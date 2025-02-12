@@ -21,6 +21,10 @@ export async function middleware(request: NextRequest) {
   try {
     // Skip auth check in development mode
     if (isDevelopment) {
+      const devAuth = request.cookies.get('dev_auth')?.value;
+      if (!devAuth && !request.nextUrl.pathname.startsWith('/auth/')) {
+        return NextResponse.redirect(new URL('/auth/login', request.url));
+      }
       return response;
     }
 
@@ -63,38 +67,9 @@ export async function middleware(request: NextRequest) {
       const email = request.nextUrl.searchParams.get('email');
 
       if (signupToken && email) {
-        console.log('Validating registration token:', { signupToken, email });
-        
-        const { data: tokenData, error: tokenError } = await supabase
-          .from('signup_tokens')
-          .select('*')
-          .eq('token', signupToken)
-          .eq('email', email)
-          .eq('used', false)
-          .single();
-
-        if (tokenError) {
-          console.error('Token validation error:', tokenError);
-          return NextResponse.redirect(new URL('/auth/login', request.url));
-        }
-
-        if (!tokenData) {
-          console.error('No valid token found');
-          return NextResponse.redirect(new URL('/auth/login', request.url));
-        }
-
-        // Check if token is expired
-        if (new Date(tokenData.expires_at) < new Date()) {
-          console.error('Token has expired');
-          return NextResponse.redirect(new URL('/auth/login', request.url));
-        }
-
-        console.log('Token validated successfully');
         return response;
       }
 
-      // No token provided for registration
-      console.log('No registration token provided');
       return NextResponse.redirect(new URL('/auth/login', request.url));
     }
 
