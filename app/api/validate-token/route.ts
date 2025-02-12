@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     const token = searchParams.get('token');
     const email = searchParams.get('email');
 
-    console.log('Token validation request:', { token, email });
+    console.log('Token validation request:', { token, email, decodedEmail: decodeURIComponent(email || '') });
 
     if (!token || !email) {
       console.error('Missing parameters:', { token, email });
@@ -55,7 +55,7 @@ export async function GET(request: Request) {
       .from('signup_tokens')
       .select('*')
       .eq('token', token)
-      .eq('email', email)
+      .eq('email', decodeURIComponent(email))
       .eq('used', false)
       .maybeSingle();
 
@@ -104,11 +104,21 @@ export async function GET(request: Request) {
     return NextResponse.json({ 
       valid: true, 
       data,
+      headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
+      },
       debug: {
         tokenFound: true,
         notExpired: true,
         notUsed: true,
-        emailMatched: true
+        emailMatched: true,
+        token: token,
+        email: email,
+        dataToken: data.token,
+        dataEmail: data.email,
+        dataExpiresAt: data.expires_at,
       }
     });
   } catch (error) {
