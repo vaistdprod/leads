@@ -61,20 +61,8 @@ export async function middleware(request: NextRequest) {
       }
     );
 
-    // Check if this is a registration request with a token
-    if (request.nextUrl.pathname === '/auth/register') {
-      const signupToken = request.nextUrl.searchParams.get('signup_token');
-      const email = request.nextUrl.searchParams.get('email');
-
-      if (signupToken && email) {
-        return response;
-      }
-
-      return NextResponse.redirect(new URL('/auth/login', request.url));
-    }
-
-    // Allow access to login page
-    if (request.nextUrl.pathname === '/auth/login') {
+    // Allow access to auth pages
+    if (request.nextUrl.pathname.startsWith('/auth/')) {
       return response;
     }
 

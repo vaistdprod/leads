@@ -24,25 +24,28 @@ export default function LoginPage() {
         if (isDevelopment) {
           const devAuth = localStorage.getItem('dev_auth');
           if (devAuth === 'true') {
-            router.replace('/dashboard');
+            document.cookie = 'dev_auth=true; path=/';
+            window.location.href = '/dashboard';
             return;
           }
+          setInitialized(true);
+          return;
         }
 
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
-          router.replace('/dashboard');
+          window.location.href = '/dashboard';
           return;
         }
+        setInitialized(true);
       } catch (error) {
         console.error('Session check failed:', error);
-      } finally {
         setInitialized(true);
       }
     };
 
     checkSession();
-  }, [router]);
+  }, []);
 
   const validateForm = () => {
     if (!email || !password) {
@@ -71,7 +74,7 @@ export default function LoginPage() {
         localStorage.setItem('dev_auth', 'true');
         document.cookie = 'dev_auth=true; path=/';
         toast.success('Development mode: Login successful');
-        router.replace('/dashboard');
+        window.location.href = '/dashboard';
         return;
       }
 
@@ -97,7 +100,7 @@ export default function LoginPage() {
 
       if (data.session) {
         toast.success('Login successful');
-        router.replace('/dashboard');
+        window.location.href = '/dashboard';
       } else {
         toast.error('Failed to get session. Please try again');
       }
