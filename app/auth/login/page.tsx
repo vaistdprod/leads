@@ -167,7 +167,7 @@ export default function LoginPage() {
             className="w-full"
             disabled={loading}
           >
-            {loading ? 'Přihlašování...' : 'Přihlásit se'}
+            {loading ? 'Přihlašuji...' : 'Přihlásit se'}
           </Button>
         </form>
       </Card>

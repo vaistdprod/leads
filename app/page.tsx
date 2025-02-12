@@ -58,7 +58,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="animate-pulse text-center">
-        <p className="text-muted-foreground">Loading...</p>
+        <p className="text-muted-foreground">Načítám...</p>
       </div>
     </div>
   );

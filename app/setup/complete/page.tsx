@@ -13,26 +13,26 @@ export default function SetupCompletePage() {
     <Card className="p-8">
       <div className="flex justify-between items-start">
         <BackButton />
-        <div></div> {/* Empty div for spacing */}
+        <div></div>
       </div>
       <div className="text-center mb-8">
         <div className="flex justify-center mb-4">
           <CheckCircle className="w-16 h-16 text-green-500" />
         </div>
-        <h1 className="text-3xl font-bold mb-2">Setup Complete!</h1>
+        <h1 className="text-3xl font-bold mb-2">Nastavení dokončeno</h1>
         <p className="text-muted-foreground">
-          Your lead processing automation system is ready to use.
+          Váš systém na automatizované zpracování leadů je připraven k použití.
         </p>
       </div>
 
       <div className="space-y-6 mb-8">
         <div className="bg-muted p-4 rounded-lg">
-          <h3 className="font-semibold mb-2">What's next:</h3>
+          <h3 className="font-semibold mb-2">Co dále:</h3>
           <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-            <li>Explore your dashboard</li>
-            <li>Start processing leads</li>
-            <li>Monitor results and analytics</li>
-            <li>Adjust settings as needed</li>
+            <li>Prozkoumejte hlavní stránku</li>
+            <li>Začněte zpracovávat leady</li>
+            <li>Sledujte výsledky a analýzy</li>
+            <li>Upravujte nastavení dle potřeb</li>
           </ul>
         </div>
       </div>
@@ -42,7 +42,7 @@ export default function SetupCompletePage() {
           size="lg"
           onClick={() => router.push('/dashboard')}
         >
-          Go to Dashboard
+          Na hlavní stránku
         </Button>
       </div>
     </Card>

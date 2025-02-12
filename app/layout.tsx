@@ -10,8 +10,8 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Lead Processing Automation',
-  description: 'Automated lead processing and outreach system',
+  title: 'Automatické zpracování leadů',
+  description: 'Systém pro automatické zpracování leadů',
   robots: {
     index: false,
     follow: false,

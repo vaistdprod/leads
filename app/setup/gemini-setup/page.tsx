@@ -28,10 +28,10 @@ export default function GeminiSetupPage() {
       if (error) throw error;
 
       router.push('/setup/sheet-setup');
-      toast.success('Gemini API Key saved successfully');
+      toast.success('Gemini API Key úspěšně uložen)');
     } catch (error) {
       console.error('Failed to save Gemini API key:', error);
-      toast.error('Failed to save API key');
+      toast.error('Nepodařilo se uložit API klíč');
     } finally {
       setLoading(false);
     }
@@ -41,33 +41,33 @@ export default function GeminiSetupPage() {
     <Card className="p-8">
       <div className="flex justify-between items-start">
         <BackButton />
-        <h1 className="text-3xl font-bold mb-2">Gemini API Setup</h1>
+        <h1 className="text-3xl font-bold mb-2">Nastavení Gemini API</h1>
         <div></div> {/* Empty div for spacing */}
       </div>
       <p className="text-muted-foreground">
-        Configure your Gemini API key for AI-powered lead enrichment.
+        Nastavte si svůj Gemini API klíč pro obohacování leadů pomocí AI.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="apiKey">Gemini API Key</Label>
+          <Label htmlFor="apiKey">Gemini API klíč</Label>
           <Input
             id="apiKey"
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
             required
-            placeholder="Enter your Gemini API key"
+            placeholder="Zadejte váš Gemini API klíč"
           />
           <p className="text-sm text-muted-foreground">
-            Don't have an API key?{' '}
+            Ještě nemáte API klíč?{' '}
             <a
               href="https://makersuite.google.com/app/apikey"
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary hover:underline"
             >
-              Get it here
+              Získejte ho zde
             </a>
           </p>
         </div>
@@ -77,7 +77,7 @@ export default function GeminiSetupPage() {
             type="submit"
             disabled={loading || !apiKey}
           >
-            {loading ? 'Saving...' : 'Continue'}
+            {loading ? 'Ukládám...' : 'Pokračovat'}
           </Button>
         </div>
       </form>
