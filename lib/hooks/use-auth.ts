@@ -50,7 +50,7 @@ if (typeof window !== 'undefined') {
   supabase.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_OUT' || !session) {
       useAuth.setState({ isAuthenticated: false, setupCompleted: null });
-    } else if (event === 'SIGNED_IN') {
+    } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
       useAuth.getState().initialize();
     }
   });

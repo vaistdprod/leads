@@ -1,16 +1,4 @@
-import { isDevelopment } from '@/lib/env';
-
 export async function sendEmail(to: string, subject: string, body: string) {
-  // In development mode, just log the email
-  if (isDevelopment) {
-    console.log('Development mode: Mock email sent', {
-      to,
-      subject,
-      body
-    });
-    return;
-  }
-
   try {
     const response = await fetch('/api/send-email', {
       method: 'POST',

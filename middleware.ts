@@ -11,11 +11,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  let response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
+  const response = NextResponse.next();
 
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -39,52 +35,72 @@ export async function middleware(request: NextRequest) {
               name,
               value,
               ...options,
+              sameSite: 'lax',
+              secure: true,
+              path: '/',
             });
           },
           remove(name: string, options: CookieOptions) {
-            response.cookies.delete({
+            response.cookies.set({
               name,
+              value: '',
               ...options,
+              maxAge: 0,
+              path: '/',
             });
           },
         },
       }
     );
 
-    // Allow access to auth pages without session check
-    if (request.nextUrl.pathname.startsWith('/auth/')) {
-      const { data: { session } } = await supabase.auth.getSession();
-      // If user is already authenticated and trying to access auth pages,
-      // redirect to dashboard
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    const currentPath = request.nextUrl.pathname;
+
+    // Handle session error
+    if (sessionError) {
+      console.error('Session error:', sessionError);
+      return NextResponse.redirect(new URL('/auth/login', request.url));
+    }
+
+    // Public routes that don't require authentication
+    if (currentPath.startsWith('/auth/')) {
       if (session) {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('setup_completed')
+          .eq('id', session.user.id)
+          .single();
+
+        if (!profile?.setup_completed) {
+          return NextResponse.redirect(new URL('/setup/welcome', request.url));
+        }
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
       return response;
     }
 
-    // For all other routes, check session
-    const { data: { session } } = await supabase.auth.getSession();
-
+    // Protected routes
     if (!session) {
       return NextResponse.redirect(new URL('/auth/login', request.url));
     }
 
-    // Only check setup completion for dashboard routes
-    if (request.nextUrl.pathname.startsWith('/dashboard')) {
-      const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('setup_completed')
-        .eq('id', session.user.id)
-        .single();
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('setup_completed')
+      .eq('id', session.user.id)
+      .single();
 
-      if (profileError) {
-        console.error("Error fetching user profile:", profileError);
-        return NextResponse.redirect(new URL('/auth/login', request.url));
+    // Setup routes
+    if (currentPath.startsWith('/setup/')) {
+      if (profile?.setup_completed) {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
       }
+      return response;
+    }
 
-      if (!profile?.setup_completed) {
-        return NextResponse.redirect(new URL('/setup/welcome', request.url));
-      }
+    // Dashboard and other protected routes
+    if (!profile?.setup_completed) {
+      return NextResponse.redirect(new URL('/setup/welcome', request.url));
     }
 
     return response;
