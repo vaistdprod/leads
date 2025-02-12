@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
@@ -37,6 +35,7 @@ function RegisterForm() {
         
         if (!token || !emailParam) {
           console.error('Missing token or email');
+          toast.error('Invalid registration link');
           router.replace('/auth/login');
           return;
         }
@@ -49,34 +48,20 @@ function RegisterForm() {
           return;
         }
 
-        // Validate token with Supabase
-        const { data, error } = await supabase
-          .from('signup_tokens')
-          .select('*')
-          .eq('token', token)
-          .eq('email', emailParam)
-          .eq('used', false)
-          .maybeSingle();
+        // Validate token with API
+        const response = await fetch(`/api/validate-token?token=${encodeURIComponent(token)}&email=${encodeURIComponent(emailParam)}`);
+        const data = await response.json();
 
-        if (error) {
-          console.error('Token validation error:', error);
-          toast.error('Failed to validate registration link');
+        if (!response.ok) {
+          console.error('Token validation failed:', data);
+          toast.error(data.error || 'Invalid registration link');
           router.replace('/auth/login');
           return;
         }
 
-        if (!data) {
-          console.error('Invalid or expired token');
-          toast.error('Invalid or expired registration link');
-          router.replace('/auth/login');
-          return;
-        }
-
-        // Check if token is expired
-        const expiresAt = new Date(data.expires_at);
-        if (expiresAt < new Date()) {
-          console.error('Token expired');
-          toast.error('Registration link has expired');
+        if (!data.valid) {
+          console.error('Invalid token:', data);
+          toast.error('Invalid registration link');
           router.replace('/auth/login');
           return;
         }
