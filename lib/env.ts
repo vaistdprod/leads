@@ -3,8 +3,8 @@ import { z } from 'zod';
 export const isDevelopment = process.env.NODE_ENV === 'development';
 
 const envSchema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url('Invalid Supabase URL'),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, 'Supabase anon key is required'),
+  NEXT_PUBLIC_SUPABASE_URL: z.string().default('http://localhost:54321'),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().default('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_REDIRECT_URI: z.string().optional(),
@@ -45,7 +45,15 @@ export function getEnv() {
     try {
       validatedEnv = envSchema.parse(envToValidate);
     } catch (error) {
-      throw new Error('Invalid environment variables');
+      if (isDevelopment) {
+        // In development, use default values
+        validatedEnv = envSchema.parse({
+          NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54321',
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
+        });
+      } else {
+        throw new Error('Invalid environment variables');
+      }
     }
   }
 
