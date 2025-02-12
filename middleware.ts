@@ -12,23 +12,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Check if this is a registration with signup token
-  if (request.nextUrl.pathname === '/auth/register') {
-    const searchParams = request.nextUrl.searchParams;
-    const signupToken = searchParams.get('signup_token');
-    const email = searchParams.get('email');
-    
-    // If we have both token and email, let the request through
-    if (signupToken && email) {
-      return NextResponse.next();
-    }
-  }
-
-  // Skip auth check for login page
-  if (request.nextUrl.pathname === '/auth/login') {
-    return NextResponse.next();
-  }
-
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -74,13 +57,36 @@ export async function middleware(request: NextRequest) {
       }
     );
 
+    // Allow registration with signup token without session
+    if (request.nextUrl.pathname === '/auth/register') {
+      const signupToken = request.nextUrl.searchParams.get('signup_token');
+      const email = request.nextUrl.searchParams.get('email');
+
+      if (signupToken && email) {
+        // Validate token
+        const { data: tokenData, error: tokenError } = await supabase
+          .from('signup_tokens')
+          .select('*')
+          .eq('token', signupToken)
+          .eq('email', email)
+          .eq('used', false)
+          .maybeSingle();
+
+        if (!tokenError && tokenData) {
+          return response;
+        }
+      }
+    }
+
+    // Allow login page
+    if (request.nextUrl.pathname === '/auth/login') {
+      return response;
+    }
+
+    // Check session
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
-      // Don't redirect registration with valid signup token
-      if (request.nextUrl.pathname === '/auth/register' && request.nextUrl.searchParams.get('signup_token')) {
-        return response;
-      }
       return NextResponse.redirect(new URL('/auth/login', request.url));
     }
 
