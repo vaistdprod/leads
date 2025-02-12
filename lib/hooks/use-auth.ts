@@ -2,7 +2,6 @@
 
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase/client';
-import { isDevelopment } from '@/lib/env';
 
 interface AuthState {
   isLoading: boolean;
@@ -19,16 +18,6 @@ export const useAuth = create<AuthState>((set) => ({
   setupCompleted: null,
   initialize: async () => {
     try {
-      if (isDevelopment) {
-        const devAuth = localStorage.getItem('dev_auth');
-        set({
-          isAuthenticated: devAuth === 'true',
-          setupCompleted: devAuth === 'true',
-          isLoading: false,
-        });
-        return;
-      }
-
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {

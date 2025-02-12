@@ -1,6 +1,5 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { isDevelopment } from '@/lib/env'
 
 export async function middleware(request: NextRequest) {
   // Skip middleware for static files and API routes
@@ -19,27 +18,6 @@ export async function middleware(request: NextRequest) {
   });
 
   try {
-    // Skip auth check in development mode
-    // Updated middleware.ts development section
-    if (isDevelopment) {
-      const devAuth = request.cookies.get('dev_auth')?.value;
-      // Allow access to auth pages even without cookie
-      if (request.nextUrl.pathname.startsWith('/auth/')) {
-        return response;
-      }
-      // Redirect to login if no dev_auth cookie
-      if (!devAuth) {
-        return NextResponse.redirect(new URL('/auth/login', request.url));
-      }
-      // Ensure the cookie is renewed to prevent expiration issues
-      response.cookies.set('dev_auth', 'true', {
-        path: '/',
-        sameSite: 'lax',
-        httpOnly: true, // Optional, but recommended
-      });
-      return response;
-    }
-
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -73,8 +51,14 @@ export async function middleware(request: NextRequest) {
       }
     );
 
-    // Allow access to auth pages
+    // Allow access to auth pages without session check
     if (request.nextUrl.pathname.startsWith('/auth/')) {
+      const { data: { session } } = await supabase.auth.getSession();
+      // If user is already authenticated and trying to access auth pages,
+      // redirect to dashboard
+      if (session) {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
       return response;
     }
 

@@ -8,7 +8,6 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabase/client';
-import { isDevelopment } from '@/lib/env';
 import { Logo } from '@/components/ui/logo';
 
 export default function LoginPage() {
@@ -21,18 +20,6 @@ export default function LoginPage() {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        if (isDevelopment) {
-          const devAuth = localStorage.getItem('dev_auth');
-          if (devAuth === 'true') {
-            // Update the cookie setting in handleLogin (development block)
-            document.cookie = `dev_auth=true; path=/; SameSite=Lax${isDevelopment ? '' : '; Secure'}`
-            window.location.href = '/dashboard';
-            return;
-          }
-          setInitialized(true);
-          return;
-        }
-
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           window.location.href = '/dashboard';
@@ -70,15 +57,6 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      if (isDevelopment) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        localStorage.setItem('dev_auth', 'true');
-        document.cookie = 'dev_auth=true; path=/';
-        toast.success('Development mode: Login successful');
-        window.location.href = '/dashboard';
-        return;
-      }
-
       const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
