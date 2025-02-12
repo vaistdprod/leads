@@ -9,7 +9,7 @@
     "lint": "next lint",
     "supabase:gen-types": "supabase gen types typescript --project-id dhfoloononavleqjpwnz > lib/database.types.ts",
     "supabase:migration:new": "supabase migration new",
-    "supabase:migration:push": "supabase db push --db-url $POSTGRES_URL"
+    "supabase:migration:push": "cross-env POSTGRES_URL=\"postgres://postgres.dhfoloononavleqjpwnz:776ArU3ikqYBSb0f@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require\" supabase db push"
   },
   "dependencies": {
     "@google/generative-ai": "^0.1.3",
@@ -47,6 +47,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^0.2.1",
+    "cross-env": "^7.0.3",
     "date-fns": "^3.6.0",
     "depcheck": "^1.4.7",
     "embla-carousel-react": "^8.5.2",
