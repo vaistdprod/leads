@@ -9,7 +9,7 @@
     "lint": "next lint",
     "supabase:gen-types": "supabase gen types typescript --project-id dhfoloononavleqjpwnz > lib/database.types.ts",
     "supabase:migration:new": "supabase migration new",
-    "supabase:migration:push": "cross-env POSTGRES_URL=\"postgres://postgres.dhfoloononavleqjpwnz:776ArU3ikqYBSb0f@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?sslmode=require\" supabase db push"
+    "supabase:migration:push": "cross-env POSTGRES_URL=$POSTGRES_URL supabase db push"
   },
   "dependencies": {
     "@google/generative-ai": "^0.1.3",

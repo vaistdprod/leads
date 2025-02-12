@@ -1,8 +1,8 @@
 -- Enable required extensions
-CREATE EXTENSION IF NOT EXISTS http WITH SCHEMA extensions; 
-CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions; 
+CREATE EXTENSION IF NOT EXISTS http WITH SCHEMA extensions;
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
--- Create function_logs table
+-- Create the `function_logs` table
 CREATE TABLE IF NOT EXISTS function_logs (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     function_name text NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS function_logs (
 -- Enable RLS on function_logs
 ALTER TABLE function_logs ENABLE ROW LEVEL SECURITY;
 
--- Allow insert from functions 
+-- Allow insert from functions
 CREATE POLICY "Functions can insert logs"
     ON function_logs FOR INSERT
     TO postgres
@@ -29,7 +29,7 @@ END;
 $$
  LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create signup_tokens table
+-- Create the `signup_tokens` table
 CREATE TABLE IF NOT EXISTS signup_tokens (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     token text UNIQUE NOT NULL,
@@ -77,17 +77,17 @@ RETURNS boolean AS $$
 DECLARE
   response_status int;
   response_content text;
-  request_url text := 'https://app.loops.so/api/v1/transactional'; 
-  request_headers text[];
+  request_url text := 'https://app.loops.so/api/v1/transactional';
+  request_headers http_header[];
   request_body jsonb;
 BEGIN
-  -- Sanitize the API key (remove any extra quotes or whitespace)
-  api_key := trim(both '"' from api_key);
+  -- Sanitize the API key (remove quotes, newlines, whitespace)
+  api_key := regexp_replace(trim(api_key), '[\n\r\t]', '', 'g');
 
-  -- Construct request headers
+  -- Construct headers as http_header records
   request_headers := ARRAY[
-    format('Authorization: Bearer %s', api_key),
-    'Content-Type: application/json'
+    ROW('Authorization', 'Bearer ' || api_key)::http_header,
+    ROW('Content-Type', 'application/json')::http_header
   ];
 
   -- Log debug information
@@ -99,14 +99,19 @@ BEGIN
     'headers', request_headers
   ));
 
-  -- Construct request body
+  -- Construct request body with corrected structure
   request_body := jsonb_build_object(
     'email', email_to,
-    'templateId', template_id,
-    'transactionalData', transactional_data
+    'transactionalId', template_id,
+    'dataVariables', jsonb_build_object(  -- Renamed to dataVariables
+      'ConfirmationURL', transactional_data->>'signupUrl'  -- Mapped to ConfirmationURL
+    )
   );
 
-  -- Make HTTP request
+  -- Log HTTP request details
+  RAISE NOTICE 'Requesting: URL=%, Headers=%, Body=%', request_url, request_headers, request_body::text;
+
+  -- Perform HTTP request
   SELECT 
     status,
     content::text
@@ -131,7 +136,7 @@ BEGIN
   ));
 
   -- Return success/failure
-  RETURN response_status = 200 AND (response_content::jsonb->>'status') = 'success';
+  RETURN response_status = 200 AND (response_content::jsonb->>'success')::boolean;
 EXCEPTION
   WHEN OTHERS THEN
     -- Log error
@@ -139,7 +144,8 @@ EXCEPTION
     VALUES ('send_loops_email_error', jsonb_build_object(
       'email_to', email_to,
       'template_id', template_id,
-      'transactional_data', transactional_data
+      'transactional_data', transactional_data,
+      'headers', request_headers
     ), SQLERRM);
     RETURN false;
 END;
@@ -162,7 +168,7 @@ DECLARE
 BEGIN
   -- Generate token
   token := generate_secure_token();
-  
+
   -- Create invite record
   INSERT INTO signup_tokens (
     token,
@@ -175,10 +181,10 @@ BEGIN
     created_by,
     now() + interval '7 days'
   ) RETURNING id INTO invite_id;
-  
-  -- Generate signup URL
-  signup_url := frontend_url || '/auth/register?signup_token=' || token || '&email=' || email_to;
-  
+
+  -- Generate signup URL (fix double slash issue)
+  signup_url := rtrim(frontend_url, '/') || '/auth/register?signup_token=' || token || '&email=' || email_to;
+
   -- Send email via Loops
   PERFORM send_loops_email(
     email_to,
