@@ -57,33 +57,53 @@ export async function middleware(request: NextRequest) {
       }
     );
 
-    // Allow registration with signup token without session
+    // Check if this is a registration request with a token
     if (request.nextUrl.pathname === '/auth/register') {
       const signupToken = request.nextUrl.searchParams.get('signup_token');
       const email = request.nextUrl.searchParams.get('email');
 
       if (signupToken && email) {
-        // Validate token
+        console.log('Validating registration token:', { signupToken, email });
+        
         const { data: tokenData, error: tokenError } = await supabase
           .from('signup_tokens')
           .select('*')
           .eq('token', signupToken)
           .eq('email', email)
           .eq('used', false)
-          .maybeSingle();
+          .single();
 
-        if (!tokenError && tokenData) {
-          return response;
+        if (tokenError) {
+          console.error('Token validation error:', tokenError);
+          return NextResponse.redirect(new URL('/auth/login', request.url));
         }
+
+        if (!tokenData) {
+          console.error('No valid token found');
+          return NextResponse.redirect(new URL('/auth/login', request.url));
+        }
+
+        // Check if token is expired
+        if (new Date(tokenData.expires_at) < new Date()) {
+          console.error('Token has expired');
+          return NextResponse.redirect(new URL('/auth/login', request.url));
+        }
+
+        console.log('Token validated successfully');
+        return response;
       }
+
+      // No token provided for registration
+      console.log('No registration token provided');
+      return NextResponse.redirect(new URL('/auth/login', request.url));
     }
 
-    // Allow login page
+    // Allow access to login page
     if (request.nextUrl.pathname === '/auth/login') {
       return response;
     }
 
-    // Check session
+    // For all other routes, check session
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
