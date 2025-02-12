@@ -24,13 +24,13 @@ export default function LoginPage() {
         if (isDevelopment) {
           const devAuth = localStorage.getItem('dev_auth');
           if (devAuth === 'true') {
-            router.push('/dashboard');
+            router.replace('/dashboard');
             return;
           }
         } else {
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
-            router.push('/dashboard');
+            router.replace('/dashboard');
             return;
           }
         }
@@ -70,7 +70,7 @@ export default function LoginPage() {
         await new Promise(resolve => setTimeout(resolve, 500));
         localStorage.setItem('dev_auth', 'true');
         toast.success('Development mode: Login successful');
-        router.push('/dashboard');
+        router.replace('/dashboard');
         return;
       }
 
@@ -95,9 +95,13 @@ export default function LoginPage() {
       }
 
       if (data.session) {
-        toast.success('Login successful');
-        await new Promise(resolve => setTimeout(resolve, 500));
-        router.push('/dashboard');
+        // Set up auth listener
+        supabase.auth.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_IN' && session) {
+            toast.success('Login successful');
+            router.replace('/dashboard');
+          }
+        });
       } else {
         toast.error('Failed to get session. Please try again');
       }
