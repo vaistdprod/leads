@@ -1,6 +1,6 @@
 -- Enable required extensions
-CREATE EXTENSION IF NOT EXISTS http WITH SCHEMA extensions;
-CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+CREATE EXTENSION IF NOT EXISTS http WITH SCHEMA extensions; 
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions; 
 
 -- Create function_logs table
 CREATE TABLE IF NOT EXISTS function_logs (
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS function_logs (
 -- Enable RLS on function_logs
 ALTER TABLE function_logs ENABLE ROW LEVEL SECURITY;
 
--- Allow insert from functions
+-- Allow insert from functions 
 CREATE POLICY "Functions can insert logs"
     ON function_logs FOR INSERT
     TO postgres
@@ -26,7 +26,8 @@ RETURNS text AS $$
 BEGIN
   RETURN encode(extensions.gen_random_bytes(length), 'hex');
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$
+ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Create signup_tokens table
 CREATE TABLE IF NOT EXISTS signup_tokens (
@@ -76,16 +77,26 @@ RETURNS boolean AS $$
 DECLARE
   response_status int;
   response_content text;
-  request_url text := 'https://api.loops.so/v1/transactional';
-  request_headers text[] := ARRAY['Authorization: Bearer ' || api_key, 'Content-Type: application/json'];
+  request_url text := 'https://app.loops.so/api/v1/transactional'; 
+  request_headers text[];
   request_body jsonb;
 BEGIN
-  -- Log attempt
+  -- Sanitize the API key (remove any extra quotes or whitespace)
+  api_key := trim(both '"' from api_key);
+
+  -- Construct request headers
+  request_headers := ARRAY[
+    format('Authorization: Bearer %s', api_key),
+    'Content-Type: application/json'
+  ];
+
+  -- Log debug information
   INSERT INTO function_logs (function_name, input_params)
-  VALUES ('send_loops_email', jsonb_build_object(
+  VALUES ('send_loops_email_debug', jsonb_build_object(
     'email_to', email_to,
     'template_id', template_id,
-    'transactional_data', transactional_data
+    'transactional_data', transactional_data,
+    'headers', request_headers
   ));
 
   -- Construct request body
@@ -95,42 +106,45 @@ BEGIN
     'transactionalData', transactional_data
   );
 
-  -- Make HTTP request using extensions.http
+  -- Make HTTP request
   SELECT 
     status,
     content::text
   INTO 
     response_status,
     response_content
-  FROM extensions.http((
-    'POST',
-    request_url,
-    request_headers,
-    'application/json',
-    request_body::text
-  ));
-  
+  FROM extensions.http(
+    ROW(
+        'POST',
+        request_url,
+        request_headers,
+        'application/json',
+        request_body::text
+    )::http_request
+  );
+
   -- Log response
   INSERT INTO function_logs (function_name, input_params)
   VALUES ('send_loops_email_response', jsonb_build_object(
     'status', response_status,
     'content', response_content
   ));
-  
+
   -- Return success/failure
   RETURN response_status = 200 AND (response_content::jsonb->>'status') = 'success';
 EXCEPTION
   WHEN OTHERS THEN
     -- Log error
     INSERT INTO function_logs (function_name, input_params, error_message)
-    VALUES ('send_loops_email', jsonb_build_object(
+    VALUES ('send_loops_email_error', jsonb_build_object(
       'email_to', email_to,
       'template_id', template_id,
       'transactional_data', transactional_data
     ), SQLERRM);
     RETURN false;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$
+ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to create invites
 CREATE OR REPLACE FUNCTION create_invite(
@@ -175,10 +189,12 @@ BEGIN
     ),
     loops_api_key
   );
-  
+
+  -- Return invite ID
   RETURN invite_id;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$
+ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Grant execute permissions
 GRANT EXECUTE ON FUNCTION create_invite(text, text, text, text, uuid) TO authenticated;
