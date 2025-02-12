@@ -2,9 +2,13 @@ import { z } from 'zod';
 
 export const isDevelopment = process.env.NODE_ENV === 'development';
 
+// Development defaults
+const DEV_SUPABASE_URL = 'http://localhost:54321';
+const DEV_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
+
 const envSchema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: z.string().default('http://localhost:54321'),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().default('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'),
+  NEXT_PUBLIC_SUPABASE_URL: z.string().min(1, 'Supabase URL is required'),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, 'Supabase anon key is required'),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   GOOGLE_REDIRECT_URI: z.string().optional(),
@@ -24,9 +28,18 @@ let validatedEnv: z.infer<typeof envSchema> | null = null;
 
 export function getEnv() {
   if (!validatedEnv) {
+    // In development, use default values if not provided
+    const supabaseUrl = isDevelopment 
+      ? (process.env.NEXT_PUBLIC_SUPABASE_URL || DEV_SUPABASE_URL)
+      : process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+    const supabaseAnonKey = isDevelopment
+      ? (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || DEV_SUPABASE_ANON_KEY)
+      : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
     const envToValidate = {
-      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey,
       GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
       GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
       GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
@@ -46,13 +59,16 @@ export function getEnv() {
       validatedEnv = envSchema.parse(envToValidate);
     } catch (error) {
       if (isDevelopment) {
-        // In development, use default values
-        validatedEnv = envSchema.parse({
-          NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54321',
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
-        });
+        console.warn('Environment validation failed:', error);
+        // In development, provide mock values
+        validatedEnv = {
+          NEXT_PUBLIC_SUPABASE_URL: DEV_SUPABASE_URL,
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: DEV_SUPABASE_ANON_KEY,
+          ...envToValidate,
+        };
       } else {
-        throw new Error('Invalid environment variables');
+        console.error('Environment validation failed:', error);
+        throw error;
       }
     }
   }
