@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,7 @@ const passwordRequirements = [
   { label: 'Minimálně 8 znaků', regex: /.{8,}/ }
 ];
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
@@ -317,5 +317,36 @@ export default function RegisterPage() {
         </div>
       </Card>
     </div>
+  );
+}
+
+// Loading component for Suspense fallback
+function RegisterLoading() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Card className="w-full max-w-md p-8">
+        <div className="animate-pulse space-y-4">
+          <div className="flex justify-center">
+            <div className="h-16 w-16 bg-gray-200 rounded-full"></div>
+          </div>
+          <div className="h-6 bg-gray-200 rounded w-3/4 mx-auto"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
+          <div className="space-y-3">
+            <div className="h-10 bg-gray-200 rounded"></div>
+            <div className="h-10 bg-gray-200 rounded"></div>
+            <div className="h-10 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<RegisterLoading />}>
+      <RegisterForm />
+    </Suspense>
   );
 }
