@@ -24,7 +24,8 @@ export default function LoginPage() {
         if (isDevelopment) {
           const devAuth = localStorage.getItem('dev_auth');
           if (devAuth === 'true') {
-            document.cookie = 'dev_auth=true; path=/';
+            // Update the cookie setting in handleLogin (development block)
+            document.cookie = `dev_auth=true; path=/; SameSite=Lax${isDevelopment ? '' : '; Secure'}`
             window.location.href = '/dashboard';
             return;
           }

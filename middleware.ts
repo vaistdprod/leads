@@ -20,11 +20,23 @@ export async function middleware(request: NextRequest) {
 
   try {
     // Skip auth check in development mode
+    // Updated middleware.ts development section
     if (isDevelopment) {
       const devAuth = request.cookies.get('dev_auth')?.value;
-      if (!devAuth && !request.nextUrl.pathname.startsWith('/auth/')) {
+      // Allow access to auth pages even without cookie
+      if (request.nextUrl.pathname.startsWith('/auth/')) {
+        return response;
+      }
+      // Redirect to login if no dev_auth cookie
+      if (!devAuth) {
         return NextResponse.redirect(new URL('/auth/login', request.url));
       }
+      // Ensure the cookie is renewed to prevent expiration issues
+      response.cookies.set('dev_auth', 'true', {
+        path: '/',
+        sameSite: 'lax',
+        httpOnly: true, // Optional, but recommended
+      });
       return response;
     }
 
