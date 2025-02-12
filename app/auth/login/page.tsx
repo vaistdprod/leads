@@ -24,18 +24,17 @@ export default function LoginPage() {
         if (isDevelopment) {
           const devAuth = localStorage.getItem('dev_auth');
           if (devAuth === 'true') {
-            router.push('/dashboard');
+            window.location.href = '/dashboard';
             return;
           }
           setInitialized(true);
           return;
         }
 
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) throw error;
+        const { data: { session } } = await supabase.auth.getSession();
         
         if (session) {
-          router.push('/dashboard');
+          window.location.href = '/dashboard';
           return;
         }
       } catch (error) {
@@ -46,17 +45,17 @@ export default function LoginPage() {
     };
 
     checkSession();
-  }, [router]);
+  }, []);
 
   const validateForm = () => {
     if (!email || !password) {
-      toast.error('Vyplňte prosím všechna pole');
+      toast.error('Please fill in all fields');
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      toast.error('Zadejte prosím platnou emailovou adresu');
+      toast.error('Please enter a valid email address');
       return false;
     }
 
@@ -74,7 +73,7 @@ export default function LoginPage() {
         await new Promise(resolve => setTimeout(resolve, 500));
         localStorage.setItem('dev_auth', 'true');
         toast.success('Development mode: Login successful');
-        router.push('/dashboard');
+        window.location.href = '/dashboard';
         return;
       }
 
@@ -99,9 +98,17 @@ export default function LoginPage() {
       }
 
       if (data.session) {
+        // Ensure session is set in Supabase client
+        await supabase.auth.setSession(data.session);
+        
+        // Show success message
         toast.success('Login successful');
-        await new Promise(resolve => setTimeout(resolve, 300));
-        router.push('/dashboard');
+        
+        // Use a small delay to ensure toast is visible
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Perform a full page navigation
+        window.location.href = '/dashboard';
       } else {
         toast.error('Failed to get session. Please try again');
       }
@@ -130,8 +137,8 @@ export default function LoginPage() {
       <Card className="w-full max-w-md p-8">
         <div className="flex flex-col items-center mb-8">
           <Logo className="mb-4" size={60} />
-          <h1 className="text-2xl font-bold">Vítejte zpět</h1>
-          <p className="text-muted-foreground">Přihlaste se ke svému účtu</p>
+          <h1 className="text-2xl font-bold">Welcome back</h1>
+          <p className="text-muted-foreground">Sign in to your account</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
@@ -140,9 +147,10 @@ export default function LoginPage() {
             <Input
               id="email"
               type="email"
-              placeholder="vas@email.cz"
+              placeholder="your@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
               required
               className="w-full"
               disabled={loading}
@@ -150,12 +158,13 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Heslo</Label>
+            <Label htmlFor="password">Password</Label>
             <Input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
               required
               className="w-full"
               disabled={loading}
@@ -167,7 +176,7 @@ export default function LoginPage() {
             className="w-full"
             disabled={loading}
           >
-            {loading ? 'Přihlašuji...' : 'Přihlásit se'}
+            {loading ? 'Signing in...' : 'Sign in'}
           </Button>
         </form>
       </Card>
