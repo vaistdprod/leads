@@ -1,5 +1,5 @@
 {
-  "name": "nextjs",
+  "name": "leads",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -11,7 +11,8 @@
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
     "supabase:reset": "supabase db reset",
-    "supabase:push": "supabase db push"
+    "supabase:push": "supabase db push",
+    "supabase:gen-types": "supabase gen types typescript --local > lib/database.types.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.1.3",
