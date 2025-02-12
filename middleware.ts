@@ -12,8 +12,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Skip auth check for auth pages
-  if (request.nextUrl.pathname.startsWith('/auth/')) {
+  // Check if this is a registration with signup token
+  if (request.nextUrl.pathname === '/auth/register') {
+    const searchParams = request.nextUrl.searchParams;
+    const signupToken = searchParams.get('signup_token');
+    const email = searchParams.get('email');
+    
+    // If we have both token and email, let the request through
+    if (signupToken && email) {
+      return NextResponse.next();
+    }
+  }
+
+  // Skip auth check for login page
+  if (request.nextUrl.pathname === '/auth/login') {
     return NextResponse.next();
   }
 
@@ -65,6 +77,10 @@ export async function middleware(request: NextRequest) {
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
+      // Don't redirect registration with valid signup token
+      if (request.nextUrl.pathname === '/auth/register' && request.nextUrl.searchParams.get('signup_token')) {
+        return response;
+      }
       return NextResponse.redirect(new URL('/auth/login', request.url));
     }
 
