@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,42 +18,31 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
-  const checkSession = useCallback(async () => {
-    try {
-      if (isDevelopment) {
-        const devAuth = localStorage.getItem('dev_auth');
-        if (devAuth === 'true') {
-          window.location.href = '/dashboard';
-          return;
-        }
-        setInitialized(true);
-        return;
-      }
-
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        window.location.href = '/dashboard';
-        return;
-      }
-    } catch (error) {
-      console.error('Session check failed:', error);
-    } finally {
-      setInitialized(true);
-    }
-  }, []);
-
   useEffect(() => {
-    let mounted = true;
-
-    if (mounted) {
-      checkSession();
-    }
-
-    return () => {
-      mounted = false;
+    const checkSession = async () => {
+      try {
+        if (isDevelopment) {
+          const devAuth = localStorage.getItem('dev_auth');
+          if (devAuth === 'true') {
+            router.push('/dashboard');
+            return;
+          }
+        } else {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            router.push('/dashboard');
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Session check failed:', error);
+      } finally {
+        setInitialized(true);
+      }
     };
-  }, [checkSession]);
+
+    checkSession();
+  }, [router]);
 
   const validateForm = () => {
     if (!email || !password) {
@@ -81,7 +70,7 @@ export default function LoginPage() {
         await new Promise(resolve => setTimeout(resolve, 500));
         localStorage.setItem('dev_auth', 'true');
         toast.success('Development mode: Login successful');
-        window.location.href = '/dashboard';
+        router.push('/dashboard');
         return;
       }
 
@@ -106,17 +95,9 @@ export default function LoginPage() {
       }
 
       if (data.session) {
-        // Ensure session is set in Supabase client
-        await supabase.auth.setSession(data.session);
-        
-        // Show success message
         toast.success('Login successful');
-        
-        // Use a small delay to ensure toast is visible
         await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Perform a full page navigation
-        window.location.href = '/dashboard';
+        router.push('/dashboard');
       } else {
         toast.error('Failed to get session. Please try again');
       }
