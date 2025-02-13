@@ -61,9 +61,10 @@ const config: Config = {
           '5': 'hsl(var(--chart-5))',
         },
       },
-      borderColor: {
+      borderColor: ({ theme }) => ({
+        ...theme('colors'), // Include all default colors
         DEFAULT: 'hsl(var(--border))', // This enables `border-border`
-      },
+      }),
       keyframes: {
         'accordion-down': {
           from: {
