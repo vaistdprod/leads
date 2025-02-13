@@ -13,16 +13,13 @@ export default function SettingsLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isLoading, isAuthenticated, setupCompleted } = useAuth();
+  const { isLoading, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (!isLoading) {
-      if (!isAuthenticated) {
-        router.replace('/auth/login');
-      } else if (setupCompleted === false) {
-      }
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/auth/login');
     }
-  }, [isLoading, isAuthenticated, setupCompleted, router]);
+  }, [isLoading, isAuthenticated, router]);
 
   const currentTab = pathname.split('/').pop() || 'general';
 
@@ -30,7 +27,7 @@ export default function SettingsLayout({
     router.push(`/settings/${value}`);
   };
 
-  if (isLoading || !isAuthenticated || !setupCompleted) {
+  if (isLoading || !isAuthenticated) {
     return (
       <div className="container mx-auto py-8 px-4">
         <div className="animate-pulse">

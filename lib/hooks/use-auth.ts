@@ -2,54 +2,44 @@
 
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase/client';
+import { AuthChangeEvent, Session } from '@supabase/supabase-js';
 
 interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
-  setupCompleted: boolean | null;
   initialize: () => Promise<void>;
   setAuthenticated: (value: boolean) => void;
-  setSetupCompleted: (value: boolean) => void;
 }
 
 export const useAuth = create<AuthState>((set) => ({
   isLoading: true,
   isAuthenticated: false,
-  setupCompleted: null,
   initialize: async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        set({ isAuthenticated: false, setupCompleted: null, isLoading: false });
+        set({ isAuthenticated: false, isLoading: false });
         return;
       }
 
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('setup_completed')
-        .eq('id', session.user.id)
-        .single();
-
       set({
         isAuthenticated: true,
-        setupCompleted: profile?.setup_completed ?? false,
         isLoading: false,
       });
     } catch (error) {
       console.error('Auth initialization failed:', error);
-      set({ isAuthenticated: false, setupCompleted: null, isLoading: false });
+      set({ isAuthenticated: false, isLoading: false });
     }
   },
   setAuthenticated: (value) => set({ isAuthenticated: value }),
-  setSetupCompleted: (value) => set({ setupCompleted: value }),
 }));
 
 // Set up auth state listener
 if (typeof window !== 'undefined') {
-  supabase.auth.onAuthStateChange((event, session) => {
+  supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
     if (event === 'SIGNED_OUT' || !session) {
-      useAuth.setState({ isAuthenticated: false, setupCompleted: null });
+      useAuth.setState({ isAuthenticated: false });
     } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
       useAuth.getState().initialize();
     }

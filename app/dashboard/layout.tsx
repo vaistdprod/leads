@@ -1,11 +1,7 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useTheme } from 'next-themes';
-import { MoonIcon, SunIcon, Settings } from 'lucide-react';
-import { Button } from "@/components/ui/button";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/hooks/use-auth';
 
 export default function DashboardLayout({
@@ -14,74 +10,24 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const pathname = usePathname();
-  const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  const { isLoading, isAuthenticated, setupCompleted, initialize } = useAuth();
+  const { isLoading, isAuthenticated, initialize } = useAuth();
 
   useEffect(() => {
-    setMounted(true);
-    initialize();
-  }, [initialize]);
-
-  useEffect(() => {
-    if (!isLoading) {
-      if (!isAuthenticated) {
-        router.replace('/auth/login');
-      } else if (setupCompleted === false) {
-        router.replace('/settings/general');
-      }
+    if (!isLoading && !isAuthenticated) {
+      router.replace('/auth/login');
     }
-  }, [isLoading, isAuthenticated, setupCompleted, router]);
-
-  const currentTab = pathname.split('/').pop() || 'overview';
-
-  const handleTabChange = (value: string) => {
-    router.push(`/dashboard/${value}`);
-  };
+  }, [isLoading, isAuthenticated, router]);
 
   if (isLoading || !isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[hsl(var(--background))] flex items-center justify-center">
-        <div className="animate-pulse text-center">
-          <p className="text-muted-foreground">Loading...</p>
+      <div className="container mx-auto py-8 px-4">
+        <div className="animate-pulse">
+          <div className="h-10 bg-gray-200 rounded w-full max-w-md mb-8"></div>
+          <div className="h-64 bg-gray-200 rounded"></div>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-[hsl(var(--background))]">
-      <div className="flex justify-between items-center p-4">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => router.push('/settings')}
-        >
-          <Settings className="h-[1.2rem] w-[1.2rem]" />
-          <span className="sr-only">Settings</span>
-        </Button>
-        
-        {mounted && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-          >
-            <SunIcon className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <MoonIcon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            <span className="sr-only">Toggle theme</span>
-          </Button>
-        )}
-      </div>
-      <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-8">
-        <TabsList className="container mx-auto px-4 grid grid-cols-3 w-full">
-          <TabsTrigger value="overview">Přehled</TabsTrigger>
-          <TabsTrigger value="history">Historie</TabsTrigger>
-          <TabsTrigger value="analytics">Analytika</TabsTrigger>
-        </TabsList>
-        {children}
-      </Tabs>
-    </div>
-  );
+  return <>{children}</>;
 }
