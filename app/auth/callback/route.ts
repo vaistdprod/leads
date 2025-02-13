@@ -106,24 +106,27 @@ export async function GET(request: NextRequest) {
     }
 
     // Redirect based on setup status
-    const redirectUrl = profile?.setup_completed ? '/dashboard' : '/setup/welcome';
+    let redirectUrl = profile?.setup_completed ? '/dashboard' : '/setup/welcome';
 
-    if (requestUrl.searchParams.get('state') === 'source=google_setup' && profile && !profile.setup_completed) {
-      try {
-        const { error: updateError } = await supabase
-          .from('user_profiles')
-          .update({ setup_completed: true })
-          .eq('id', session.user.id);
+    // Special handling for Google setup flow
+    if (requestUrl.searchParams.get('state') === 'source=google_setup') {
+      // Update setup status only if coming from setup flow
+      if (profile && !profile.setup_completed) {
+        try {
+          const { error: updateError } = await supabase
+            .from('user_profiles')
+            .update({ setup_completed: true })
+            .eq('id', session.user.id);
 
-        if (updateError) {
+          if (updateError) {
+            return redirectWithError(new URL('/auth/login', request.url), 'Profile update error:', updateError);
+          }
+        } catch (updateError) {
           return redirectWithError(new URL('/auth/login', request.url), 'Profile update error:', updateError);
         }
-      } catch (updateError) {
-        return redirectWithError(new URL('/auth/login', request.url), 'Profile update error:', updateError);
+        // After successful setup completion, redirect to dashboard
+        redirectUrl = '/dashboard';
       }
-      const dashboardRedirectUrl = new URL('/dashboard', request.url);
-      console.log('Redirecting to:', dashboardRedirectUrl.toString());// Keep this log, it's not an error
-      return NextResponse.redirect(dashboardRedirectUrl);
     }
 
     const finalRedirectUrl = new URL(redirectUrl, request.url);

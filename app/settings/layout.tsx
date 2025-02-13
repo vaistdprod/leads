@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from '@/lib/supabase/client';
-import { isDevelopment } from '@/lib/env';
 import { useAuth } from '@/lib/hooks/use-auth';
 
 export default function SettingsLayout({
