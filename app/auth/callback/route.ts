@@ -96,8 +96,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Redirect based on setup status
-    const initialRedirectUrl = profile?.setup_completed ? '/dashboard' : '/setup/welcome'
-    let finalRedirectUrl = initialRedirectUrl;
+    const redirectUrl = profile?.setup_completed ? '/dashboard' : '/setup/welcome'
 
     if (requestUrl.searchParams.get('state') === 'source=google_setup' && profile && !profile.setup_completed) {
       const { error: updateError } = await supabase
@@ -107,20 +106,20 @@ export async function GET(request: NextRequest) {
 
       if (updateError) {
         console.error('Profile update error:', updateError);
-        const loginRedirectUrl = new URL('/auth/login', request.url);
-        console.log('Redirecting to:', loginRedirectUrl.toString());
-        return NextResponse.redirect(loginRedirectUrl);
+        return NextResponse.redirect(new URL('/auth/login', request.url));
       }
-      finalRedirectUrl = '/dashboard';
+      const dashboardRedirectUrl = new URL('/dashboard', request.url);
+      console.log('Redirecting to:', dashboardRedirectUrl.toString());
+      return NextResponse.redirect(dashboardRedirectUrl)
+
     }
 
-    const finalRedirectUrlWithParams = new URL(finalRedirectUrl, request.url);
-    console.log('Redirecting to:', finalRedirectUrlWithParams.toString(), 'with finalRedirectUrl:', finalRedirectUrl);
-    return NextResponse.redirect(finalRedirectUrlWithParams);
+    const finalRedirectUrl = new URL(redirectUrl, request.url);
+    console.log('Redirecting to:', finalRedirectUrl.toString());
+    return NextResponse.redirect(finalRedirectUrl);
+
   } catch (error) {
     console.error('Auth callback error:', error);
-    const errorRedirectUrl = new URL('/auth/login', request.url);
-    console.log('Redirecting to:', errorRedirectUrl.toString());
-    return NextResponse.redirect(errorRedirectUrl);
+    return NextResponse.redirect(new URL('/auth/login', request.url));
   }
 }
