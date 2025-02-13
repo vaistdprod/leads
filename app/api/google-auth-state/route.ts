@@ -1,19 +1,11 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { isDevelopment } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    if (isDevelopment) {
-      return NextResponse.json({
-        isAuthenticated: true,
-        expiryDate: new Date(Date.now() + 3600000).toISOString(),
-      });
-    }
-
     const cookieStore = cookies();
     const supabase = createServerSupabaseClient(cookieStore);
 

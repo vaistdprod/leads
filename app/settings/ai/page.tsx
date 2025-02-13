@@ -22,7 +22,6 @@ import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabase/client';
-import { isDevelopment } from '@/lib/env';
 import BackButton from '@/components/ui/back-button';
 
 const aiSettingsSchema = z.object({
@@ -35,17 +34,6 @@ const aiSettingsSchema = z.object({
   enrichmentPrompt: z.string().min(1, 'Required'),
   emailPrompt: z.string().min(1, 'Required'),
 });
-
-const mockAiSettings = {
-  gemini_api_key: 'mock-api-key',
-  model: 'gemini-pro',
-  temperature: 0.7,
-  top_k: 40,
-  top_p: 0.95,
-  use_google_search: false,
-  enrichment_prompt: 'Default enrichment prompt',
-  email_prompt: 'Default email prompt',
-};
 
 export default function AiSettingsPage() {
   const router = useRouter();
@@ -66,31 +54,23 @@ export default function AiSettingsPage() {
 
   const loadSettings = async () => {
     try {
-      let data;
+      const { data: settings, error } = await supabase
+        .from('settings')
+        .select('*')
+        .single();
 
-      if (isDevelopment) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        data = mockAiSettings;
-      } else {
-        const { data: settings, error } = await supabase
-          .from('settings')
-          .select('*')
-          .single();
+      if (error) throw error;
 
-        if (error) throw error;
-        data = settings;
-      }
-
-      if (data) {
+      if (settings) {
         form.reset({
-          geminiApiKey: data.gemini_api_key || '',
-          model: data.model || 'gemini-pro',
-          temperature: data.temperature || 0.7,
-          topK: data.top_k || 40,
-          topP: data.top_p || 0.95,
-          useGoogleSearch: data.use_google_search || false,
-          enrichmentPrompt: data.enrichment_prompt || '',
-          emailPrompt: data.email_prompt || '',
+          geminiApiKey: settings.gemini_api_key || '',
+          model: settings.model || 'gemini-pro',
+          temperature: settings.temperature || 0.7,
+          topK: settings.top_k || 40,
+          topP: settings.top_p || 0.95,
+          useGoogleSearch: settings.use_google_search || false,
+          enrichmentPrompt: settings.enrichment_prompt || '',
+          emailPrompt: settings.email_prompt || '',
         });
       }
     } catch (error) {
@@ -103,12 +83,6 @@ export default function AiSettingsPage() {
 
   const onSubmit = async (values: z.infer<typeof aiSettingsSchema>) => {
     try {
-      if (isDevelopment) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        toast.success('Development mode: AI settings saved');
-        return;
-      }
-
       const { error } = await supabase
         .from('settings')
         .update({
@@ -142,7 +116,7 @@ export default function AiSettingsPage() {
       <Card className="p-6">
         <div className="flex justify-between items-start">
           <BackButton />
-          <h1 className="text-2xl font-bold mb-6">Nastavení AI</h1>
+          <h1 className="text-2xl font-bold mb-6">AI Settings</h1>
           <div></div>
         </div>
 
@@ -153,12 +127,12 @@ export default function AiSettingsPage() {
               name="geminiApiKey"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Gemini API klíč</FormLabel>
+                  <FormLabel>Gemini API Key</FormLabel>
                   <FormControl>
                     <Input type="password" {...field} />
                   </FormControl>
                   <FormDescription>
-                    Váš Gemini API klíč pro operace AI
+                    Your Gemini API key for AI operations
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -170,7 +144,7 @@ export default function AiSettingsPage() {
               name="temperature"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Teplota ({field.value})</FormLabel>
+                  <FormLabel>Temperature ({field.value})</FormLabel>
                   <FormControl>
                     <Slider
                       min={0}
@@ -181,7 +155,7 @@ export default function AiSettingsPage() {
                     />
                   </FormControl>
                   <FormDescription>
-                    Řídí náhodnost ve výstupu (0 = deterministický, 1 = kreativní)
+                    Controls randomness in output (0 = deterministic, 1 = creative)
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -204,7 +178,7 @@ export default function AiSettingsPage() {
                     />
                   </FormControl>
                   <FormDescription>
-                    Omezuje počet tokenů zvažovaných pro každý krok
+                    Limits the number of tokens considered for each step
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -227,7 +201,7 @@ export default function AiSettingsPage() {
                     />
                   </FormControl>
                   <FormDescription>
-                    Řídí rozmanitost výstupu
+                    Controls output diversity
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -241,10 +215,10 @@ export default function AiSettingsPage() {
                 <FormItem className="flex items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
                     <FormLabel className="text-base">
-                      Použít vyhledávání Google
+                      Use Google Search
                     </FormLabel>
                     <FormDescription>
-                      Povolit vyhledávání Google pro obohacení potenciálních zákazníků
+                      Enable Google Search for lead enrichment
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -262,16 +236,16 @@ export default function AiSettingsPage() {
               name="enrichmentPrompt"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Šablona výzvy k obohacení</FormLabel>
+                  <FormLabel>Enrichment Prompt Template</FormLabel>
                   <FormControl>
                     <Textarea
                       {...field}
                       rows={5}
-                      placeholder="Zadejte šablonu výzvy pro obohacení potenciálních zákazníků..."
+                      placeholder="Enter prompt template for lead enrichment..."
                     />
                   </FormControl>
                   <FormDescription>
-                    Šablona pro generování výzev k obohacení potenciálních zákazníků. Použijte {'{firstName}'}, {'{lastName}'} atd. pro proměnné.
+                    Template for generating lead enrichment prompts. Use {'{firstName}'}, {'{lastName}'} etc. for variables.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -283,16 +257,16 @@ export default function AiSettingsPage() {
               name="emailPrompt"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Šablona výzvy k emailu</FormLabel>
+                  <FormLabel>Email Prompt Template</FormLabel>
                   <FormControl>
                     <Textarea
                       {...field}
                       rows={5}
-                      placeholder="Zadejte šablonu výzvy pro generování emailu..."
+                      placeholder="Enter prompt template for email generation..."
                     />
                   </FormControl>
                   <FormDescription>
-                    Šablona pro generování výzev k emailu. Použijte {'{firstName}'}, {'{enrichmentData}'} atd. pro proměnné.
+                    Template for generating email prompts. Use {'{firstName}'}, {'{enrichmentData}'} etc. for variables.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -305,9 +279,9 @@ export default function AiSettingsPage() {
                 variant="outline"
                 onClick={() => router.push('/dashboard')}
               >
-                Zpět
+                Back
               </Button>
-              <Button type="submit">Uložit nastavení</Button>
+              <Button type="submit">Save Settings</Button>
             </div>
           </form>
         </Form>
