@@ -29,6 +29,7 @@ export default function DashboardLayout({
       if (!isAuthenticated) {
         router.replace('/auth/login');
       } else if (setupCompleted === false) {
+        router.replace('/settings/general');
       }
     }
   }, [isLoading, isAuthenticated, setupCompleted, router]);
@@ -39,7 +40,7 @@ export default function DashboardLayout({
     router.push(`/dashboard/${value}`);
   };
 
-  if (isLoading || !isAuthenticated || !setupCompleted) {
+  if (isLoading || !isAuthenticated) {
     return (
       <div className="min-h-screen bg-[hsl(var(--background))] flex items-center justify-center">
         <div className="animate-pulse text-center">

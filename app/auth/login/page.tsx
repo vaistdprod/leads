@@ -9,31 +9,24 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabase/client';
 import { Logo } from '@/components/ui/logo';
+import { useAuth } from '@/lib/hooks/use-auth';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { isLoading, isAuthenticated, initialize } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          window.location.href = '/dashboard';
-          return;
-        }
-        setInitialized(true);
-      } catch (error) {
-        console.error('Session check failed:', error);
-        setInitialized(true);
-      }
-    };
+    initialize();
+  }, [initialize]);
 
-    checkSession();
-  }, []);
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace('/dashboard');
+    }
+  }, [isLoading, isAuthenticated, router]);
 
   const validateForm = () => {
     if (!email || !password) {
@@ -79,7 +72,8 @@ export default function LoginPage() {
 
       if (data.session) {
         toast.success('Login successful');
-        window.location.href = '/dashboard';
+        await initialize(); // Re-initialize auth state
+        router.replace('/dashboard');
       } else {
         toast.error('Failed to get session. Please try again');
       }
@@ -91,7 +85,7 @@ export default function LoginPage() {
     }
   };
 
-  if (!initialized) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--background))]">
         <Card className="w-full max-w-md p-8">
@@ -101,6 +95,10 @@ export default function LoginPage() {
         </Card>
       </div>
     );
+  }
+
+  if (isAuthenticated) {
+    return null;
   }
 
   return (

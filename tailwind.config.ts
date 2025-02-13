@@ -33,44 +33,39 @@ const config: Config = {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
       },
-      colors: {
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
-        },
-        secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
-        },
-        destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
-        },
-        muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
-        },
-        accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
-        },
-        popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
-        },
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
-        },
-      },
     },
   },
-  plugins: [require('tailwindcss-animate')],
+  plugins: [
+    require('tailwindcss-animate'),
+    function({ addBase, addUtilities }: { addBase: any; addUtilities: (utilities: Record<string, Record<string, string>>) => void }) {
+      addUtilities({
+        '.bg-state-background': { backgroundColor: 'oklch(var(--background))' },
+        '.text-state-foreground': { color: 'oklch(var(--foreground))' },
+        '.border-state-border': { borderColor: 'oklch(var(--border))' },
+        '.bg-state-card': { backgroundColor: 'oklch(var(--card))' },
+        '.text-state-card-foreground': { color: 'oklch(var(--card-foreground))' },
+        '.bg-state-popover': { backgroundColor: 'oklch(var(--popover))' },
+        '.text-state-popover-foreground': { color: 'oklch(var(--popover-foreground))' },
+        '.bg-state-primary': { backgroundColor: 'oklch(var(--primary))' },
+        '.text-state-primary-foreground': { color: 'oklch(var(--primary-foreground))' },
+        '.bg-state-secondary': { backgroundColor: 'oklch(var(--secondary))' },
+        '.text-state-secondary-foreground': { color: 'oklch(var(--secondary-foreground))' },
+        '.bg-state-muted': { backgroundColor: 'oklch(var(--muted))' },
+        '.text-state-muted-foreground': { color: 'oklch(var(--muted-foreground))' },
+        '.bg-state-accent': { backgroundColor: 'oklch(var(--accent))' },
+        '.text-state-accent-foreground': { color: 'oklch(var(--accent-foreground))' },
+        '.bg-state-destructive': { backgroundColor: 'oklch(var(--destructive))' },
+        '.text-state-destructive-foreground': { color: 'oklch(var(--destructive-foreground))' },
+        '.ring-state-ring': { '--tw-ring-color': 'oklch(var(--ring))' },
+        '.border-state-input': { borderColor: 'oklch(var(--input))' },
+        '.bg-state-chart-1': { backgroundColor: 'oklch(var(--chart-1))' },
+        '.bg-state-chart-2': { backgroundColor: 'oklch(var(--chart-2))' },
+        '.bg-state-chart-3': { backgroundColor: 'oklch(var(--chart-3))' },
+        '.bg-state-chart-4': { backgroundColor: 'oklch(var(--chart-4))' },
+        '.bg-state-chart-5': { backgroundColor: 'oklch(var(--chart-5))' },
+      });
+    },
+  ],
 };
 
 export default config;
