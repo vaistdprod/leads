@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from '@/lib/supabase/client';
-import { useAuth } from '@/lib/hooks/use-auth';
 
 export default function SettingsLayout({
   children,
@@ -13,13 +12,9 @@ export default function SettingsLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isLoading, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.replace('/auth/login');
-    }
-  }, [isLoading, isAuthenticated, router]);
+  }, [router]);
 
   const currentTab = pathname.split('/').pop() || 'general';
 
@@ -27,16 +22,6 @@ export default function SettingsLayout({
     router.push(`/settings/${value}`);
   };
 
-  if (isLoading || !isAuthenticated) {
-    return (
-      <div className="container mx-auto py-8 px-4">
-        <div className="animate-pulse">
-          <div className="h-10 bg-gray-200 rounded w-full max-w-md mb-8"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="container mx-auto py-8 px-4">
