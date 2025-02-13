@@ -10,8 +10,8 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Automatické zpracování leadů',
-  description: 'Systém pro automatické zpracování leadů',
+  title: 'Lead Management',
+  description: 'Automated Lead Management System',
   robots: {
     index: false,
     follow: false,
@@ -34,7 +34,6 @@ export default function RootLayout({
       </head>
       <body className={plusJakartaSans.className}>
         <ThemeProvider
-          attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange

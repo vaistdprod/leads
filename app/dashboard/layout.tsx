@@ -30,9 +30,9 @@ export default function DashboardLayout({
           <div className="flex justify-between items-center">
             <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full max-w-md">
               <TabsList className="grid grid-cols-3 w-full">
-                <TabsTrigger value="overview" className="cursor-pointer">Přehled</TabsTrigger>
-                <TabsTrigger value="analytics" className="cursor-pointer">Analytika</TabsTrigger>
-                <TabsTrigger value="history" className="cursor-pointer">Historie</TabsTrigger>
+                <TabsTrigger value="overview" className="cursor-pointer">Overview</TabsTrigger>
+                <TabsTrigger value="analytics" className="cursor-pointer">Analytics</TabsTrigger>
+                <TabsTrigger value="history" className="cursor-pointer">History</TabsTrigger>
               </TabsList>
             </Tabs>
             <ModeToggle />

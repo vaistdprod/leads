@@ -23,8 +23,8 @@ import { supabase } from '@/lib/supabase/client';
 import BackButton from '@/components/ui/back-button';
 
 const generalSettingsSchema = z.object({
-  blacklistSheetId: z.string().min(1, 'Povinné pole'),
-  contactsSheetId: z.string().min(1, 'Povinné pole'),
+  blacklistSheetId: z.string().min(1, 'Required'),
+  contactsSheetId: z.string().min(1, 'Required'),
   autoExecutionEnabled: z.boolean(),
   cronSchedule: z.string().optional(),
 });
@@ -83,8 +83,8 @@ export default function GeneralSettingsPage() {
         });
       }
     } catch (error) {
-      console.error('Nepodařilo se načíst nastavení:', error);
-      toast.error('Nepodařilo se načíst nastavení. Používám výchozí hodnoty.');
+      console.error('Failed to load settings:', error);
+      toast.error('Failed to load settings. Using default values.');
     } finally {
       setLoading(false);
     }
@@ -109,10 +109,10 @@ export default function GeneralSettingsPage() {
 
       if (error) throw error;
 
-      toast.success('Nastavení bylo úspěšně uloženo');
+      toast.success('Settings saved successfully.');
     } catch (error) {
-      console.error('Nepodařilo se uložit nastavení:', error);
-      toast.error('Nepodařilo se uložit nastavení. Zkuste to prosím znovu.');
+      console.error('Failed to save settings:', error);
+      toast.error('Failed to save settings. Please try again.');
     }
   };
 
@@ -125,7 +125,7 @@ export default function GeneralSettingsPage() {
       <Card className="p-6">
         <div className="flex justify-between items-start">
           <BackButton />
-          <h1 className="text-2xl font-bold mb-6">Obecná Nastavení</h1>
+          <h1 className="text-2xl font-bold mb-6">General Settings</h1>
           <div></div>
         </div>
 
@@ -136,12 +136,12 @@ export default function GeneralSettingsPage() {
               name="blacklistSheetId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>ID Blacklist Sheetu</FormLabel>
+                  <FormLabel>Blacklist Sheet ID</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
                   <FormDescription>
-                    ID Google Sheetu obsahujícího blacklist emailů.
+                    Google Sheet ID containing contacts to process.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -153,12 +153,12 @@ export default function GeneralSettingsPage() {
               name="contactsSheetId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>ID Kontaktů Sheetu</FormLabel>
+                  <FormLabel>Contacts Sheet ID</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
                   <FormDescription>
-                    ID Google Sheetu obsahujícího kontakty ke zpracování.
+                    Google Sheet ID containing contacts to process.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -172,10 +172,10 @@ export default function GeneralSettingsPage() {
                 <FormItem className="flex items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
                     <FormLabel className="text-base">
-                      Automatické Spouštění
+                      Auto Execution
                     </FormLabel>
                     <FormDescription>
-                      Povolit automatické zpracování kontaktů podle rozvrhu.
+                      Enable automatic processing of contacts according to schedule.
                     </FormDescription>
                   </div>
                   <FormControl>
@@ -194,12 +194,12 @@ export default function GeneralSettingsPage() {
                 name="cronSchedule"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Rozvrh (Cron Výraz)</FormLabel>
+                    <FormLabel>Schedule (Cron Expression)</FormLabel>
                     <FormControl>
                       <Input {...field} placeholder="0 0 * * *" />
                     </FormControl>
                     <FormDescription>
-                      Kdy spouštět zpracování (v cron formátu).
+                      When to run the processing (in cron format).
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -207,7 +207,7 @@ export default function GeneralSettingsPage() {
               />
             )}
 
-            <Button type="submit">Uložit Nastavení</Button>
+            <Button type="submit">Save Settings</Button>
           </form>
         </Form>
       </Card>
