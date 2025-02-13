@@ -1,9 +1,9 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { Database } from '../types'
-import { getEnv } from '../env';
+import { validateEnv } from '../env';
 
 export function createServerSupabaseClient(cookieStore: any) {
-  const env = getEnv();
+  const env = validateEnv();
   return createServerClient<Database>(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_ANON_KEY,

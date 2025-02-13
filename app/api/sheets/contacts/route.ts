@@ -74,6 +74,7 @@ export async function GET(request: Request) {
       return contact;
     });
 
+    console.log(contacts);
     return NextResponse.json({ contacts });
   } catch (error) {
     console.error('Failed to get contacts:', error);
