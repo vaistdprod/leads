@@ -1,7 +1,7 @@
-import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,23 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     const cookieStore = cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value
-          },
-          set(name: string, value: string, options: { path: string }) {
-            cookieStore.set({ name, value, ...options })
-          },
-          remove(name: string, options: { path: string }) {
-            cookieStore.delete({ name, ...options })
-          },
-        },
-      }
-    )
+    const supabase = createServerSupabaseClient(cookieStore)
 
     // Exchange code for session
     const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
@@ -101,9 +85,24 @@ export async function GET(request: NextRequest) {
 
     // Redirect based on setup status
     const redirectUrl = profile?.setup_completed ? '/dashboard' : '/setup/welcome'
-    return NextResponse.redirect(new URL(redirectUrl, request.url))
+    let finalRedirectUrl = redirectUrl;
+
+    if (requestUrl.searchParams.get('state') === 'source=google_setup' && profile && !profile.setup_completed) {
+      const { error: updateError } = await supabase
+        .from('user_profiles')
+        .update({ setup_completed: true })
+        .eq('id', session.user.id);
+
+      if (updateError) {
+        console.error('Profile update error:', updateError);
+        return NextResponse.redirect(new URL('/auth/login', request.url));
+      }
+      finalRedirectUrl = '/dashboard';
+    }
+
+    return NextResponse.redirect(new URL(finalRedirectUrl, request.url));
   } catch (error) {
-    console.error('Auth callback error:', error)
-    return NextResponse.redirect(new URL('/auth/login', request.url))
+    console.error('Auth callback error:', error);
+    return NextResponse.redirect(new URL('/auth/login', request.url));
   }
 }
