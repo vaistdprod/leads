@@ -5,6 +5,13 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
 
+// Helper function for redirects
+function redirectWithError(url: URL, message: string, error?: any) {
+  console.error(message, error);
+  console.log('Redirecting to:', url.toString());
+  return NextResponse.redirect(url)
+}
+
 export async function GET(request: NextRequest) {
   try {
     const requestUrl = new URL(request.url)
@@ -12,17 +19,11 @@ export async function GET(request: NextRequest) {
     const error = requestUrl.searchParams.get('error')
 
     if (error) {
-      console.error('OAuth error:', error, requestUrl.searchParams.toString());
-      const loginRedirectUrl = new URL('/auth/login', request.url);
-      console.log('Redirecting to:', loginRedirectUrl.toString());
-      return NextResponse.redirect(loginRedirectUrl)
+      return redirectWithError(new URL('/auth/login', request.url), `OAuth error: ${error} ${requestUrl.searchParams.toString()}`);
     }
 
     if (!code) {
-      console.error('No code received')
-      const loginRedirectUrl = new URL('/auth/login', request.url);
-      console.log('Redirecting to:', loginRedirectUrl.toString());
-      return NextResponse.redirect(loginRedirectUrl)
+      return redirectWithError(new URL('/auth/login', request.url), 'No code received');
     }
 
     const cookieStore = cookies()
@@ -30,22 +31,16 @@ export async function GET(request: NextRequest) {
 
     // Exchange code for session
     const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
-    
+
     if (exchangeError) {
-      console.error('Code exchange error:', exchangeError)
-      const loginRedirectUrl = new URL('/auth/login', request.url);
-      console.log('Redirecting to:', loginRedirectUrl.toString());
-      return NextResponse.redirect(loginRedirectUrl)
+      return redirectWithError(new URL('/auth/login', request.url), 'Code exchange error:', exchangeError);
     }
 
     // Get current session after exchange
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    
+
     if (sessionError || !session) {
-      console.error('Session error:', sessionError)
-      const loginRedirectUrl = new URL('/auth/login', request.url);
-      console.log('Redirecting to:', loginRedirectUrl.toString());
-      return NextResponse.redirect(loginRedirectUrl)
+      return redirectWithError(new URL('/auth/login', request.url), 'Session error:', sessionError);
     }
 
     // Create settings record if it doesn't exist
@@ -62,7 +57,7 @@ export async function GET(request: NextRequest) {
         }])
 
       if (settingsError) {
-        console.error('Settings creation error:', settingsError)
+        console.error('Settings creation error:', settingsError);
       }
     }
 
@@ -76,7 +71,7 @@ export async function GET(request: NextRequest) {
     if (profileError && profileError.code === 'PGRST116') { // Not found error
       const { error: insertError } = await supabase
         .from('user_profiles')
-        .insert([{ 
+        .insert([{
           id: session.user.id,
           setup_completed: false,
           created_at: new Date().toISOString(),
@@ -84,14 +79,11 @@ export async function GET(request: NextRequest) {
         }])
 
       if (insertError) {
-        console.error('Profile creation error:', insertError)
-        const loginRedirectUrl = new URL('/auth/login', request.url);
-        console.log('Redirecting to:', loginRedirectUrl.toString());
-        return NextResponse.redirect(loginRedirectUrl)
+        return redirectWithError(new URL('/auth/login', request.url), 'Profile creation error:', insertError);
       }
 
       const redirectUrl = new URL('/setup/welcome', request.url);
-      console.log('Redirecting to:', redirectUrl.toString());
+      console.log('Redirecting to:', redirectUrl.toString()); // Keep this log, it's not an error
       return NextResponse.redirect(redirectUrl)
     }
 
@@ -105,21 +97,19 @@ export async function GET(request: NextRequest) {
         .eq('id', session.user.id);
 
       if (updateError) {
-        console.error('Profile update error:', updateError);
-        return NextResponse.redirect(new URL('/auth/login', request.url));
+        return redirectWithError(new URL('/auth/login', request.url), 'Profile update error:', updateError);
       }
       const dashboardRedirectUrl = new URL('/dashboard', request.url);
-      console.log('Redirecting to:', dashboardRedirectUrl.toString());
+      console.log('Redirecting to:', dashboardRedirectUrl.toString());// Keep this log, it's not an error
       return NextResponse.redirect(dashboardRedirectUrl)
 
     }
 
     const finalRedirectUrl = new URL(redirectUrl, request.url);
-    console.log('Redirecting to:', finalRedirectUrl.toString());
+    console.log('Redirecting to:', finalRedirectUrl.toString()); // Keep this log, it's not an error
     return NextResponse.redirect(finalRedirectUrl);
 
   } catch (error) {
-    console.error('Auth callback error:', error);
-    return NextResponse.redirect(new URL('/auth/login', request.url));
+    return redirectWithError(new URL('/auth/login', request.url), 'Auth callback error:', error);
   }
 }
