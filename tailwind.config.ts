@@ -61,6 +61,9 @@ const config: Config = {
           '5': 'hsl(var(--chart-5))',
         },
       },
+      borderColor: {
+        DEFAULT: 'hsl(var(--border))', // This enables `border-border`
+      },
       keyframes: {
         'accordion-down': {
           from: {
