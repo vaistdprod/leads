@@ -53,9 +53,28 @@ export default function GeneralSettingsPage() {
         .eq('user_id', user.id)
         .single();
 
-      if (error) throw error;
-
-      if (settings) {
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No record found, create one
+          const { data: newSettings, error: insertError } = await supabase
+            .from('settings')
+            .insert({ user_id: user.id })
+            .select()
+            .single();
+          
+          if (insertError) throw insertError;
+          if (newSettings) {
+            form.reset({
+              blacklistSheetId: newSettings.blacklist_sheet_id || '',
+              contactsSheetId: newSettings.contacts_sheet_id || '',
+              autoExecutionEnabled: newSettings.auto_execution_enabled || false,
+              cronSchedule: newSettings.cron_schedule || '',
+            });
+          }
+        } else {
+          throw error;
+        }
+      } else if (settings) {
         form.reset({
           blacklistSheetId: settings.blacklist_sheet_id || '',
           contactsSheetId: settings.contacts_sheet_id || '',
@@ -78,7 +97,8 @@ export default function GeneralSettingsPage() {
 
       const { error } = await supabase
         .from('settings')
-        .update({
+        .upsert({
+          user_id: user.id,
           blacklist_sheet_id: values.blacklistSheetId,
           contacts_sheet_id: values.contactsSheetId,
           auto_execution_enabled: values.autoExecutionEnabled,

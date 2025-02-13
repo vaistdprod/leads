@@ -29,14 +29,32 @@ export default function OverviewPage() {
 
   const loadDashboardStats = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+
       const { data: dashboardStats, error } = await supabase
         .from('dashboard_stats')
         .select('*')
+        .eq('user_id', user.id)
         .single();
 
-      if (error) throw error;
-
-      setStats(dashboardStats);
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No record found, create one
+          const { data: newStats, error: insertError } = await supabase
+            .from('dashboard_stats')
+            .insert({ user_id: user.id })
+            .select()
+            .single();
+          
+          if (insertError) throw insertError;
+          setStats(newStats || stats);
+        } else {
+          throw error;
+        }
+      } else {
+        setStats(dashboardStats);
+      }
     } catch (error) {
       console.error('Failed to load dashboard stats:', error);
       toast.error('Failed to load dashboard statistics');
