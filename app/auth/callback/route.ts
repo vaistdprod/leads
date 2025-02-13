@@ -9,10 +9,9 @@ export async function GET(request: NextRequest) {
   try {
     const requestUrl = new URL(request.url)
     const code = requestUrl.searchParams.get('code')
-    const state = requestUrl.searchParams.get('state')
 
     if (!code) {
-      console.error('No code received from Google')
+      console.error('No code received')
       return NextResponse.redirect(new URL('/auth/login', request.url))
     }
 
@@ -35,26 +34,15 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    // Get current session
+    // Exchange code for session
+    await supabase.auth.exchangeCodeForSession(code)
+
+    // Get current session after exchange
     const { data: { session } } = await supabase.auth.getSession()
     
     if (!session) {
-      console.error('No session found')
+      console.error('No session after code exchange')
       return NextResponse.redirect(new URL('/auth/login', request.url))
-    }
-
-    // Store Google OAuth code
-    const { error: settingsError } = await supabase
-      .from('settings')
-      .upsert({
-        user_id: session.user.id,
-        google_auth_code: code,
-        updated_at: new Date().toISOString()
-      })
-
-    if (settingsError) {
-      console.error('Failed to store Google auth code:', settingsError)
-      return NextResponse.redirect(new URL('/setup/google-auth', request.url))
     }
 
     // Check if user has completed setup
@@ -64,8 +52,26 @@ export async function GET(request: NextRequest) {
       .eq('id', session.user.id)
       .single()
 
-    if (!profile?.setup_completed) {
-      return NextResponse.redirect(new URL('/setup/gemini-setup', request.url))
+    // Create user profile if it doesn't exist
+    if (!profile) {
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .insert([{ 
+          id: session.user.id,
+          setup_completed: false
+        }])
+
+      if (profileError) {
+        console.error('Failed to create user profile:', profileError)
+        return NextResponse.redirect(new URL('/auth/login', request.url))
+      }
+
+      return NextResponse.redirect(new URL('/setup/welcome', request.url))
+    }
+
+    // Redirect based on setup status
+    if (!profile.setup_completed) {
+      return NextResponse.redirect(new URL('/setup/welcome', request.url))
     }
 
     return NextResponse.redirect(new URL('/dashboard', request.url))
