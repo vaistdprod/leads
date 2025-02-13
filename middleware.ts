@@ -34,19 +34,22 @@ export async function middleware(request: NextRequest) {
             response.cookies.set({
               name,
               value,
-              ...options,
+              domain: options.domain,
+              maxAge: options.maxAge,
+              path: options.path || '/',
               sameSite: 'lax',
               secure: true,
-              path: '/',
             });
           },
           remove(name: string, options: CookieOptions) {
             response.cookies.set({
               name,
               value: '',
-              ...options,
+              domain: options.domain,
               maxAge: 0,
-              path: '/',
+              path: options.path || '/',
+              sameSite: 'lax',
+              secure: true,
             });
           },
         },
@@ -62,9 +65,15 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/auth/login', request.url));
     }
 
-    // Public routes that don't require authentication
+    // Auth callback should bypass checks
+    if (currentPath === '/auth/callback') {
+      return response;
+    }
+
+    // Other auth routes
     if (currentPath.startsWith('/auth/')) {
-      if (session) {
+      // Only redirect if user is already logged in and trying to access login page
+      if (session && currentPath === '/auth/login') {
         const { data: profile } = await supabase
           .from('user_profiles')
           .select('setup_completed')
