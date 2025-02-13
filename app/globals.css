@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --background: oklch(1 0 0);
+  --background: oklch(0.99 0 0);
   --foreground: oklch(0.039 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.039 0 0);
@@ -17,8 +17,8 @@
   --accent-foreground: oklch(0.09 0 0);
   --destructive: oklch(0.602 0.2 0);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.898 0 0);
-  --input: oklch(0.898 0 0);
+  --border: oklch(0.8 0.05 0);
+  --input: oklch(0.8 0.05 0);
   --ring: oklch(0.039 0 0);
   --radius: 0.5rem;
 }
