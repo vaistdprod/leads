@@ -1,56 +1,57 @@
 @import "tailwindcss";
 
+@theme {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.039 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.039 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.039 0 0);
+  --primary: oklch(0.09 0 0);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.961 0 0);
+  --secondary-foreground: oklch(0.09 0 0);
+  --muted: oklch(0.961 0 0);
+  --muted-foreground: oklch(0.451 0 0);
+  --accent: oklch(0.961 0 0);
+  --accent-foreground: oklch(0.09 0 0);
+  --destructive: oklch(0.602 0.2 0);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.898 0 0);
+  --input: oklch(0.898 0 0);
+  --ring: oklch(0.039 0 0);
+  --radius: 0.5rem;
+}
+
+@theme dark {
+  --background: oklch(0.039 0 0);
+  --foreground: oklch(0.98 0 0);
+  --card: oklch(0.039 0 0);
+  --card-foreground: oklch(0.98 0 0);
+  --popover: oklch(0.039 0 0);
+  --popover-foreground: oklch(0.98 0 0);
+  --primary: oklch(0.98 0 0);
+  --primary-foreground: oklch(0.09 0 0);
+  --secondary: oklch(0.149 0 0);
+  --secondary-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.149 0 0);
+  --muted-foreground: oklch(0.639 0 0);
+  --accent: oklch(0.149 0 0);
+  --accent-foreground: oklch(0.98 0 0);
+  --destructive: oklch(0.306 0.2 0);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.149 0 0);
+  --input: oklch(0.149 0 0);
+  --ring: oklch(0.831 0 0);
+}
+
 @layer base {
-  :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.039 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.039 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.039 0 0);
-    --primary: oklch(0.09 0 0);
-    --primary-foreground: oklch(0.98 0 0);
-    --secondary: oklch(0.961 0 0);
-    --secondary-foreground: oklch(0.09 0 0);
-    --muted: oklch(0.961 0 0);
-    --muted-foreground: oklch(0.451 0 0);
-    --accent: oklch(0.961 0 0);
-    --accent-foreground: oklch(0.09 0 0);
-    --destructive: oklch(0.602 0.2 0);
-    --destructive-foreground: oklch(0.98 0 0);
-    --border: oklch(0.898 0 0);
-    --input: oklch(0.898 0 0);
-    --ring: oklch(0.039 0 0);
-    --radius: 0.5rem;
-  }
-
-  .dark {
-    --background: oklch(0.039 0 0);
-    --foreground: oklch(0.98 0 0);
-    --card: oklch(0.039 0 0);
-    --card-foreground: oklch(0.98 0 0);
-    --popover: oklch(0.039 0 0);
-    --popover-foreground: oklch(0.98 0 0);
-    --primary: oklch(0.98 0 0);
-    --primary-foreground: oklch(0.09 0 0);
-    --secondary: oklch(0.149 0 0);
-    --secondary-foreground: oklch(0.98 0 0);
-    --muted: oklch(0.149 0 0);
-    --muted-foreground: oklch(0.639 0 0);
-    --accent: oklch(0.149 0 0);
-    --accent-foreground: oklch(0.98 0 0);
-    --destructive: oklch(0.306 0.2 0);
-    --destructive-foreground: oklch(0.98 0 0);
-    --border: oklch(0.149 0 0);
-    --input: oklch(0.149 0 0);
-    --ring: oklch(0.831 0 0);
-  }
-
   * {
-    @apply :state(border);
+    border-color: oklch(var(--border));
   }
   body {
-    @apply :state(background) :state(foreground);
+    background-color: oklch(var(--background));
+    color: oklch(var(--foreground));
   }
 }
 
@@ -65,58 +66,61 @@
     border-radius: calc(var(--radius) - 4px);
   }
 
-  :state(background) {
+  .bg-background {
     background-color: oklch(var(--background));
   }
-  :state(primary) {
+  .bg-primary {
     background-color: oklch(var(--primary));
   }
-  :state(secondary) {
+  .bg-secondary {
     background-color: oklch(var(--secondary));
   }
-  :state(muted) {
+  .bg-muted {
     background-color: oklch(var(--muted));
   }
-  :state(accent) {
+  .bg-accent {
     background-color: oklch(var(--accent));
   }
-  :state(destructive) {
+  .bg-destructive {
     background-color: oklch(var(--destructive));
   }
-  :state(card) {
+  .bg-card {
     background-color: oklch(var(--card));
   }
 
-  :state(foreground) {
+  .text-foreground {
     color: oklch(var(--foreground));
   }
-  :state(primary-foreground) {
+  .text-primary {
+    color: oklch(var(--primary));
+  }
+  .text-primary-foreground {
     color: oklch(var(--primary-foreground));
   }
-  :state(secondary-foreground) {
+  .text-secondary-foreground {
     color: oklch(var(--secondary-foreground));
   }
-  :state(muted-foreground) {
+  .text-muted-foreground {
     color: oklch(var(--muted-foreground));
   }
-  :state(accent-foreground) {
+  .text-accent-foreground {
     color: oklch(var(--accent-foreground));
   }
-  :state(destructive-foreground) {
+  .text-destructive-foreground {
     color: oklch(var(--destructive-foreground));
   }
-  :state(card-foreground) {
+  .text-card-foreground {
     color: oklch(var(--card-foreground));
   }
 
-  :state(ring) {
+  .ring-ring {
     --tw-ring-color: oklch(var(--ring));
   }
 
-  :state(border) {
+  .border-border {
     border-color: oklch(var(--border));
   }
-  :state(input) {
+  .border-input {
     border-color: oklch(var(--input));
   }
 
