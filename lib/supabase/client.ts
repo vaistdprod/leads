@@ -1,11 +1,16 @@
+'use client';
+
 import { createBrowserClient } from '@supabase/ssr';
 import { Database } from '../types';
 import { getEnv } from '../env';
 
-// Create a singleton instance for the browser
 let supabase: ReturnType<typeof createBrowserClient<Database>>;
 
 export function createBrowserSupabaseClient() {
+  if (typeof window === 'undefined') {
+    throw new Error('createBrowserSupabaseClient can only be called in the browser');
+  }
+
   try {
     const env = getEnv();
     return createBrowserClient<Database>(
@@ -34,8 +39,8 @@ export function createBrowserSupabaseClient() {
   }
 }
 
-// Initialize the client
-if (!supabase) {
+// Initialize the client lazily only on the client side
+if (typeof window !== 'undefined' && !supabase) {
   supabase = createBrowserSupabaseClient();
 }
 
