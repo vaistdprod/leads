@@ -13,12 +13,16 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('OAuth error:', error, requestUrl.searchParams.toString());
-      return NextResponse.redirect(new URL('/auth/login', request.url))
+      const loginRedirectUrl = new URL('/auth/login', request.url);
+      console.log('Redirecting to:', loginRedirectUrl.toString());
+      return NextResponse.redirect(loginRedirectUrl)
     }
 
     if (!code) {
       console.error('No code received')
-      return NextResponse.redirect(new URL('/auth/login', request.url))
+      const loginRedirectUrl = new URL('/auth/login', request.url);
+      console.log('Redirecting to:', loginRedirectUrl.toString());
+      return NextResponse.redirect(loginRedirectUrl)
     }
 
     const cookieStore = cookies()
@@ -29,7 +33,9 @@ export async function GET(request: NextRequest) {
     
     if (exchangeError) {
       console.error('Code exchange error:', exchangeError)
-      return NextResponse.redirect(new URL('/auth/login', request.url))
+      const loginRedirectUrl = new URL('/auth/login', request.url);
+      console.log('Redirecting to:', loginRedirectUrl.toString());
+      return NextResponse.redirect(loginRedirectUrl)
     }
 
     // Get current session after exchange
@@ -37,7 +43,9 @@ export async function GET(request: NextRequest) {
     
     if (sessionError || !session) {
       console.error('Session error:', sessionError)
-      return NextResponse.redirect(new URL('/auth/login', request.url))
+      const loginRedirectUrl = new URL('/auth/login', request.url);
+      console.log('Redirecting to:', loginRedirectUrl.toString());
+      return NextResponse.redirect(loginRedirectUrl)
     }
 
     // Create settings record if it doesn't exist
@@ -77,15 +85,19 @@ export async function GET(request: NextRequest) {
 
       if (insertError) {
         console.error('Profile creation error:', insertError)
-        return NextResponse.redirect(new URL('/auth/login', request.url))
+        const loginRedirectUrl = new URL('/auth/login', request.url);
+        console.log('Redirecting to:', loginRedirectUrl.toString());
+        return NextResponse.redirect(loginRedirectUrl)
       }
 
-      return NextResponse.redirect(new URL('/setup/welcome', request.url))
+      const redirectUrl = new URL('/setup/welcome', request.url);
+      console.log('Redirecting to:', redirectUrl.toString());
+      return NextResponse.redirect(redirectUrl)
     }
 
     // Redirect based on setup status
-    const redirectUrl = profile?.setup_completed ? '/dashboard' : '/setup/welcome'
-    let finalRedirectUrl = redirectUrl;
+    const initialRedirectUrl = profile?.setup_completed ? '/dashboard' : '/setup/welcome'
+    let finalRedirectUrl = initialRedirectUrl;
 
     if (requestUrl.searchParams.get('state') === 'source=google_setup' && profile && !profile.setup_completed) {
       const { error: updateError } = await supabase
@@ -95,14 +107,20 @@ export async function GET(request: NextRequest) {
 
       if (updateError) {
         console.error('Profile update error:', updateError);
-        return NextResponse.redirect(new URL('/auth/login', request.url));
+        const loginRedirectUrl = new URL('/auth/login', request.url);
+        console.log('Redirecting to:', loginRedirectUrl.toString());
+        return NextResponse.redirect(loginRedirectUrl);
       }
       finalRedirectUrl = '/dashboard';
     }
 
-    return NextResponse.redirect(new URL(finalRedirectUrl, request.url));
+    const finalRedirectUrlWithParams = new URL(finalRedirectUrl, request.url);
+    console.log('Redirecting to:', finalRedirectUrlWithParams.toString(), 'with finalRedirectUrl:', finalRedirectUrl);
+    return NextResponse.redirect(finalRedirectUrlWithParams);
   } catch (error) {
     console.error('Auth callback error:', error);
-    return NextResponse.redirect(new URL('/auth/login', request.url));
+    const errorRedirectUrl = new URL('/auth/login', request.url);
+    console.log('Redirecting to:', errorRedirectUrl.toString());
+    return NextResponse.redirect(errorRedirectUrl);
   }
 }
