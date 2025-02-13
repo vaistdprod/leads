@@ -1,7 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export const enrichLeadData = async (lead: Record<string, string>): Promise<string> => {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+  const apiKey = process.env.GEMINI_API_KEY;
+  const genAI = new GoogleGenerativeAI(apiKey || '');
   const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
   const prompt = `
@@ -22,7 +23,8 @@ export const enrichLeadData = async (lead: Record<string, string>): Promise<stri
 };
 
 export const generateEmail = async (lead: Record<string, string>, enrichmentData: string): Promise<{ subject: string; body: string }> => {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+  const apiKey = process.env.GEMINI_API_KEY;
+  const genAI = new GoogleGenerativeAI(apiKey || '');
   const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
   const prompt = `

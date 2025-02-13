@@ -28,20 +28,17 @@ export async function GET(request: Request) {
     const cookieStore = cookies();
     const supabase = createServerSupabaseClient(cookieStore);
 
-    const { data: settings, error: settingsError } = await supabase
-      .from('settings')
-      .select('google_access_token')
-      .single();
+    const apiKey = process.env.GEMINI_API_KEY;
 
-    if (settingsError || !settings?.google_access_token) {
-      return NextResponse.json({ error: 'Google authentication required' }, { status: 401 });
+    if (!apiKey) {
+      return NextResponse.json({ error: 'Google API key required' }, { status: 401 });
     }
 
     const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/B:B`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/B:B?key=${apiKey}`,
       {
         headers: {
-          Authorization: `Bearer ${settings.google_access_token}`,
+          //Authorization: `Bearer ${settings.google_access_token}`,
         },
       }
     );

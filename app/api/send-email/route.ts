@@ -7,27 +7,16 @@ const gmail = google.gmail('v1');
 
 export async function POST(request: Request) {
   try {
-    const cookieStore = cookies();
-    const supabase = createServerSupabaseClient(cookieStore);
-    
-    const { data: settings } = await supabase
-      .from('settings')
-      .select('google_access_token')
-      .single();
+    const apiKey = process.env.GEMINI_API_KEY;
 
-    if (!settings?.google_access_token) {
+    if (!apiKey) {
       return NextResponse.json(
-        { error: 'Google authentication required' },
+        { error: 'Google API key required' },
         { status: 401 }
       );
     }
 
     const { to, subject, body } = await request.json();
-
-    const auth = new google.auth.OAuth2();
-    auth.setCredentials({
-      access_token: settings.google_access_token,
-    });
 
     const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
     const messageParts = [
@@ -47,7 +36,7 @@ export async function POST(request: Request) {
       .replace(/=+$/, '');
 
     await gmail.users.messages.send({
-      auth,
+      key: apiKey,
       userId: 'me',
       requestBody: {
         raw: encodedMessage,

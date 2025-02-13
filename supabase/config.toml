@@ -47,8 +47,8 @@ enable_confirmations = false
 
 # Use an external OAuth provider.
 [auth.external.google]
-enabled = true
-client_id = "env(GOOGLE_CLIENT_ID)"
-secret = "env(GOOGLE_CLIENT_SECRET)"
+enabled = false
+client_id = "${env:GOOGLE_CLIENT_ID}"
+secret = "${env:GOOGLE_CLIENT_SECRET}"
 # Overrides the default auth redirectUrl.
-redirect_uri = "env(GOOGLE_REDIRECT_URI)"
+redirect_uri = "${env:GOOGLE_REDIRECT_URI}"
