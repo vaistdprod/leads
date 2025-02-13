@@ -10,7 +10,6 @@ export async function GET(request: NextRequest) {
     const requestUrl = new URL(request.url)
     const code = requestUrl.searchParams.get('code')
     const error = requestUrl.searchParams.get('error')
-    const state = requestUrl.searchParams.get('state')
 
     if (error) {
       console.error('OAuth error:', error, requestUrl.searchParams.toString());
@@ -57,25 +56,39 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/auth/login', request.url))
     }
 
-    // Check if user has completed setup
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('setup_completed')
-      .eq('id', session.user.id)
+    // Create settings record if it doesn't exist
+    const { data: existingSettings } = await supabase
+      .from('settings')
+      .select('id')
       .single()
 
-    if (profileError && profileError.code !== 'PGRST116') { // Not found error
-      console.error('Profile fetch error:', profileError)
-      return NextResponse.redirect(new URL('/auth/login', request.url))
+    if (!existingSettings) {
+      const { error: settingsError } = await supabase
+        .from('settings')
+        .insert([{
+          user_id: session.user.id,
+        }])
+
+      if (settingsError) {
+        console.error('Settings creation error:', settingsError)
+      }
     }
 
     // Create user profile if it doesn't exist
-    if (!profile) {
+    const { data: profile, error: profileError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .single()
+
+    if (profileError && profileError.code === 'PGRST116') { // Not found error
       const { error: insertError } = await supabase
         .from('user_profiles')
         .insert([{ 
           id: session.user.id,
-          setup_completed: false
+          setup_completed: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         }])
 
       if (insertError) {
@@ -87,8 +100,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Redirect based on setup status
-    const redirectUrl = profile.setup_completed ? '/dashboard' : '/setup/welcome'
-    console.log('Redirecting to:', redirectUrl)
+    const redirectUrl = profile?.setup_completed ? '/dashboard' : '/setup/welcome'
     return NextResponse.redirect(new URL(redirectUrl, request.url))
   } catch (error) {
     console.error('Auth callback error:', error)

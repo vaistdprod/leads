@@ -3,31 +3,44 @@
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useEffect } from 'react';
+import { supabase } from '@/lib/supabase/client';
 
 export default function WelcomePage() {
   const router = useRouter();
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.replace('/auth/login');
+      }
+    };
+
+    checkAuth();
+  }, [router]);
+
   const steps = [
     {
-      title: "Propojení Google účtu",
-      description: "Propojte svůj Google účet pro přístup k Sheets a Gmailu.",
+      title: "Connect Google Account",
+      description: "Connect your Google account for access to Sheets and Gmail.",
     },
     {
-      title: "Nastavení Gemini API",
-      description: "Nastavte svůj Gemini API klíč pro obohacování leadů pomocí AI.",
+      title: "Set up Gemini API",
+      description: "Configure your Gemini API key for lead enrichment with AI.",
     },
     {
-      title: "Nastavení Google Sheets",
-      description: "Nastavte svůj blacklist a kontaktní sheet.",
+      title: "Configure Google Sheets",
+      description: "Set up your blacklist and contacts sheets.",
     },
   ];
 
   return (
     <Card className="p-8">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold mb-2">Vítejte v úvodním nastavení</h1>
+        <h1 className="text-3xl font-bold mb-2">Welcome to Initial Setup</h1>
         <p className="text-muted-foreground">
-          Pojďme nastavit váš systém na automatizované zpracování leadů.
+          Let's set up your automated lead processing system.
         </p>
       </div>
 
@@ -50,7 +63,7 @@ export default function WelcomePage() {
           size="lg"
           onClick={() => router.push('/setup/google-auth')}
         >
-          Začít
+          Get Started
         </Button>
       </div>
     </Card>
