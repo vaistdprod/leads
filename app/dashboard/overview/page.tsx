@@ -8,19 +8,30 @@ import { BarChart, LineChart, RefreshCw, Settings, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabase/client';
 
+interface DashboardStats {
+  total_leads: number;
+  processed_leads: number;
+  success_rate: number;
+  last_processed: string | null;
+  blacklist_count: number;
+  contacts_count: number;
+  emails_sent: number;
+  emails_queued: number;
+}
+
 export default function OverviewPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [stats, setStats] = useState({
-    totalLeads: 0,
-    processedLeads: 0,
-    successRate: 0,
-    lastProcessed: null,
-    blacklistCount: 0,
-    contactsCount: 0,
-    emailsSent: 0,
-    emailsQueued: 0
+  const [stats, setStats] = useState<DashboardStats>({
+    total_leads: 0,
+    processed_leads: 0,
+    success_rate: 0,
+    last_processed: null,
+    blacklist_count: 0,
+    contacts_count: 0,
+    emails_sent: 0,
+    emails_queued: 0
   });
 
   useEffect(() => {
@@ -48,11 +59,11 @@ export default function OverviewPage() {
             .single();
           
           if (insertError) throw insertError;
-          setStats(newStats || stats);
+          if (newStats) setStats(newStats);
         } else {
           throw error;
         }
-      } else {
+      } else if (dashboardStats) {
         setStats(dashboardStats);
       }
     } catch (error) {
@@ -132,7 +143,7 @@ export default function OverviewPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Contacts</p>
-              <h2 className="text-2xl font-bold">{stats.totalLeads}</h2>
+              <h2 className="text-2xl font-bold">{stats.total_leads}</h2>
             </div>
             <Users className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -142,7 +153,7 @@ export default function OverviewPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Processed</p>
-              <h2 className="text-2xl font-bold">{stats.processedLeads}</h2>
+              <h2 className="text-2xl font-bold">{stats.processed_leads}</h2>
             </div>
             <BarChart className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -152,7 +163,7 @@ export default function OverviewPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Success Rate</p>
-              <h2 className="text-2xl font-bold">{stats.successRate.toFixed(1)}%</h2>
+              <h2 className="text-2xl font-bold">{(stats.success_rate || 0).toFixed(1)}%</h2>
             </div>
             <LineChart className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -163,7 +174,7 @@ export default function OverviewPage() {
             <div>
               <p className="text-sm font-medium text-muted-foreground">Last Processed</p>
               <h2 className="text-lg font-bold">
-                {stats.lastProcessed ? new Date(stats.lastProcessed).toLocaleDateString() : 'Never'}
+                {stats.last_processed ? new Date(stats.last_processed).toLocaleDateString() : 'Never'}
               </h2>
             </div>
             <RefreshCw className="h-8 w-8 text-muted-foreground" />
