@@ -7,18 +7,6 @@ import { Button } from "@/components/ui/button";
 import { BarChart, LineChart, RefreshCw, Settings, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabase/client';
-import { isDevelopment } from '@/lib/env';
-
-const mockStats = {
-  totalLeads: 150,
-  processedLeads: 120,
-  successRate: 80,
-  lastProcessed: new Date().toISOString(),
-  blacklistCount: 45,
-  contactsCount: 200,
-  emailsSent: 100,
-  emailsQueued: 20
-};
 
 export default function OverviewPage() {
   const router = useRouter();
@@ -41,13 +29,6 @@ export default function OverviewPage() {
 
   const loadDashboardStats = async () => {
     try {
-      if (isDevelopment) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setStats(mockStats);
-        setLoading(false);
-        return;
-      }
-
       const { data: dashboardStats, error } = await supabase
         .from('dashboard_stats')
         .select('*')
@@ -103,7 +84,7 @@ export default function OverviewPage() {
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Přehled</h1>
+        <h1 className="text-3xl font-bold">Overview</h1>
         <div className="space-x-4">
           <Button
             onClick={() => router.push('/settings')}
@@ -119,10 +100,10 @@ export default function OverviewPage() {
             {processing ? (
               <>
                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Zpracovávání...
+                Processing...
               </>
             ) : (
-              'Zpracovat kontakty'
+              'Process Contacts'
             )}
           </Button>
         </div>
@@ -132,7 +113,7 @@ export default function OverviewPage() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Celkem kontaktů</p>
+              <p className="text-sm font-medium text-muted-foreground">Total Contacts</p>
               <h2 className="text-2xl font-bold">{stats.totalLeads}</h2>
             </div>
             <Users className="h-8 w-8 text-muted-foreground" />
@@ -142,7 +123,7 @@ export default function OverviewPage() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Zpracováno</p>
+              <p className="text-sm font-medium text-muted-foreground">Processed</p>
               <h2 className="text-2xl font-bold">{stats.processedLeads}</h2>
             </div>
             <BarChart className="h-8 w-8 text-muted-foreground" />
@@ -152,7 +133,7 @@ export default function OverviewPage() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Úspěšnost</p>
+              <p className="text-sm font-medium text-muted-foreground">Success Rate</p>
               <h2 className="text-2xl font-bold">{stats.successRate.toFixed(1)}%</h2>
             </div>
             <LineChart className="h-8 w-8 text-muted-foreground" />
@@ -162,9 +143,9 @@ export default function OverviewPage() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Naposledy zpracováno</p>
+              <p className="text-sm font-medium text-muted-foreground">Last Processed</p>
               <h2 className="text-lg font-bold">
-                {stats.lastProcessed ? new Date(stats.lastProcessed).toLocaleDateString() : 'Nikdy'}
+                {stats.lastProcessed ? new Date(stats.lastProcessed).toLocaleDateString() : 'Never'}
               </h2>
             </div>
             <RefreshCw className="h-8 w-8 text-muted-foreground" />

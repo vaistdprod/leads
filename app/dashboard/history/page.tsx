@@ -14,13 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabase/client';
 import { EmailHistory, LeadHistory } from '@/lib/types';
-import { isDevelopment } from '@/lib/env';
 import { InboxIcon, ClockIcon } from 'lucide-react';
-
-const mockHistory = {
-  emailHistory: [],
-  leadHistory: []
-};
 
 export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
@@ -33,14 +27,6 @@ export default function HistoryPage() {
 
   const loadHistory = async () => {
     try {
-      if (isDevelopment) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setEmailHistory(mockHistory.emailHistory);
-        setLeadHistory(mockHistory.leadHistory);
-        setLoading(false);
-        return;
-      }
-
       const [emailsResponse, leadsResponse] = await Promise.all([
         supabase
           .from('email_history')
@@ -102,15 +88,15 @@ export default function HistoryPage() {
     <div className="container mx-auto py-8">
       <div className="space-y-8">
         <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Historie emailů</h2>
+          <h2 className="text-xl font-semibold mb-4">Email History</h2>
           {emailHistory.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Datum</TableHead>
-                  <TableHead>Předmět</TableHead>
-                  <TableHead>Stav</TableHead>
-                  <TableHead>Chyba</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Error</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -122,7 +108,7 @@ export default function HistoryPage() {
                     <TableCell>{email.subject}</TableCell>
                     <TableCell>
                       <Badge variant={email.status === 'sent' ? 'default' : 'destructive'}>
-                        {email.status === 'sent' ? 'Odesláno' : 'Chyba'}
+                        {email.status === 'sent' ? 'Sent' : 'Failed'}
                       </Badge>
                     </TableCell>
                     <TableCell>{email.error || '-'}</TableCell>
@@ -133,22 +119,22 @@ export default function HistoryPage() {
           ) : (
             <EmptyState 
               icon={InboxIcon}
-              title="Žádná historie emailů"
-              description="Historie odeslaných emailů se zobrazí zde."
+              title="No Email History"
+              description="Email history will appear here."
             />
           )}
         </Card>
 
         <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Aktivita kontaktů</h2>
+          <h2 className="text-xl font-semibold mb-4">Lead Activity</h2>
           {leadHistory.length > 0 ? (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Datum</TableHead>
-                  <TableHead>ID kontaktu</TableHead>
-                  <TableHead>Akce</TableHead>
-                  <TableHead>Detaily</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Lead ID</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Details</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -160,11 +146,11 @@ export default function HistoryPage() {
                     <TableCell>{activity.leadId}</TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        {activity.action === 'created' ? 'Vytvořeno' :
-                         activity.action === 'enriched' ? 'Obohaceno' :
-                         activity.action === 'verified' ? 'Ověřeno' :
-                         activity.action === 'contacted' ? 'Kontaktováno' :
-                         activity.action === 'blacklisted' ? 'Na černé listině' :
+                        {activity.action === 'created' ? 'Created' :
+                         activity.action === 'enriched' ? 'Enriched' :
+                         activity.action === 'verified' ? 'Verified' :
+                         activity.action === 'contacted' ? 'Contacted' :
+                         activity.action === 'blacklisted' ? 'Blacklisted' :
                          activity.action}
                       </Badge>
                     </TableCell>
@@ -176,8 +162,8 @@ export default function HistoryPage() {
           ) : (
             <EmptyState 
               icon={ClockIcon}
-              title="Žádná aktivita kontaktů"
-              description="Historie aktivit kontaktů se zobrazí zde."
+              title="No Lead Activity"
+              description="Lead activity history will appear here."
             />
           )}
         </Card>

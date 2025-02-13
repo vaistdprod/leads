@@ -2,7 +2,6 @@
 
 import { createBrowserClient } from '@supabase/ssr';
 import { Database } from '../types';
-import { getEnv } from '../env';
 
 let supabase: ReturnType<typeof createBrowserClient<Database>>;
 
@@ -12,17 +11,23 @@ export function createBrowserSupabaseClient() {
   }
 
   try {
-    const env = getEnv();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Missing Supabase environment variables');
+    }
+
     return createBrowserClient<Database>(
-      env.NEXT_PUBLIC_SUPABASE_URL,
-      env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      supabaseUrl,
+      supabaseAnonKey,
       {
         cookies: {
           get(name: string) {
-            const cookie = document.cookie
+            return document.cookie
               .split('; ')
-              .find((row) => row.startsWith(`${name}=`));
-            return cookie ? cookie.split('=')[1] : undefined;
+              .find((row) => row.startsWith(`${name}=`))
+              ?.split('=')[1];
           },
           set(name: string, value: string, options: { path?: string; domain?: string; sameSite?: string; secure?: boolean }) {
             document.cookie = `${name}=${value}; path=${options.path || '/'}; secure; SameSite=Lax`;

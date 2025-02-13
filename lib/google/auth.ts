@@ -4,17 +4,16 @@ const SCOPES = [
 ];
 
 export const getAuthUrl = () => {
-  if (!process.env.GOOGLE_CLIENT_ID) {
-    throw new Error('GOOGLE_CLIENT_ID is not configured');
-  }
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
-  if (!process.env.NEXT_PUBLIC_APP_URL) {
-    throw new Error('NEXT_PUBLIC_APP_URL is not configured');
+  if (!baseUrl || !clientId) {
+    throw new Error('Missing required environment variables for Google OAuth');
   }
 
   const params = new URLSearchParams({
-    client_id: process.env.GOOGLE_CLIENT_ID,
-    redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+    client_id: clientId,
+    redirect_uri: `${baseUrl}/auth/callback`,
     response_type: 'code',
     scope: SCOPES.join(' '),
     access_type: 'offline',

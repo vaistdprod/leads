@@ -16,23 +16,6 @@ import {
 } from 'recharts';
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabase/client';
-import { isDevelopment } from '@/lib/env';
-import { ApiUsage } from '@/lib/types';
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-
-const mockAnalytics = {
-  apiUsage: [
-    { date: '2025-01-01', gemini: 150, gmail: 75, sheets: 30, disify: 45 },
-    { date: '2025-01-02', gemini: 180, gmail: 90, sheets: 35, disify: 50 },
-    { date: '2025-01-03', gemini: 120, gmail: 60, sheets: 25, disify: 40 },
-  ],
-  successRates: [
-    { date: '2025-01-01', success: 85, failure: 15 },
-    { date: '2025-01-02', success: 90, failure: 10 },
-    { date: '2025-01-03', success: 88, failure: 12 },
-  ],
-};
 
 const chartConfig = {
   margin: { top: 20, right: 30, left: 20, bottom: 20 },
@@ -72,14 +55,6 @@ export default function AnalyticsPage() {
 
   const loadAnalytics = async () => {
     try {
-      if (isDevelopment) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setApiUsage(mockAnalytics.apiUsage);
-        setSuccessRates(mockAnalytics.successRates);
-        setLoading(false);
-        return;
-      }
-
       const { data: usageData, error: usageError } = await supabase
         .from('api_usage')
         .select('*')
@@ -107,7 +82,7 @@ export default function AnalyticsPage() {
     }
   };
 
-  const processApiUsageData = (data: ApiUsage[]) => {
+  const processApiUsageData = (data: any[]) => {
     const grouped = data.reduce((acc: any, curr) => {
       const date = new Date(curr.created_at).toISOString().split('T')[0];
       if (!acc[date]) {
@@ -158,7 +133,7 @@ export default function AnalyticsPage() {
     <div className="container mx-auto py-8">
       <div className="space-y-8">
         <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Využití API</h2>
+          <h2 className="text-xl font-semibold mb-4">API Usage</h2>
           <div className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={apiUsage} margin={chartConfig.margin}>
@@ -222,7 +197,7 @@ export default function AnalyticsPage() {
         </Card>
 
         <Card className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Statistiky úspěšnosti</h2>
+          <h2 className="text-xl font-semibold mb-4">Success Rates</h2>
           <div className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={successRates} margin={chartConfig.margin}>
@@ -255,14 +230,14 @@ export default function AnalyticsPage() {
                 <Bar
                   dataKey="success"
                   fill="hsl(var(--chart-2))"
-                  name="Úspěšné"
+                  name="Success"
                   stackId="a"
                   {...chartConfig.barProps}
                 />
                 <Bar
                   dataKey="failure"
                   fill="hsl(var(--chart-1))"
-                  name="Neúspěšné"
+                  name="Failure"
                   stackId="a"
                   {...chartConfig.barProps}
                 />
@@ -270,11 +245,6 @@ export default function AnalyticsPage() {
             </ResponsiveContainer>
           </div>
         </Card>
-        <div className="mt-8">
-          <Button asChild variant="outline">
-            <Link href="/dashboard">Zpět</Link>
-          </Button>
-        </div>
       </div>
     </div>
   );

@@ -32,11 +32,9 @@ const nextConfig = {
   },
   // Handle known issues
   typescript: {
-    // Temporarily allow build to proceed with type errors
     ignoreBuildErrors: true
   },
   eslint: {
-    // Temporarily allow build to proceed with lint errors
     ignoreDuringBuilds: true
   },
   // Optimize output
@@ -49,11 +47,20 @@ const nextConfig = {
   // Add build-time environment validation
   webpack: (config, { isServer }) => {
     if (isServer) {
-      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      const requiredEnvVars = [
+        'NEXT_PUBLIC_SUPABASE_URL',
+        'NEXT_PUBLIC_SUPABASE_ANON_KEY'
+      ];
+
+      const missingEnvVars = requiredEnvVars.filter(
+        (envVar) => !process.env[envVar]
+      );
+
+      if (missingEnvVars.length > 0) {
         console.warn('\x1b[33m%s\x1b[0m', `
-Warning: Required environment variables are missing.
-Make sure to set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
-in your environment or .env.local file.
+Warning: Required environment variables are missing:
+${missingEnvVars.join('\n')}
+Please set these variables in your environment or .env file.
         `);
       }
     }

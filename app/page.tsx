@@ -3,7 +3,6 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
-import { isDevelopment } from '@/lib/env';
 
 export default function HomePage() {
   const router = useRouter();
@@ -11,16 +10,6 @@ export default function HomePage() {
   useEffect(() => {
     const checkAuthAndSetup = async () => {
       try {
-        if (isDevelopment) {
-          const devAuth = localStorage.getItem('dev_auth');
-          if (!devAuth || devAuth !== 'true') {
-            router.replace('/auth/login');
-            return;
-          }
-          router.replace('/dashboard');
-          return;
-        }
-
         const { data: { session } } = await supabase.auth.getSession();
 
         if (!session) {
@@ -58,7 +47,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="animate-pulse text-center">
-        <p className="text-muted-foreground">Načítám...</p>
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     </div>
   );
