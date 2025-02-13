@@ -9,6 +9,12 @@ export async function GET(request: NextRequest) {
   try {
     const requestUrl = new URL(request.url)
     const code = requestUrl.searchParams.get('code')
+    const error = requestUrl.searchParams.get('error')
+
+    if (error) {
+      console.error('OAuth error:', error);
+      return NextResponse.redirect(new URL('/auth/login', request.url))
+    }
 
     if (!code) {
       console.error('No code received')
@@ -28,41 +34,51 @@ export async function GET(request: NextRequest) {
             cookieStore.set({ name, value, ...options })
           },
           remove(name: string, options: { path: string }) {
-            cookieStore.set({ name, value: '', ...options })
+            cookieStore.delete({ name, ...options })
           },
         },
       }
     )
 
     // Exchange code for session
-    await supabase.auth.exchangeCodeForSession(code)
+    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+    
+    if (exchangeError) {
+      console.error('Code exchange error:', exchangeError)
+      return NextResponse.redirect(new URL('/auth/login', request.url))
+    }
 
     // Get current session after exchange
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
     
-    if (!session) {
-      console.error('No session after code exchange')
+    if (sessionError || !session) {
+      console.error('Session error:', sessionError)
       return NextResponse.redirect(new URL('/auth/login', request.url))
     }
 
     // Check if user has completed setup
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
       .select('setup_completed')
       .eq('id', session.user.id)
       .single()
 
+    if (profileError && profileError.code !== 'PGRST116') { // Not found error
+      console.error('Profile fetch error:', profileError)
+      return NextResponse.redirect(new URL('/auth/login', request.url))
+    }
+
     // Create user profile if it doesn't exist
     if (!profile) {
-      const { error: profileError } = await supabase
+      const { error: insertError } = await supabase
         .from('user_profiles')
         .insert([{ 
           id: session.user.id,
           setup_completed: false
         }])
 
-      if (profileError) {
-        console.error('Failed to create user profile:', profileError)
+      if (insertError) {
+        console.error('Profile creation error:', insertError)
         return NextResponse.redirect(new URL('/auth/login', request.url))
       }
 
@@ -70,11 +86,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Redirect based on setup status
-    if (!profile.setup_completed) {
-      return NextResponse.redirect(new URL('/setup/welcome', request.url))
-    }
-
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    return NextResponse.redirect(
+      new URL(profile.setup_completed ? '/dashboard' : '/setup/welcome', request.url)
+    )
   } catch (error) {
     console.error('Auth callback error:', error)
     return NextResponse.redirect(new URL('/auth/login', request.url))

@@ -1,6 +1,8 @@
 const SCOPES = [
   'https://www.googleapis.com/auth/spreadsheets.readonly',
-  'https://www.googleapis.com/auth/gmail.send'
+  'https://www.googleapis.com/auth/gmail.send',
+  'email',
+  'profile'
 ];
 
 export const getAuthUrl = () => {
