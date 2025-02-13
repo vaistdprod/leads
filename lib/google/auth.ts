@@ -2,7 +2,8 @@ const SCOPES = [
   'https://www.googleapis.com/auth/spreadsheets.readonly',
   'https://www.googleapis.com/auth/gmail.send',
   'email',
-  'profile'
+  'profile',
+  'openid'
 ];
 
 export const getAuthUrl = () => {
@@ -19,7 +20,8 @@ export const getAuthUrl = () => {
     response_type: 'code',
     scope: SCOPES.join(' '),
     access_type: 'offline',
-    prompt: 'consent'
+    prompt: 'consent',
+    include_granted_scopes: 'true'
   });
 
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;

@@ -10,9 +10,10 @@ export async function GET(request: NextRequest) {
     const requestUrl = new URL(request.url)
     const code = requestUrl.searchParams.get('code')
     const error = requestUrl.searchParams.get('error')
+    const state = requestUrl.searchParams.get('state')
 
     if (error) {
-      console.error('OAuth error:', error);
+      console.error('OAuth error:', error, requestUrl.searchParams.toString());
       return NextResponse.redirect(new URL('/auth/login', request.url))
     }
 
@@ -86,9 +87,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Redirect based on setup status
-    return NextResponse.redirect(
-      new URL(profile.setup_completed ? '/dashboard' : '/setup/welcome', request.url)
-    )
+    const redirectUrl = profile.setup_completed ? '/dashboard' : '/setup/welcome'
+    console.log('Redirecting to:', redirectUrl)
+    return NextResponse.redirect(new URL(redirectUrl, request.url))
   } catch (error) {
     console.error('Auth callback error:', error)
     return NextResponse.redirect(new URL('/auth/login', request.url))
