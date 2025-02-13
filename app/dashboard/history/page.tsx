@@ -27,14 +27,19 @@ export default function HistoryPage() {
 
   const loadHistory = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+
       const [emailsResponse, leadsResponse] = await Promise.all([
         supabase
           .from('email_history')
           .select('*')
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false }),
         supabase
           .from('lead_history')
           .select('*')
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false })
       ]);
 
@@ -103,7 +108,7 @@ export default function HistoryPage() {
                 {emailHistory.map((email) => (
                   <TableRow key={email.id}>
                     <TableCell>
-                      {new Date(email.createdAt).toLocaleString()}
+                      {new Date(email.created_at).toLocaleString()}
                     </TableCell>
                     <TableCell>{email.subject}</TableCell>
                     <TableCell>
@@ -132,8 +137,8 @@ export default function HistoryPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  <TableHead>Lead ID</TableHead>
-                  <TableHead>Action</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Details</TableHead>
                 </TableRow>
               </TableHeader>
@@ -141,20 +146,15 @@ export default function HistoryPage() {
                 {leadHistory.map((activity) => (
                   <TableRow key={activity.id}>
                     <TableCell>
-                      {new Date(activity.createdAt).toLocaleString()}
+                      {new Date(activity.created_at).toLocaleString()}
                     </TableCell>
-                    <TableCell>{activity.leadId}</TableCell>
+                    <TableCell>{activity.email}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">
-                        {activity.action === 'created' ? 'Created' :
-                         activity.action === 'enriched' ? 'Enriched' :
-                         activity.action === 'verified' ? 'Verified' :
-                         activity.action === 'contacted' ? 'Contacted' :
-                         activity.action === 'blacklisted' ? 'Blacklisted' :
-                         activity.action}
+                      <Badge variant={activity.status === 'success' ? 'default' : 'destructive'}>
+                        {activity.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>{activity.details}</TableCell>
+                    <TableCell>{activity.details ? JSON.stringify(activity.details) : '-'}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

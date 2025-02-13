@@ -72,20 +72,23 @@ export interface ApiUsage {
 
 export interface EmailHistory {
   id: string;
-  leadId: string;
+  user_id: string;
+  email: string;
   subject: string;
-  body: string;
   status: 'sent' | 'failed';
   error?: string;
-  createdAt: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface LeadHistory {
   id: string;
-  leadId: string;
-  action: 'created' | 'enriched' | 'verified' | 'contacted' | 'blacklisted';
-  details: string;
-  createdAt: string;
+  user_id: string;
+  email: string;
+  status: string;
+  details?: Record<string, any>;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface GoogleAuthState {

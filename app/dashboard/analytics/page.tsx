@@ -17,10 +17,23 @@ import {
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabase/client';
 
+interface ApiUsageData {
+  date: string;
+  gemini: number;
+  gmail: number;
+  sheets: number;
+  disify: number;
+}
+
+interface SuccessRateData {
+  date: string;
+  success: number;
+  failure: number;
+}
+
 const chartConfig = {
   margin: { top: 20, right: 30, left: 20, bottom: 20 },
   axisProps: {
-    scale: 'auto',
     tickCount: 5,
     tickSize: 6,
     tickMargin: 6,
@@ -40,14 +53,14 @@ const chartConfig = {
     activeDot: { strokeWidth: 2, r: 6 },
   },
   barProps: {
-    radius: [4, 4, 0, 0],
+    radius: [4, 4, 0, 0] as [number, number, number, number],
   },
 };
 
 export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
-  const [apiUsage, setApiUsage] = useState<any[]>([]);
-  const [successRates, setSuccessRates] = useState<any[]>([]);
+  const [apiUsage, setApiUsage] = useState<ApiUsageData[]>([]);
+  const [successRates, setSuccessRates] = useState<SuccessRateData[]>([]);
 
   useEffect(() => {
     loadAnalytics();
@@ -55,24 +68,29 @@ export default function AnalyticsPage() {
 
   const loadAnalytics = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+
       const { data: usageData, error: usageError } = await supabase
         .from('api_usage')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: true });
 
       if (usageError) throw usageError;
 
-      const processedUsage = processApiUsageData(usageData);
+      const processedUsage = processApiUsageData(usageData || []);
       setApiUsage(processedUsage);
 
       const { data: successData, error: successError } = await supabase
         .from('processing_logs')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: true });
 
       if (successError) throw successError;
 
-      const processedRates = processSuccessRatesData(successData);
+      const processedRates = processSuccessRatesData(successData || []);
       setSuccessRates(processedRates);
     } catch (error) {
       console.error('Failed to load analytics:', error);
@@ -82,21 +100,33 @@ export default function AnalyticsPage() {
     }
   };
 
-  const processApiUsageData = (data: any[]) => {
-    const grouped = data.reduce((acc: any, curr) => {
+  const processApiUsageData = (data: Array<{
+    created_at: string;
+    service: string;
+  }>): ApiUsageData[] => {
+    const grouped = data.reduce((acc: Record<string, ApiUsageData>, curr) => {
       const date = new Date(curr.created_at).toISOString().split('T')[0];
       if (!acc[date]) {
         acc[date] = { date, gemini: 0, gmail: 0, sheets: 0, disify: 0 };
       }
-      acc[date][curr.service]++;
+      
+      // Only increment if service is a valid key
+      if (curr.service === 'gemini' || curr.service === 'gmail' || 
+          curr.service === 'sheets' || curr.service === 'disify') {
+        acc[date][curr.service]++;
+      }
+      
       return acc;
     }, {});
 
     return Object.values(grouped);
   };
 
-  const processSuccessRatesData = (data: any[]) => {
-    const grouped = data.reduce((acc: any, curr) => {
+  const processSuccessRatesData = (data: Array<{
+    created_at: string;
+    status: string;
+  }>): SuccessRateData[] => {
+    const grouped = data.reduce((acc: Record<string, SuccessRateData>, curr) => {
       const date = new Date(curr.created_at).toISOString().split('T')[0];
       if (!acc[date]) {
         acc[date] = { date, success: 0, failure: 0 };
@@ -140,7 +170,7 @@ export default function AnalyticsPage() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="date"
-                  scale={chartConfig.axisProps.scale}
+                  scale="auto"
                   tickCount={chartConfig.axisProps.tickCount}
                   tickSize={chartConfig.axisProps.tickSize}
                   tickMargin={chartConfig.axisProps.tickMargin}
@@ -151,7 +181,7 @@ export default function AnalyticsPage() {
                   orientation="bottom"
                 />
                 <YAxis
-                  scale={chartConfig.axisProps.scale}
+                  scale="auto"
                   tickCount={chartConfig.axisProps.tickCount}
                   tickSize={chartConfig.axisProps.tickSize}
                   tickMargin={chartConfig.axisProps.tickMargin}
@@ -204,7 +234,7 @@ export default function AnalyticsPage() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="date"
-                  scale={chartConfig.axisProps.scale}
+                  scale="auto"
                   tickCount={chartConfig.axisProps.tickCount}
                   tickSize={chartConfig.axisProps.tickSize}
                   tickMargin={chartConfig.axisProps.tickMargin}
@@ -215,7 +245,7 @@ export default function AnalyticsPage() {
                   orientation="bottom"
                 />
                 <YAxis
-                  scale={chartConfig.axisProps.scale}
+                  scale="auto"
                   tickCount={chartConfig.axisProps.tickCount}
                   tickSize={chartConfig.axisProps.tickSize}
                   tickMargin={chartConfig.axisProps.tickMargin}
