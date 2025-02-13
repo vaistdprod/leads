@@ -49,47 +49,48 @@ export async function GET(request: NextRequest) {
       return redirectWithError(new URL('/auth/login', request.url), 'Session error:', sessionError);
     }
 
-    // Create settings record if it doesn't exist
+    // Create or get settings record
     const { data: existingSettings, error: settingsSelectError } = await supabase
       .from('settings')
-      .select('id')
+      .select('*')
+      .eq('user_id', session.user.id)
       .single();
 
-    if (settingsSelectError) {
-      console.error('Settings select error:', settingsSelectError);
-    }
-
-    if (!existingSettings) {
+    if (settingsSelectError && settingsSelectError.code === 'PGRST116') { // Not found
       try {
         const { error: settingsError } = await supabase
           .from('settings')
           .insert([{
             user_id: session.user.id,
+            gemini_api_key: null,
+            blacklist_sheet_id: null,
+            contacts_sheet_id: null,
           }]);
 
         if (settingsError) {
-          console.error('Settings creation error:', settingsError);
+          return redirectWithError(new URL('/auth/login', request.url), 'Settings creation error:', settingsError);
         }
       } catch (settingsError) {
-        console.error('Settings creation error:', settingsError);
+        return redirectWithError(new URL('/auth/login', request.url), 'Settings creation error:', settingsError);
       }
+    } else if (settingsSelectError) {
+      return redirectWithError(new URL('/auth/login', request.url), 'Settings error:', settingsSelectError);
     }
 
-    // Get or create user profile
+    // Create user profile if it doesn't exist
     const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
       .select('*')
       .eq('id', session.user.id)
       .single();
 
-    // Handle profile creation/update after Google OAuth
     if (profileError && profileError.code === 'PGRST116') { // Not found error
       try {
         const { error: insertError } = await supabase
           .from('user_profiles')
           .insert([{
             id: session.user.id,
-            setup_completed: false, // Keep as false until all setup steps are done
+            setup_completed: false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }]);
@@ -100,9 +101,11 @@ export async function GET(request: NextRequest) {
       } catch (insertError) {
         return redirectWithError(new URL('/auth/login', request.url), 'Profile creation error:', insertError);
       }
+    } else if (profileError) {
+      return redirectWithError(new URL('/auth/login', request.url), 'Profile error:', profileError);
     }
 
-    // After successful Google auth, redirect to next setup step
+    // After successful Google auth, always go to Gemini setup
     const redirectUrl = '/setup/gemini-setup';
 
     const finalRedirectUrl = new URL(redirectUrl, request.url);

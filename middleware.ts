@@ -99,32 +99,37 @@ export async function middleware(request: NextRequest) {
       .eq('id', session.user.id)
       .single();
 
-    // Setup routes - allow progression through setup steps
+    // Setup routes
     if (currentPath.startsWith('/setup/')) {
-      // If setup is completed, only allow access to welcome page
+      // If setup is completed, redirect to dashboard (except for welcome page)
       if (profile?.setup_completed && currentPath !== '/setup/welcome') {
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
-      
-      // Define setup flow order
-      const setupSteps = [
-        '/setup/welcome',
-        '/setup/google-auth',
-        '/setup/gemini-setup',
-        '/setup/sheet-setup',
-        '/setup/complete'
-      ];
-      
-      // Get current and previous step indexes
-      const currentStepIndex = setupSteps.indexOf(currentPath);
-      
-      // If trying to access a step that's not next in sequence, redirect to appropriate step
-      if (currentStepIndex > 0) {
-        const previousStep = setupSteps[currentStepIndex - 1];
-        // Check if previous step is completed (you might want to add step completion tracking)
-        // For now, just allow progression
+
+      // Always allow access to welcome and google-auth pages
+      if (currentPath === '/setup/welcome' || currentPath === '/setup/google-auth') {
+        return response;
       }
-      
+
+      // For other setup pages, check if settings exist
+      const { data: settings } = await supabase
+        .from('settings')
+        .select('*')
+        .single();
+
+      // Determine which setup page to show based on what's configured
+      if (!settings?.gemini_api_key && currentPath !== '/setup/gemini-setup') {
+        return NextResponse.redirect(new URL('/setup/gemini-setup', request.url));
+      }
+
+      if (settings?.gemini_api_key && !settings?.contacts_sheet_id && currentPath !== '/setup/sheet-setup') {
+        return NextResponse.redirect(new URL('/setup/sheet-setup', request.url));
+      }
+
+      if (settings?.contacts_sheet_id && currentPath !== '/setup/complete') {
+        return NextResponse.redirect(new URL('/setup/complete', request.url));
+      }
+
       return response;
     }
 
