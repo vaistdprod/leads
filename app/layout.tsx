@@ -34,6 +34,7 @@ export default function RootLayout({
       </head>
       <body className={plusJakartaSans.className}>
         <ThemeProvider
+          attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
