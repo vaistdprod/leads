@@ -9,6 +9,32 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      colors: {
+        background: 'oklch(var(--background))',
+        foreground: 'oklch(var(--foreground))',
+        card: 'oklch(var(--card))',
+        'card-foreground': 'oklch(var(--card-foreground))',
+        popover: 'oklch(var(--popover))',
+        'popover-foreground': 'oklch(var(--popover-foreground))',
+        primary: 'oklch(var(--primary))',
+        'primary-foreground': 'oklch(var(--primary-foreground))',
+        secondary: 'oklch(var(--secondary))',
+        'secondary-foreground': 'oklch(var(--secondary-foreground))',
+        muted: 'oklch(var(--muted))',
+        'muted-foreground': 'oklch(var(--muted-foreground))',
+        accent: 'oklch(var(--accent))',
+        'accent-foreground': 'oklch(var(--accent-foreground))',
+        destructive: 'oklch(var(--destructive))',
+        'destructive-foreground': 'oklch(var(--destructive-foreground))',
+        border: 'oklch(var(--border))',
+        input: 'oklch(var(--input))',
+        ring: 'oklch(var(--ring))',
+        'chart-1': 'oklch(var(--chart-1))',
+        'chart-2': 'oklch(var(--chart-2))',
+        'chart-3': 'oklch(var(--chart-3))',
+        'chart-4': 'oklch(var(--chart-4))',
+        'chart-5': 'oklch(var(--chart-5))',
+      },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-conic':
@@ -35,37 +61,7 @@ const config: Config = {
       },
     },
   },
-  plugins: [
-    require('tailwindcss-animate'),
-    function({ addBase, addUtilities }: { addBase: any; addUtilities: (utilities: Record<string, Record<string, string>>) => void }) {
-      addUtilities({
-        '.bg-state-background': { backgroundColor: 'oklch(var(--background))' },
-        '.text-state-foreground': { color: 'oklch(var(--foreground))' },
-        '.border-state-border': { borderColor: 'oklch(var(--border))' },
-        '.bg-state-card': { backgroundColor: 'oklch(var(--card))' },
-        '.text-state-card-foreground': { color: 'oklch(var(--card-foreground))' },
-        '.bg-state-popover': { backgroundColor: 'oklch(var(--popover))' },
-        '.text-state-popover-foreground': { color: 'oklch(var(--popover-foreground))' },
-        '.bg-state-primary': { backgroundColor: 'oklch(var(--primary))' },
-        '.text-state-primary-foreground': { color: 'oklch(var(--primary-foreground))' },
-        '.bg-state-secondary': { backgroundColor: 'oklch(var(--secondary))' },
-        '.text-state-secondary-foreground': { color: 'oklch(var(--secondary-foreground))' },
-        '.bg-state-muted': { backgroundColor: 'oklch(var(--muted))' },
-        '.text-state-muted-foreground': { color: 'oklch(var(--muted-foreground))' },
-        '.bg-state-accent': { backgroundColor: 'oklch(var(--accent))' },
-        '.text-state-accent-foreground': { color: 'oklch(var(--accent-foreground))' },
-        '.bg-state-destructive': { backgroundColor: 'oklch(var(--destructive))' },
-        '.text-state-destructive-foreground': { color: 'oklch(var(--destructive-foreground))' },
-        '.ring-state-ring': { '--tw-ring-color': 'oklch(var(--ring))' },
-        '.border-state-input': { borderColor: 'oklch(var(--input))' },
-        '.bg-state-chart-1': { backgroundColor: 'oklch(var(--chart-1))' },
-        '.bg-state-chart-2': { backgroundColor: 'oklch(var(--chart-2))' },
-        '.bg-state-chart-3': { backgroundColor: 'oklch(var(--chart-3))' },
-        '.bg-state-chart-4': { backgroundColor: 'oklch(var(--chart-4))' },
-        '.bg-state-chart-5': { backgroundColor: 'oklch(var(--chart-5))' },
-      });
-    },
-  ],
+  plugins: [require('tailwindcss-animate')],
 };
 
 export default config;
