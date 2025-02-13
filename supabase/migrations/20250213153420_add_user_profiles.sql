@@ -1,7 +1,6 @@
 -- Create the user_profiles table
 CREATE TABLE IF NOT EXISTS user_profiles (
     id uuid PRIMARY KEY REFERENCES auth.users(id),
-    setup_completed boolean DEFAULT false,
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now()
 );

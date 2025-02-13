@@ -70,72 +70,18 @@ export async function middleware(request: NextRequest) {
       return response;
     }
 
-    // Other auth routes
+    // Auth routes
     if (currentPath.startsWith('/auth/')) {
       // Only redirect if user is already logged in and trying to access login page
       if (session && currentPath === '/auth/login') {
-        const { data: profile } = await supabase
-          .from('user_profiles')
-          .select('setup_completed')
-          .eq('id', session.user.id)
-          .single();
-
-        if (!profile?.setup_completed) {
-          return NextResponse.redirect(new URL('/setup/welcome', request.url));
-        }
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
       return response;
     }
 
-    // Protected routes
+    // All other routes require authentication
     if (!session) {
       return NextResponse.redirect(new URL('/auth/login', request.url));
-    }
-
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('setup_completed')
-      .eq('id', session.user.id)
-      .single();
-
-    // Setup routes
-    if (currentPath.startsWith('/setup/')) {
-      // If setup is completed, redirect to dashboard (except for welcome page)
-      if (profile?.setup_completed && currentPath !== '/setup/welcome') {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
-      }
-
-      // Always allow access to welcome and google-auth pages
-      if (currentPath === '/setup/welcome' || currentPath === '/setup/google-auth') {
-        return response;
-      }
-
-      // For other setup pages, check if settings exist
-      const { data: settings } = await supabase
-        .from('settings')
-        .select('*')
-        .single();
-
-      // Determine which setup page to show based on what's configured
-      if (!settings?.gemini_api_key && currentPath !== '/setup/gemini-setup') {
-        return NextResponse.redirect(new URL('/setup/gemini-setup', request.url));
-      }
-
-      if (settings?.gemini_api_key && !settings?.contacts_sheet_id && currentPath !== '/setup/sheet-setup') {
-        return NextResponse.redirect(new URL('/setup/sheet-setup', request.url));
-      }
-
-      if (settings?.contacts_sheet_id && currentPath !== '/setup/complete') {
-        return NextResponse.redirect(new URL('/setup/complete', request.url));
-      }
-
-      return response;
-    }
-
-    // Dashboard and other protected routes
-    if (!profile?.setup_completed && !currentPath.startsWith('/setup/')) {
-      return NextResponse.redirect(new URL('/setup/welcome', request.url));
     }
 
     return response;

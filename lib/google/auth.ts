@@ -22,8 +22,8 @@ export const getAuthUrl = () => {
     access_type: 'offline',
     prompt: 'consent',
     include_granted_scopes: 'true',
-    state: 'source=google_setup'
+    state: 'source=settings'
   });
 
-  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 };
