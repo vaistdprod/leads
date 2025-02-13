@@ -29,7 +29,7 @@ export default function GoogleAuthPage() {
       <div className="flex justify-between items-start">
         <BackButton />
         <h1 className="text-3xl font-bold mb-2">Connect Google Account</h1>
-        <div></div> {/* Empty div for spacing */}
+        <div></div>
       </div>
       <p className="text-muted-foreground">
         We need access to Google Sheets for contacts and Gmail for sending emails.
@@ -49,6 +49,7 @@ export default function GoogleAuthPage() {
         <Button
           onClick={handleGoogleAuth}
           disabled={loading}
+          size="lg"
         >
           {loading ? 'Connecting...' : 'Connect Google Account'}
         </Button>
