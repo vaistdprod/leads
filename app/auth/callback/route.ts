@@ -82,14 +82,14 @@ export async function GET(request: NextRequest) {
       .eq('id', session.user.id)
       .single();
 
-    // After successful Google OAuth, always mark setup as completed and redirect to dashboard
+    // Handle profile creation/update after Google OAuth
     if (profileError && profileError.code === 'PGRST116') { // Not found error
       try {
         const { error: insertError } = await supabase
           .from('user_profiles')
           .insert([{
             id: session.user.id,
-            setup_completed: true, // Always mark as completed after Google auth
+            setup_completed: false, // Keep as false until all setup steps are done
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }]);
@@ -100,24 +100,10 @@ export async function GET(request: NextRequest) {
       } catch (insertError) {
         return redirectWithError(new URL('/auth/login', request.url), 'Profile creation error:', insertError);
       }
-    } else if (profile && !profile.setup_completed) {
-      // If profile exists but setup not completed, mark it as completed
-      try {
-        const { error: updateError } = await supabase
-          .from('user_profiles')
-          .update({ setup_completed: true })
-          .eq('id', session.user.id);
-
-        if (updateError) {
-          return redirectWithError(new URL('/auth/login', request.url), 'Profile update error:', updateError);
-        }
-      } catch (updateError) {
-        return redirectWithError(new URL('/auth/login', request.url), 'Profile update error:', updateError);
-      }
     }
 
-    // Always redirect to dashboard after successful Google auth
-    const redirectUrl = '/dashboard';
+    // After successful Google auth, redirect to next setup step
+    const redirectUrl = '/setup/gemini-setup';
 
     const finalRedirectUrl = new URL(redirectUrl, request.url);
     console.log('Redirecting to:', finalRedirectUrl.toString()); // Keep this log, it's not an error

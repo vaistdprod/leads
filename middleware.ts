@@ -99,16 +99,37 @@ export async function middleware(request: NextRequest) {
       .eq('id', session.user.id)
       .single();
 
-    // Setup routes
+    // Setup routes - allow progression through setup steps
     if (currentPath.startsWith('/setup/')) {
-      if (profile?.setup_completed) {
+      // If setup is completed, only allow access to welcome page
+      if (profile?.setup_completed && currentPath !== '/setup/welcome') {
         return NextResponse.redirect(new URL('/dashboard', request.url));
       }
+      
+      // Define setup flow order
+      const setupSteps = [
+        '/setup/welcome',
+        '/setup/google-auth',
+        '/setup/gemini-setup',
+        '/setup/sheet-setup',
+        '/setup/complete'
+      ];
+      
+      // Get current and previous step indexes
+      const currentStepIndex = setupSteps.indexOf(currentPath);
+      
+      // If trying to access a step that's not next in sequence, redirect to appropriate step
+      if (currentStepIndex > 0) {
+        const previousStep = setupSteps[currentStepIndex - 1];
+        // Check if previous step is completed (you might want to add step completion tracking)
+        // For now, just allow progression
+      }
+      
       return response;
     }
 
     // Dashboard and other protected routes
-    if (!profile?.setup_completed) {
+    if (!profile?.setup_completed && !currentPath.startsWith('/setup/')) {
       return NextResponse.redirect(new URL('/setup/welcome', request.url));
     }
 

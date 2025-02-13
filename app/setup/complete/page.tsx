@@ -1,13 +1,37 @@
 "use client";
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CheckCircle } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from '@/lib/supabase/client';
 import BackButton from '@/components/ui/back-button';
 
 export default function SetupCompletePage() {
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const markSetupComplete = async () => {
+      try {
+        const { error } = await supabase
+          .from('user_profiles')
+          .update({ setup_completed: true })
+          .eq('id', (await supabase.auth.getUser()).data.user?.id);
+
+        if (error) throw error;
+      } catch (error) {
+        console.error('Failed to mark setup as complete:', error);
+        toast.error('Failed to complete setup');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    markSetupComplete();
+  }, []);
 
   return (
     <Card className="p-8">
@@ -41,6 +65,7 @@ export default function SetupCompletePage() {
         <Button
           size="lg"
           onClick={() => router.push('/dashboard')}
+          disabled={loading}
         >
           Na hlavní stránku
         </Button>
