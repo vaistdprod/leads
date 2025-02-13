@@ -11,13 +11,6 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Create the user_profiles table
-CREATE TABLE IF NOT EXISTS user_profiles (
-    id uuid PRIMARY KEY REFERENCES auth.users(id),
-    created_at timestamptz DEFAULT now(),
-    updated_at timestamptz DEFAULT now()
-);
-
 -- Create the settings table
 CREATE TABLE IF NOT EXISTS settings (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -89,7 +82,6 @@ CREATE TABLE IF NOT EXISTS function_logs (
 );
 
 -- Enable RLS on all tables
-ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE dashboard_stats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE email_history ENABLE ROW LEVEL SECURITY;
@@ -108,11 +100,6 @@ CREATE INDEX IF NOT EXISTS api_usage_user_id_idx ON api_usage(user_id);
 CREATE INDEX IF NOT EXISTS api_usage_created_at_idx ON api_usage(created_at DESC);
 
 -- Add triggers for updated_at
-CREATE TRIGGER update_user_profiles_updated_at
-    BEFORE UPDATE ON user_profiles
-    FOR EACH ROW
-    EXECUTE PROCEDURE update_updated_at_column();
-
 CREATE TRIGGER update_settings_updated_at
     BEFORE UPDATE ON settings
     FOR EACH ROW
@@ -134,34 +121,6 @@ CREATE TRIGGER update_lead_history_updated_at
     EXECUTE PROCEDURE update_updated_at_column();
 
 -- Create RLS policies
--- User Profiles
-CREATE POLICY "Users can view their own profile"
-    ON user_profiles FOR SELECT
-    TO authenticated
-    USING (auth.uid() = id);
-
-CREATE POLICY "Users can update their own profile"
-    ON user_profiles FOR UPDATE
-    TO authenticated
-    USING (auth.uid() = id);
-
-CREATE POLICY "Allow profile creation"
-    ON user_profiles FOR INSERT
-    TO service_role
-    WITH CHECK (true);
-
-CREATE POLICY "Allow service role to do anything"
-    ON settings FOR ALL
-    TO service_role
-    USING (true)
-    WITH CHECK (true);
-
-CREATE POLICY "Allow service role to do anything"
-    ON dashboard_stats FOR ALL
-    TO service_role
-    USING (true)
-    WITH CHECK (true);
-
 -- Settings
 CREATE POLICY "Users can view their own settings"
     ON settings FOR SELECT
@@ -178,6 +137,12 @@ CREATE POLICY "Users can insert their own settings"
     TO authenticated
     WITH CHECK (auth.uid() = user_id);
 
+CREATE POLICY "Service role can do anything with settings"
+    ON settings FOR ALL
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+
 -- Dashboard Stats
 CREATE POLICY "Users can view their own dashboard stats"
     ON dashboard_stats FOR SELECT
@@ -193,6 +158,12 @@ CREATE POLICY "Users can insert their own dashboard stats"
     ON dashboard_stats FOR INSERT
     TO authenticated
     WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Service role can do anything with dashboard stats"
+    ON dashboard_stats FOR ALL
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
 
 -- Email History
 CREATE POLICY "Users can view their own email history"
@@ -235,25 +206,29 @@ CREATE POLICY "Functions can insert logs"
 
 -- Create function to initialize user data
 CREATE OR REPLACE FUNCTION initialize_user_data()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
 BEGIN
-    -- Create initial settings record if it doesn't exist
-    INSERT INTO settings (user_id)
+    -- Create initial settings record
+    INSERT INTO public.settings (user_id)
     VALUES (NEW.id)
     ON CONFLICT (user_id) DO NOTHING;
 
-    -- Create initial dashboard stats record if it doesn't exist
-    INSERT INTO dashboard_stats (user_id)
+    -- Create initial dashboard stats record
+    INSERT INTO public.dashboard_stats (user_id)
     VALUES (NEW.id)
     ON CONFLICT (user_id) DO NOTHING;
 
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- Create trigger to initialize user data on signup
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW
-    EXECUTE PROCEDURE initialize_user_data();
+    EXECUTE FUNCTION initialize_user_data();
