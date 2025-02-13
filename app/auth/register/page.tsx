@@ -1,4 +1,119 @@
-console.error('Google sign in error:', error);
+"use client";
+
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { supabase } from '@/lib/supabase/client';
+import { Logo } from '@/components/ui/logo';
+
+const passwordRequirements = [
+  { label: 'At least one lowercase letter (a-z)', regex: /[a-z]/ },
+  { label: 'At least one uppercase letter (A-Z)', regex: /[A-Z]/ },
+  { label: 'At least one number (0-9)', regex: /[0-9]/ },
+  { label: 'At least one special character (!@#$%^&*()_+-=[]{};\':"|<>?,./`~)', regex: /[!@#$%^&*()_+\-=\[\]{};\\':"\\|,.<>?/`~]/ },
+  { label: 'Minimum 8 characters', regex: /.{8,}/ }
+];
+
+function RegisterForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [isValidToken, setIsValidToken] = useState(false);
+
+  useEffect(() => {
+    const validateToken = async () => {
+      try {
+        const token = searchParams.get('signup_token');
+        const emailParam = searchParams.get('email');
+        
+        if (!token || !emailParam) {
+          console.error('Missing token or email');
+          toast.error('Invalid registration link');
+          router.replace('/auth/login');
+          return;
+        }
+
+        // Validate token with API
+        const response = await fetch(`/api/validate-token?token=${encodeURIComponent(token)}&email=${encodeURIComponent(emailParam)}`);
+        const data = await response.json();
+
+        if (!response.ok || !data.valid) {
+          console.error('Token validation failed:', data);
+          toast.error(data.error || 'Invalid registration link');
+          router.replace('/auth/login');
+          return;
+        }
+
+        setIsValidToken(true);
+        setEmail(emailParam);
+      } catch (error) {
+        console.error('Token validation failed:', error);
+        toast.error('Failed to validate registration link');
+        router.replace('/auth/login');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    validateToken();
+  }, [router, searchParams]);
+
+  const validateForm = () => {
+    if (!email || !password || !confirmPassword) {
+      toast.error('Please fill in all fields');
+      return false;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return false;
+    }
+
+    if (!passwordRequirements.every(req => req.regex.test(password))) {
+      toast.error('Password does not meet all requirements');
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error('Please enter a valid email address');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setGoogleLoading(true);
+      const token = searchParams.get('signup_token');
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+          redirectTo: `${window.location.origin}/auth/callback?signup_token=${token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      console.error('Google sign in error:', error);
       toast.error('Google sign in failed');
     } finally {
       setGoogleLoading(false);
