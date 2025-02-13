@@ -47,7 +47,7 @@ export default function WelcomePage() {
       <div className="space-y-6 mb-8">
         {steps.map((step, index) => (
           <div key={index} className="flex items-start gap-4">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-background">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-[hsl(var(--background))]">
               {index + 1}
             </div>
             <div>

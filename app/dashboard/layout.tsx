@@ -42,7 +42,7 @@ export default function DashboardLayout({
 
   if (isLoading || !isAuthenticated || !setupCompleted) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-[hsl(var(--background))] flex items-center justify-center">
         <div className="animate-pulse text-center">
           <p className="text-muted-foreground">Loading...</p>
         </div>
@@ -51,7 +51,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[hsl(var(--background))]">
       <div className="flex justify-between items-center p-4">
         <Button
           variant="outline"

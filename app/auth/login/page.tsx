@@ -93,7 +93,7 @@ export default function LoginPage() {
 
   if (!initialized) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--background))]">
         <Card className="w-full max-w-md p-8">
           <div className="text-center">
             <p className="text-muted-foreground">Loading...</p>
@@ -104,7 +104,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="min-h-screen flex items-center justify-center bg-[hsl(var(--background))]">
       <Card className="w-full max-w-md p-8">
         <div className="flex flex-col items-center mb-8">
           <Logo className="mb-4" size={60} />

@@ -45,7 +45,7 @@ export default function HomePage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="min-h-screen bg-[hsl(var(--background))] flex items-center justify-center">
       <div className="animate-pulse text-center">
         <p className="text-muted-foreground">Loading...</p>
       </div>
