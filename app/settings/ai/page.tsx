@@ -132,7 +132,7 @@ export default function AiSettingsPage() {
                     <Input type="password" {...field} />
                   </FormControl>
                   <FormDescription>
-                    Your Gemini API key for AI operations
+                    Your Gmail, Sheets, Gemini API key for AI operations
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
