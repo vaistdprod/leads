@@ -4,16 +4,16 @@ const SCOPES = [
 ];
 
 export const getAuthUrl = () => {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  const redirectUri = process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI;
 
-  if (!baseUrl || !clientId) {
+  if (!clientId || !redirectUri) {
     throw new Error('Missing required environment variables for Google OAuth');
   }
 
   const params = new URLSearchParams({
     client_id: clientId,
-    redirect_uri: `${baseUrl}/auth/callback`,
+    redirect_uri: redirectUri,
     response_type: 'code',
     scope: SCOPES.join(' '),
     access_type: 'offline',

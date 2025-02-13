@@ -3,50 +3,61 @@
 import { createBrowserClient } from '@supabase/ssr';
 import { Database } from '../types';
 
-let supabase: ReturnType<typeof createBrowserClient<Database>>;
+// Create a singleton instance for the browser
+let supabaseInstance: ReturnType<typeof createBrowserClient<Database>> | null = null;
 
 export function createBrowserSupabaseClient() {
   if (typeof window === 'undefined') {
     throw new Error('createBrowserSupabaseClient can only be called in the browser');
   }
 
-  try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error('Missing Supabase environment variables');
-    }
-
-    return createBrowserClient<Database>(
-      supabaseUrl,
-      supabaseAnonKey,
-      {
-        cookies: {
-          get(name: string) {
-            return document.cookie
-              .split('; ')
-              .find((row) => row.startsWith(`${name}=`))
-              ?.split('=')[1];
-          },
-          set(name: string, value: string, options: { path?: string; domain?: string; sameSite?: string; secure?: boolean }) {
-            document.cookie = `${name}=${value}; path=${options.path || '/'}; secure; SameSite=Lax`;
-          },
-          remove(name: string, options: { path?: string; domain?: string }) {
-            document.cookie = `${name}=; path=${options.path || '/'}; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-          },
-        },
-      }
-    );
-  } catch (error) {
-    console.error('Failed to create Supabase client:', error);
-    throw error;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Missing Supabase environment variables');
   }
+
+  return createBrowserClient<Database>(
+    supabaseUrl,
+    supabaseAnonKey,
+    {
+      cookies: {
+        get(name: string) {
+          return document.cookie
+            .split('; ')
+            .find((row) => row.startsWith(`${name}=`))
+            ?.split('=')[1];
+        },
+        set(name: string, value: string, options: { path?: string; domain?: string; sameSite?: string; secure?: boolean }) {
+          document.cookie = `${name}=${value}; path=${options.path || '/'}; secure; SameSite=Lax`;
+        },
+        remove(name: string, options: { path?: string; domain?: string }) {
+          document.cookie = `${name}=; path=${options.path || '/'}; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+        },
+      },
+    }
+  );
 }
 
-// Initialize the client lazily only on the client side
-if (typeof window !== 'undefined' && !supabase) {
-  supabase = createBrowserSupabaseClient();
+// Initialize the client lazily only when needed
+function getSupabaseClient() {
+  if (typeof window === 'undefined') {
+    throw new Error('getSupabaseClient can only be called in the browser');
+  }
+
+  if (!supabaseInstance) {
+    supabaseInstance = createBrowserSupabaseClient();
+  }
+
+  return supabaseInstance;
 }
 
-export { supabase };
+// Create a proxy to handle lazy initialization
+export const supabase = new Proxy({} as ReturnType<typeof createBrowserClient<Database>>, {
+  get(target, prop) {
+    const client = getSupabaseClient();
+    const value = client[prop as keyof typeof client];
+    return typeof value === 'function' ? value.bind(client) : value;
+  },
+});

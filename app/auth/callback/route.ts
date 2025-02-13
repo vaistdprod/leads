@@ -6,11 +6,16 @@ import type { NextRequest } from 'next/server'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
-  const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get('code')
-  const signupToken = requestUrl.searchParams.get('signup_token')
+  try {
+    const requestUrl = new URL(request.url)
+    const code = requestUrl.searchParams.get('code')
+    const state = requestUrl.searchParams.get('state')
 
-  if (code) {
+    if (!code) {
+      console.error('No code received from Google')
+      return NextResponse.redirect(new URL('/auth/login', request.url))
+    }
+
     const cookieStore = cookies()
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,49 +35,42 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(code)
+    // Get current session
+    const { data: { session } } = await supabase.auth.getSession()
     
-    if (error) {
-      console.error('Auth callback error:', error)
+    if (!session) {
+      console.error('No session found')
       return NextResponse.redirect(new URL('/auth/login', request.url))
     }
 
-    // If we have a signup token, this is a new registration
-    if (signupToken) {
-      // Mark signup token as used
-      const { error: tokenError } = await supabase
-        .from('signup_tokens')
-        .update({ 
-          used: true, 
-          used_by: session.user.id, 
-          used_at: new Date().toISOString() 
-        })
-        .eq('token', signupToken)
+    // Store Google OAuth code
+    const { error: settingsError } = await supabase
+      .from('settings')
+      .upsert({
+        user_id: session.user.id,
+        google_auth_code: code,
+        updated_at: new Date().toISOString()
+      })
 
-      if (tokenError) {
-        console.error('Failed to update signup token:', tokenError)
-      }
+    if (settingsError) {
+      console.error('Failed to store Google auth code:', settingsError)
+      return NextResponse.redirect(new URL('/setup/google-auth', request.url))
+    }
 
-      // Create user profile
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .insert([{ 
-          id: session.user.id, 
-          setup_completed: false 
-        }])
+    // Check if user has completed setup
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('setup_completed')
+      .eq('id', session.user.id)
+      .single()
 
-      if (profileError) {
-        console.error('Failed to create user profile:', profileError)
-      }
-
-      // Redirect to next setup step
+    if (!profile?.setup_completed) {
       return NextResponse.redirect(new URL('/setup/gemini-setup', request.url))
     }
 
-    // For existing users, redirect to dashboard
     return NextResponse.redirect(new URL('/dashboard', request.url))
+  } catch (error) {
+    console.error('Auth callback error:', error)
+    return NextResponse.redirect(new URL('/auth/login', request.url))
   }
-
-  // If no code, redirect to login
-  return NextResponse.redirect(new URL('/auth/login', request.url))
 }
