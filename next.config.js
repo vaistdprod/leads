@@ -43,13 +43,17 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
   },
   // Add build-time environment validation
   webpack: (config, { isServer }) => {
     if (isServer) {
       const requiredEnvVars = [
         'NEXT_PUBLIC_SUPABASE_URL',
-        'NEXT_PUBLIC_SUPABASE_ANON_KEY'
+        'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+        'NEXT_PUBLIC_APP_URL',
+        'NEXT_PUBLIC_GOOGLE_CLIENT_ID'
       ];
 
       const missingEnvVars = requiredEnvVars.filter(
@@ -66,6 +70,6 @@ Please set these variables in your environment or .env file.
     }
     return config;
   }
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
