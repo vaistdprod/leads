@@ -20,7 +20,6 @@ export default function SettingsLayout({
       if (!isAuthenticated) {
         router.replace('/auth/login');
       } else if (setupCompleted === false) {
-        router.replace('/setup/welcome');
       }
     }
   }, [isLoading, isAuthenticated, setupCompleted, router]);

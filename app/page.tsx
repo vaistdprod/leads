@@ -28,10 +28,6 @@ export default function HomePage() {
           console.error("Error fetching user profile:", error);
           router.replace('/auth/login');
           return;
-        }
-
-        if (!profile?.setup_completed) {
-          router.replace('/setup/welcome');
         } else {
           router.replace('/dashboard');
         }

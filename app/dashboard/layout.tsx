@@ -29,7 +29,6 @@ export default function DashboardLayout({
       if (!isAuthenticated) {
         router.replace('/auth/login');
       } else if (setupCompleted === false) {
-        router.replace('/setup/welcome');
       }
     }
   }, [isLoading, isAuthenticated, setupCompleted, router]);
