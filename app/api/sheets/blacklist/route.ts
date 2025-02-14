@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { isDevelopment } from '@/lib/env';
 import { getGoogleAuthClient } from '@/lib/google/googleAuth';
+import { google } from 'googleapis';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,33 +29,27 @@ export async function GET(request: Request) {
 
     console.log('Getting Google auth client...');
     const auth = await getGoogleAuthClient();
-    const tokenResponse = await auth.getAccessToken();
-    const accessToken = typeof tokenResponse === 'string' ? tokenResponse : tokenResponse?.token;
-    if (!accessToken) {
-      throw new Error('Unable to retrieve access token');
-    }
-
+    
+    // Use the sheets API directly
+    const sheets = google.sheets({ version: 'v4', auth });
+    
     console.log('Fetching blacklist from Google Sheets...');
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/B:B`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
+    const { data } = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: 'B:B',
+    });
 
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('Google Sheets API error:', error);
-      throw new Error(`Failed to fetch from Google Sheets: ${error.message || response.statusText}`);
+    if (!data.values) {
+      console.log('No data found in sheet');
+      return NextResponse.json({ emails: [] });
     }
 
-    const data = await response.json();
-    console.log('Raw sheet data:', data);
-
-    const emails = (data.values || [])
+    const emails = data.values
       .flat()
       .filter((email: any): email is string => typeof email === 'string')
       .map((email: string) => email.toLowerCase().trim());
 
-    console.log('Processed emails:', emails);
+    console.log(`Processed ${emails.length} blacklisted emails`);
     return NextResponse.json({ emails });
   } catch (error) {
     console.error('Failed to get blacklist:', error);
