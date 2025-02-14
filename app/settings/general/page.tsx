@@ -58,10 +58,10 @@ export default function GeneralSettingsPage() {
           // No record found, create one
           const { data: newSettings, error: insertError } = await supabase
             .from('settings')
-            .insert({ user_id: user.id })
+            .upsert({ user_id: user.id }, { onConflict: 'user_id' })
             .select()
             .single();
-          
+
           if (insertError) throw insertError;
           if (newSettings) {
             form.reset({
