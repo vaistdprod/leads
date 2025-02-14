@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { isDevelopment } from '@/lib/env';
 import { getGoogleAuthClient } from '@/lib/google/googleAuth';
+import { google } from 'googleapis';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,28 +42,18 @@ export async function GET(request: Request) {
 
     console.log('Getting Google auth client...');
     const auth = await getGoogleAuthClient();
-    const tokenResponse = await auth.getAccessToken();
-    const accessToken = typeof tokenResponse === 'string' ? tokenResponse : tokenResponse?.token;
-    if (!accessToken) {
-      throw new Error('Unable to retrieve access token');
-    }
-
+    
+    // Use the sheets API directly instead of fetch
+    const sheets = google.sheets({ version: 'v4', auth });
+    
     console.log('Fetching contacts from Google Sheets...');
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/A:I`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('Google Sheets API error:', error);
-      throw new Error(`Failed to fetch from Google Sheets: ${error.message || response.statusText}`);
-    }
-
-    const data = await response.json();
-    console.log('Raw sheet data:', data);
+    const { data } = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: 'A:I',
+    });
 
     if (!data.values || data.values.length < 2) {
+      console.log('No data found in sheet');
       return NextResponse.json({ contacts: [] });
     }
 
@@ -75,7 +66,7 @@ export async function GET(request: Request) {
       return contact;
     });
 
-    console.log('Processed contacts:', contacts);
+    console.log(`Processed ${contacts.length} contacts`);
     return NextResponse.json({ contacts });
   } catch (error) {
     console.error('Failed to get contacts:', error);

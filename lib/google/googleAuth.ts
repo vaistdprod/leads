@@ -10,12 +10,22 @@ export const getGoogleAuthClient = async (impersonatedUser?: string) => {
   try {
     // Get required environment variables
     const serviceAccountEmail = getEnvOrThrow('GOOGLE_SERVICE_ACCOUNT_EMAIL');
-    const privateKey = getEnvOrThrow('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY').replace(/\\n/g, '\n');
+    const privateKey = getEnvOrThrow('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY')
+      .replace(/\\n/g, '\n')
+      .replace(/"$/, '')
+      .replace(/^"/, ''); // Remove any extra quotes
     const defaultUser = getEnvOrThrow('GOOGLE_DELEGATED_USER');
 
-    console.log('Creating JWT client with service account:', serviceAccountEmail);
-    console.log('Impersonating user:', impersonatedUser || defaultUser);
+    // Log configuration (remove in production)
+    console.log('Auth Configuration:', {
+      serviceAccountEmail,
+      defaultUser,
+      impersonatedUser,
+      scopes: SCOPES,
+      privateKeyLength: privateKey.length,
+    });
 
+    // Create JWT client
     const client = new google.auth.JWT({
       email: serviceAccountEmail,
       key: privateKey,
@@ -23,9 +33,18 @@ export const getGoogleAuthClient = async (impersonatedUser?: string) => {
       subject: impersonatedUser || defaultUser,
     });
 
-    console.log('Authorizing client...');
-    await client.authorize();
-    console.log('Client authorized successfully');
+    // Test authorization
+    try {
+      console.log('Authorizing client...');
+      const credentials = await client.authorize();
+      console.log('Authorization successful:', {
+        accessToken: credentials.access_token ? 'Present' : 'Missing',
+        expiryDate: credentials.expiry_date,
+      });
+    } catch (authError) {
+      console.error('Authorization failed:', authError);
+      throw new Error(`Authorization failed: ${authError instanceof Error ? authError.message : String(authError)}`);
+    }
 
     return client;
   } catch (error) {
