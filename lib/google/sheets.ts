@@ -7,7 +7,12 @@ export async function getBlacklist(sheetId: string): Promise<string[]> {
 
   try {
     console.log('Fetching blacklist from sheet:', sheetId);
-    const response = await fetch(`/api/sheets/blacklist?sheetId=${sheetId}`);
+    // Use absolute URL
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+    const url = new URL('/api/sheets/blacklist', baseUrl);
+    url.searchParams.append('sheetId', sheetId);
+    
+    const response = await fetch(url.toString());
     
     if (!response.ok) {
       const error = await response.json();
@@ -32,7 +37,12 @@ export async function getContacts(sheetId: string) {
 
   try {
     console.log('Fetching contacts from sheet:', sheetId);
-    const response = await fetch(`/api/sheets/contacts?sheetId=${sheetId}`);
+    // Use absolute URL
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+    const url = new URL('/api/sheets/contacts', baseUrl);
+    url.searchParams.append('sheetId', sheetId);
+    
+    const response = await fetch(url.toString());
     
     if (!response.ok) {
       const error = await response.json();
