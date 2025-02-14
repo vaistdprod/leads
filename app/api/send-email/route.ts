@@ -1,54 +1,42 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import { cookies } from 'next/headers';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-
-const gmail = google.gmail('v1');
+import { getGoogleAuthClient } from '@/lib/google/googleAuth';
 
 export async function POST(request: Request) {
-  try {
-    const apiKey = process.env.GEMINI_API_KEY;
+try {
+// Expect impersonatedEmail to be passed in the request body along with to, subject, and body.
+const { to, subject, body, impersonatedEmail } = await request.json();
 
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'Google API key required' },
-        { status: 401 }
-      );
-    }
+// Format the subject in UTF-8 (Base64 encoded)
+const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
+const messageParts = [
+  'From: "Lead Processing System" <your-email@yourdomain.com>', // update sender email if needed
+  `To: ${to}`,
+  `Subject: ${utf8Subject}`,
+  'MIME-Version: 1.0',
+  'Content-Type: text/html; charset=utf-8',
+  '',
+  body,
+];
+const message = messageParts.join('\n');
+const encodedMessage = Buffer.from(message)
+  .toString('base64')
+  .replace(/\+/g, '-')
+  .replace(/\//g, '_')
+  .replace(/=+$/, '');
 
-    const { to, subject, body } = await request.json();
+// Use the impersonatedEmail from the request (or default from env in googleAuth)
+const auth = await getGoogleAuthClient(impersonatedEmail);
+const gmail = google.gmail({ version: 'v1', auth });
 
-    const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
-    const messageParts = [
-      'From: "Lead Processing System" <me@example.com>',
-      `To: ${to}`,
-      `Subject: ${utf8Subject}`,
-      'MIME-Version: 1.0',
-      'Content-Type: text/html; charset=utf-8',
-      '',
-      body,
-    ];
-    const message = messageParts.join('\n');
-    const encodedMessage = Buffer.from(message)
-      .toString('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
+await gmail.users.messages.send({
+  userId: 'me', // 'me' means that Gmail uses the impersonated account from our JWT client.
+  requestBody: { raw: encodedMessage },
+});
 
-    await gmail.users.messages.send({
-      key: apiKey,
-      userId: 'me',
-      requestBody: {
-        raw: encodedMessage,
-      },
-    });
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Failed to send email:', error);
-    return NextResponse.json(
-      { error: 'Failed to send email' },
-      { status: 500 }
-    );
-  }
+return NextResponse.json({ success: true });
+} catch (error) {
+console.error('Failed to send email:', error);
+return NextResponse.json({ error: 'Failed to send email' }, { status: 500 });
+}
 }
