@@ -53,28 +53,11 @@ export default function GeneralSettingsPage() {
         .eq('user_id', user.id)
         .single();
 
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // No record found, create one
-          const { data: newSettings, error: insertError } = await supabase
-            .from('settings')
-            .upsert({ user_id: user.id }, { onConflict: 'user_id' })
-            .select()
-            .single();
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
 
-          if (insertError) throw insertError;
-          if (newSettings) {
-            form.reset({
-              blacklistSheetId: newSettings.blacklist_sheet_id || '',
-              contactsSheetId: newSettings.contacts_sheet_id || '',
-              autoExecutionEnabled: newSettings.auto_execution_enabled || false,
-              cronSchedule: newSettings.cron_schedule || '',
-            });
-          }
-        } else {
-          throw error;
-        }
-      } else if (settings) {
+      if (settings) {
         form.reset({
           blacklistSheetId: settings.blacklist_sheet_id || '',
           contactsSheetId: settings.contacts_sheet_id || '',
@@ -84,7 +67,7 @@ export default function GeneralSettingsPage() {
       }
     } catch (error) {
       console.error('Failed to load settings:', error);
-      toast.error('Failed to load settings. Using default values.');
+      toast.error('Failed to load settings');
     } finally {
       setLoading(false);
     }
@@ -104,12 +87,13 @@ export default function GeneralSettingsPage() {
           auto_execution_enabled: values.autoExecutionEnabled,
           cron_schedule: values.cronSchedule,
           updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id);
+        }, {
+          onConflict: 'user_id'
+        });
 
       if (error) throw error;
 
-      toast.success('Settings saved successfully.');
+      toast.success('Settings saved successfully');
     } catch (error) {
       console.error('Failed to save settings:', error);
       toast.error('Failed to save settings. Please try again.');
@@ -141,7 +125,7 @@ export default function GeneralSettingsPage() {
                     <Input {...field} />
                   </FormControl>
                   <FormDescription>
-                    Google Sheet ID containing contacts to process.
+                    Google Sheet ID containing blacklisted emails.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
