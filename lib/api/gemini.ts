@@ -20,7 +20,7 @@ interface EmailOptions {
 function replaceVariables(template: string, data: Record<string, any>): string {
   return template.replace(/\{([^}]+)\}/g, (match, key) => {
     const value = data[key.trim()];
-    return value !== undefined ? value : match;
+    return value !== undefined ? value : '';
   });
 }
 
@@ -134,17 +134,17 @@ export const generateEmail = async (
     const result = await model.generateContent(prompt);
     const text = result.response.text();
     
-    const subjectMatch = text.match(/\[SUBJECT\]:\s*(.+)/);
-    const bodyMatch = text.match(/\[BODY\]:\s*(.+)/s);
+    const subjectMatch = text.match(/\[SUBJECT\]:\s*(.+?)(?=\s*\[BODY\]|\s*$)/s);
+    const bodyMatch = text.match(/\[BODY\]:\s*(.+)$/s);
 
     if (!subjectMatch || !bodyMatch) {
       throw new Error('Failed to parse email template');
     }
 
-    return {
-      subject: subjectMatch[1].trim(),
-      body: bodyMatch[1].trim(),
-    };
+    const subject = subjectMatch[1].trim();
+    const body = replaceVariables(bodyMatch[1].trim(), templateData);
+
+    return { subject, body };
   } catch (error) {
     console.error('Failed to generate email:', error);
     throw new Error('Failed to generate email');

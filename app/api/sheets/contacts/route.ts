@@ -27,6 +27,40 @@ const mockContacts = [
   }
 ];
 
+interface SheetContact {
+  název?: string;
+  email?: string;
+  adresa?: string;
+  [key: string]: string | undefined;
+}
+
+interface ProcessedContact {
+  firstName: string;
+  lastName: string;
+  email: string;
+  company: string;
+  position: string;
+}
+
+function processContact(rawContact: SheetContact): ProcessedContact | null {
+  if (!rawContact.email || !rawContact.název) {
+    return null;
+  }
+
+  // Split the "název" field into first and last name
+  const nameParts = rawContact.název.trim().split(' ');
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+
+  return {
+    firstName,
+    lastName,
+    email: rawContact.email.trim(),
+    company: rawContact.společnost?.trim() || 'Unknown Company',
+    position: rawContact.pozice?.trim() || 'Unknown Position',
+  };
+}
+
 export async function GET(request: Request) {
   try {
     if (isDevelopment) {
@@ -58,13 +92,22 @@ export async function GET(request: Request) {
     }
 
     const [headers, ...rows] = data.values;
-    const contacts = rows.map((row: any[]) => {
-      const contact: Record<string, string> = {};
-      headers.forEach((header: string, index: number) => {
-        contact[header.toLowerCase()] = row[index] || '';
-      });
-      return contact;
-    });
+    
+    // Convert headers to lowercase and normalize
+    const normalizedHeaders = headers.map((header: string) => header.toLowerCase().trim());
+
+    // Map rows to contacts with proper structure
+    const contacts = rows
+      .map((row: any[]) => {
+        const rawContact: SheetContact = {};
+        normalizedHeaders.forEach((header: string, index: number) => {
+          if (row[index]) {
+            rawContact[header] = row[index];
+          }
+        });
+        return processContact(rawContact);
+      })
+      .filter((contact): contact is ProcessedContact => contact !== null);
 
     console.log(`Processed ${contacts.length} contacts`);
     return NextResponse.json({ contacts });
