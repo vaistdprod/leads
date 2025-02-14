@@ -7,10 +7,19 @@ export async function sendEmail(to: string, subject: string, body: string) {
     const auth = await getGoogleAuthClient();
     const gmail = google.gmail({ version: 'v1', auth });
 
-    // Format the email in MIME format
+    // Get user profile to get sender name
+    const { data: profile } = await google.oauth2('v2').userinfo.get({ auth });
+    const senderName = profile.name || 'Lead Processing System';
+    const senderEmail = process.env.GOOGLE_DELEGATED_USER;
+
+    if (!senderEmail) {
+      throw new Error('GOOGLE_DELEGATED_USER environment variable is not set');
+    }
+
+    // Format the email in MIME format with sender name
     const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
     const messageParts = [
-      'From: "Lead Processing System" <' + process.env.GOOGLE_DELEGATED_USER + '>',
+      `From: "${senderName}" <${senderEmail}>`,
       `To: ${to}`,
       `Subject: ${utf8Subject}`,
       'MIME-Version: 1.0',

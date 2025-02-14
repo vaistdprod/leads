@@ -1,7 +1,7 @@
 export async function verifyEmail(email: string): Promise<boolean> {
   try {
     const response = await fetch(
-      `https://api.disify.com/v4/email/${encodeURIComponent(email)}`
+      `https://disify.com/api/email/${encodeURIComponent(email)}`
     );
     
     if (!response.ok) {
