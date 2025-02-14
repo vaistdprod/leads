@@ -6,15 +6,23 @@ import { verifyEmail } from '@/lib/api/disify';
 import { enrichLeadData, generateEmail } from '@/lib/api/gemini';
 import { sendEmail } from '@/lib/google/gmail';
 
-async function logProcessing(supabase: any, userId: string, stage: string, status: 'success' | 'error', message: string, metadata?: any) {
+type LogStatus = 'success' | 'error' | 'warning';
+
+async function logProcessing(supabase: any, userId: string, stage: string, status: LogStatus, message: string, metadata?: any) {
   try {
+    // Map 'warning' to 'error' for database compatibility while preserving the warning in metadata
+    const dbStatus = status === 'warning' ? 'error' : status;
+    
     console.log(`[${stage}] ${status}: ${message}`, metadata);
     await supabase.from('processing_logs').insert({
       user_id: userId,
       stage,
-      status,
+      status: dbStatus,
       message,
-      metadata,
+      metadata: {
+        ...metadata,
+        level: status, // Store original status level in metadata
+      },
     });
   } catch (error) {
     console.error('Failed to log processing:', error);
@@ -29,10 +37,7 @@ export async function POST() {
   try {
     // Get authenticated user
     const { data: { session }, error: authError } = await supabase.auth.getSession();
-    if (authError) {
-      console.error('Auth error:', authError);
-      throw authError;
-    }
+    if (authError) throw authError;
     if (!session?.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
@@ -114,10 +119,13 @@ export async function POST() {
           // Verify email
           console.log('Verifying email:', contact.email);
           const isValid = await verifyEmail(contact.email);
+          
+          // Continue with processing even if email verification fails
           if (!isValid) {
-            await logProcessing(supabase, userId, 'verification', 'error', `Invalid email: ${contact.email}`);
-            failureCount++;
-            continue;
+            await logProcessing(supabase, userId, 'verification', 'warning', `Email verification failed: ${contact.email}`, {
+              email: contact.email,
+              verificationResult: isValid
+            });
           }
 
           // Enrich data
