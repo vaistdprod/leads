@@ -36,13 +36,12 @@ export async function POST() {
 
   try {
     // Get authenticated user
-    const { data: { session }, error: authError } = await supabase.auth.getSession();
-    if (authError) throw authError;
-    if (!session?.user) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    userId = session.user.id;
+    userId = user.id;
     console.log('Processing for user:', userId);
 
     // Get settings
@@ -133,10 +132,10 @@ export async function POST() {
           const enrichmentData = await enrichLeadData({
             ...contact,
             geminiApiKey: settings.gemini_api_key,
-            temperature: settings.temperature,
-            topK: settings.top_k,
-            topP: settings.top_p,
-            useGoogleSearch: settings.use_google_search,
+            temperature: settings.temperature || 0.7,
+            topK: settings.top_k || 40,
+            topP: settings.top_p || 0.95,
+            useGoogleSearch: settings.use_google_search || false,
             enrichmentPrompt: settings.enrichment_prompt
           });
           
@@ -147,9 +146,9 @@ export async function POST() {
             enrichmentData,
             {
               geminiApiKey: settings.gemini_api_key,
-              temperature: settings.temperature,
-              topK: settings.top_k,
-              topP: settings.top_p,
+              temperature: settings.temperature || 0.7,
+              topK: settings.top_k || 40,
+              topP: settings.top_p || 0.95,
               emailPrompt: settings.email_prompt
             }
           );

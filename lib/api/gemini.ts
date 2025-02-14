@@ -20,7 +20,7 @@ interface EmailOptions {
 function replaceVariables(template: string, data: Record<string, any>): string {
   return template.replace(/\{([^}]+)\}/g, (match, key) => {
     const value = data[key.trim()];
-    return value !== undefined ? value : '';
+    return value !== undefined ? value : match; // Keep the placeholder if value is undefined
   });
 }
 
@@ -142,9 +142,16 @@ export const generateEmail = async (
     }
 
     const subject = subjectMatch[1].trim();
-    const body = replaceVariables(bodyMatch[1].trim(), templateData);
+    const body = bodyMatch[1].trim();
 
-    return { subject, body };
+    // Don't replace variables in the subject line
+    return { 
+      subject,
+      body: replaceVariables(body, {
+        ...lead,
+        enrichmentData,
+      })
+    };
   } catch (error) {
     console.error('Failed to generate email:', error);
     throw new Error('Failed to generate email');
