@@ -17,6 +17,13 @@ interface EmailOptions {
   emailPrompt?: string;
 }
 
+function replaceVariables(template: string, data: Record<string, any>): string {
+  return template.replace(/\{([^}]+)\}/g, (match, key) => {
+    const value = data[key.trim()];
+    return value !== undefined ? value : match;
+  });
+}
+
 export const enrichLeadData = async (lead: Record<string, any>): Promise<string> => {
   const {
     geminiApiKey,
@@ -55,7 +62,7 @@ export const enrichLeadData = async (lead: Record<string, any>): Promise<string>
     3. Relevantní projekty
   `;
 
-  const prompt = enrichmentPrompt || defaultPrompt;
+  const prompt = enrichmentPrompt ? replaceVariables(enrichmentPrompt, contactData) : defaultPrompt;
 
   try {
     const result = await model.generateContent(prompt);
@@ -116,7 +123,12 @@ export const generateEmail = async (
     [BODY]: <tělo emailu>
   `;
 
-  const prompt = emailPrompt || defaultPrompt;
+  const templateData = {
+    ...lead,
+    enrichmentData,
+  };
+
+  const prompt = emailPrompt ? replaceVariables(emailPrompt, templateData) : defaultPrompt;
 
   try {
     const result = await model.generateContent(prompt);
@@ -125,9 +137,13 @@ export const generateEmail = async (
     const subjectMatch = text.match(/\[SUBJECT\]:\s*(.+)/);
     const bodyMatch = text.match(/\[BODY\]:\s*(.+)/s);
 
+    if (!subjectMatch || !bodyMatch) {
+      throw new Error('Failed to parse email template');
+    }
+
     return {
-      subject: subjectMatch?.[1] || 'Nabídka spolupráce',
-      body: bodyMatch?.[1] || text,
+      subject: subjectMatch[1].trim(),
+      body: bodyMatch[1].trim(),
     };
   } catch (error) {
     console.error('Failed to generate email:', error);
