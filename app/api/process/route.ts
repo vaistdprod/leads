@@ -1,17 +1,15 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase/client';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
 import { getBlacklist, getContacts } from '@/lib/google/sheets';
 import { verifyEmail } from '@/lib/api/disify';
 import { enrichLeadData, generateEmail } from '@/lib/api/gemini';
 import { sendEmail } from '@/lib/google/gmail';
 
-async function logProcessing(stage: string, status: 'success' | 'error', message: string, metadata?: any) {
+async function logProcessing(supabase: any, userId: string, stage: string, status: 'success' | 'error', message: string, metadata?: any) {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No authenticated user');
-
     await supabase.from('processing_logs').insert({
-      user_id: user.id,
+      user_id: userId,
       stage,
       status,
       message,
@@ -23,22 +21,28 @@ async function logProcessing(stage: string, status: 'success' | 'error', message
 }
 
 export async function POST() {
+  const cookieStore = cookies();
+  const supabase = createServerSupabaseClient(cookieStore);
+
   try {
     // Get authenticated user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { data: { session }, error: authError } = await supabase.auth.getSession();
+    if (authError) throw authError;
+    if (!session?.user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
+
+    const userId = session.user.id;
 
     // Get settings
     const { data: settings, error: settingsError } = await supabase
       .from('settings')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .single();
 
     if (settingsError) {
-      throw new Error('Failed to load settings');
+      return NextResponse.json({ error: 'Failed to load settings' }, { status: 500 });
     }
 
     if (!settings) {
@@ -49,16 +53,24 @@ export async function POST() {
       return NextResponse.json({ error: 'Sheet IDs not configured' }, { status: 400 });
     }
 
+    if (!settings.gemini_api_key) {
+      return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 400 });
+    }
+
     // 1. Load and process blacklist
     const blacklist = await getBlacklist(settings.blacklist_sheet_id);
-    await logProcessing('blacklist', 'success', `Loaded ${blacklist.length} blacklisted emails`);
+    await logProcessing(supabase, userId, 'blacklist', 'success', `Loaded ${blacklist.length} blacklisted emails`);
 
     // 2. Load and filter contacts
     const contacts = await getContacts(settings.contacts_sheet_id);
+    if (!contacts || !Array.isArray(contacts)) {
+      return NextResponse.json({ error: 'Failed to load contacts' }, { status: 500 });
+    }
+
     const filteredContacts = contacts.filter(
-      contact => !blacklist.includes(contact.email?.toLowerCase().trim())
+      contact => contact.email && !blacklist.includes(contact.email.toLowerCase().trim())
     );
-    await logProcessing('blacklist', 'success', `Filtered ${contacts.length - filteredContacts.length} blacklisted contacts`);
+    await logProcessing(supabase, userId, 'blacklist', 'success', `Filtered ${contacts.length - filteredContacts.length} blacklisted contacts`);
 
     // 3. Process each contact
     let successCount = 0;
@@ -68,7 +80,7 @@ export async function POST() {
       try {
         // Skip if no email
         if (!contact.email) {
-          await logProcessing('verification', 'error', 'Missing email address', { contact });
+          await logProcessing(supabase, userId, 'verification', 'error', 'Missing email address', { contact });
           failureCount++;
           continue;
         }
@@ -76,23 +88,41 @@ export async function POST() {
         // Verify email
         const isValid = await verifyEmail(contact.email);
         if (!isValid) {
-          await logProcessing('verification', 'error', `Invalid email: ${contact.email}`);
+          await logProcessing(supabase, userId, 'verification', 'error', `Invalid email: ${contact.email}`);
           failureCount++;
           continue;
         }
 
         // Enrich data
-        const enrichmentData = await enrichLeadData(contact);
+        const enrichmentData = await enrichLeadData({
+          ...contact,
+          geminiApiKey: settings.gemini_api_key,
+          temperature: settings.temperature,
+          topK: settings.top_k,
+          topP: settings.top_p,
+          useGoogleSearch: settings.use_google_search,
+          enrichmentPrompt: settings.enrichment_prompt
+        });
         
         // Generate email
-        const email = await generateEmail(contact, enrichmentData);
+        const email = await generateEmail(
+          contact, 
+          enrichmentData,
+          {
+            geminiApiKey: settings.gemini_api_key,
+            temperature: settings.temperature,
+            topK: settings.top_k,
+            topP: settings.top_p,
+            emailPrompt: settings.email_prompt
+          }
+        );
         
         // Send email
         await sendEmail(contact.email, email.subject, email.body);
         
         // Log success
         await supabase.from('lead_history').insert({
-          user_id: user.id,
+          user_id: userId,
           email: contact.email,
           status: 'success',
           details: {
@@ -102,17 +132,17 @@ export async function POST() {
         });
 
         await supabase.from('email_history').insert({
-          user_id: user.id,
+          user_id: userId,
           email: contact.email,
           subject: email.subject,
           status: 'sent'
         });
 
         successCount++;
-        await logProcessing('email', 'success', `Email sent to ${contact.email}`);
+        await logProcessing(supabase, userId, 'email', 'success', `Email sent to ${contact.email}`);
       } catch (error) {
         failureCount++;
-        await logProcessing('email', 'error', `Failed to process contact: ${contact.email}`, { 
+        await logProcessing(supabase, userId, 'email', 'error', `Failed to process contact: ${contact.email}`, { 
           error: error instanceof Error ? error.message : String(error) 
         });
       }
@@ -122,7 +152,7 @@ export async function POST() {
     await supabase
       .from('dashboard_stats')
       .upsert({
-        user_id: user.id,
+        user_id: userId,
         total_leads: contacts.length,
         processed_leads: successCount + failureCount,
         success_rate: successCount > 0 ? (successCount / (successCount + failureCount)) * 100 : 0,
@@ -138,7 +168,7 @@ export async function POST() {
     await supabase
       .from('settings')
       .update({ last_execution_at: new Date().toISOString() })
-      .eq('user_id', user.id);
+      .eq('user_id', userId);
 
     return NextResponse.json({ 
       success: true,
@@ -152,7 +182,10 @@ export async function POST() {
   } catch (error) {
     console.error('Processing failed:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Processing failed' }, 
+      { 
+        error: error instanceof Error ? error.message : 'Processing failed',
+        details: error instanceof Error ? error.stack : undefined
+      }, 
       { status: 500 }
     );
   }

@@ -1,16 +1,53 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-export const enrichLeadData = async (lead: Record<string, string>): Promise<string> => {
-  const apiKey = process.env.GEMINI_API_KEY;
-  const genAI = new GoogleGenerativeAI(apiKey || '');
-  const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+interface EnrichmentOptions {
+  geminiApiKey: string;
+  temperature?: number;
+  topK?: number;
+  topP?: number;
+  useGoogleSearch?: boolean;
+  enrichmentPrompt?: string;
+}
 
-  const prompt = `
+interface EmailOptions {
+  geminiApiKey: string;
+  temperature?: number;
+  topK?: number;
+  topP?: number;
+  emailPrompt?: string;
+}
+
+export const enrichLeadData = async (lead: Record<string, any>): Promise<string> => {
+  const {
+    geminiApiKey,
+    temperature = 0.7,
+    topK = 40,
+    topP = 0.95,
+    useGoogleSearch = false,
+    enrichmentPrompt = '',
+    ...contactData
+  } = lead;
+
+  if (!geminiApiKey) {
+    throw new Error('Gemini API key is required');
+  }
+
+  const genAI = new GoogleGenerativeAI(geminiApiKey);
+  const model = genAI.getGenerativeModel({ 
+    model: 'gemini-pro',
+    generationConfig: {
+      temperature,
+      topK,
+      topP,
+    }
+  });
+
+  const defaultPrompt = `
     Hledej na internetu podrobnosti o tomto kontaktu a napiš stručné shrnutí v češtině:
     
-    Jméno: ${lead.firstName} ${lead.lastName}
-    Společnost: ${lead.company}
-    Pozice: ${lead.position}
+    Jméno: ${contactData.firstName} ${contactData.lastName}
+    Společnost: ${contactData.company}
+    Pozice: ${contactData.position}
     
     Zaměř se na:
     1. Profesní historii
@@ -18,16 +55,45 @@ export const enrichLeadData = async (lead: Record<string, string>): Promise<stri
     3. Relevantní projekty
   `;
 
-  const result = await model.generateContent(prompt);
-  return result.response.text();
+  const prompt = enrichmentPrompt || defaultPrompt;
+
+  try {
+    const result = await model.generateContent(prompt);
+    return result.response.text();
+  } catch (error) {
+    console.error('Failed to enrich lead data:', error);
+    throw new Error('Failed to enrich lead data');
+  }
 };
 
-export const generateEmail = async (lead: Record<string, string>, enrichmentData: string): Promise<{ subject: string; body: string }> => {
-  const apiKey = process.env.GEMINI_API_KEY;
-  const genAI = new GoogleGenerativeAI(apiKey || '');
-  const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+export const generateEmail = async (
+  lead: Record<string, string>, 
+  enrichmentData: string,
+  options: EmailOptions
+): Promise<{ subject: string; body: string }> => {
+  const {
+    geminiApiKey,
+    temperature = 0.7,
+    topK = 40,
+    topP = 0.95,
+    emailPrompt = '',
+  } = options;
 
-  const prompt = `
+  if (!geminiApiKey) {
+    throw new Error('Gemini API key is required');
+  }
+
+  const genAI = new GoogleGenerativeAI(geminiApiKey);
+  const model = genAI.getGenerativeModel({ 
+    model: 'gemini-pro',
+    generationConfig: {
+      temperature,
+      topK,
+      topP,
+    }
+  });
+
+  const defaultPrompt = `
     Napiš profesionální email v češtině pro potenciálního klienta.
     
     Kontakt:
@@ -50,14 +116,21 @@ export const generateEmail = async (lead: Record<string, string>, enrichmentData
     [BODY]: <tělo emailu>
   `;
 
-  const result = await model.generateContent(prompt);
-  const text = result.response.text();
-  
-  const subjectMatch = text.match(/\[SUBJECT\]:\s*(.+)/);
-  const bodyMatch = text.match(/\[BODY\]:\s*(.+)/s);
+  const prompt = emailPrompt || defaultPrompt;
 
-  return {
-    subject: subjectMatch?.[1] || 'Nabídka spolupráce',
-    body: bodyMatch?.[1] || text,
-  };
+  try {
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    
+    const subjectMatch = text.match(/\[SUBJECT\]:\s*(.+)/);
+    const bodyMatch = text.match(/\[BODY\]:\s*(.+)/s);
+
+    return {
+      subject: subjectMatch?.[1] || 'Nabídka spolupráce',
+      body: bodyMatch?.[1] || text,
+    };
+  } catch (error) {
+    console.error('Failed to generate email:', error);
+    throw new Error('Failed to generate email');
+  }
 };
