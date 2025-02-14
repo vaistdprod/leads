@@ -24,6 +24,42 @@ import { toast } from "sonner";
 import { supabase } from '@/lib/supabase/client';
 import BackButton from '@/components/ui/back-button';
 
+const DEFAULT_ENRICHMENT_PROMPT = `
+Hledej na internetu podrobnosti o tomto kontaktu a napiš stručné shrnutí v češtině:
+
+Jméno: {firstName} {lastName}
+Společnost: {company}
+Pozice: {position}
+
+Zaměř se na:
+1. Profesní historii
+2. Úspěchy ve firmě
+3. Relevantní projekty
+`;
+
+const DEFAULT_EMAIL_PROMPT = `
+Napiš profesionální email v češtině pro potenciálního klienta.
+
+Kontakt:
+Jméno: {firstName} {lastName}
+Společnost: {company}
+Pozice: {position}
+
+Dodatečné informace:
+{enrichmentData}
+
+Požadavky:
+- Krátký, profesionální, ale přátelský tón
+- Personalizovaný úvod využívající dodatečné informace
+- Nabídka pomoci, ne prodej
+- Zmínka o zlepšení efektivity jejich operací
+- Možnost odpovědět "ne" pro odmítnutí
+
+Formát:
+[SUBJECT]: <předmět emailu - max 3 slova>
+[BODY]: <tělo emailu>
+`;
+
 const aiSettingsSchema = z.object({
   geminiApiKey: z.string().min(1, 'Required'),
   model: z.string().default('gemini-pro'),
@@ -31,8 +67,8 @@ const aiSettingsSchema = z.object({
   topK: z.number().min(1).max(40),
   topP: z.number().min(0).max(1),
   useGoogleSearch: z.boolean(),
-  enrichmentPrompt: z.string().min(1, 'Required'),
-  emailPrompt: z.string().min(1, 'Required'),
+  enrichmentPrompt: z.string().optional(),
+  emailPrompt: z.string().optional(),
 });
 
 export default function AiSettingsPage() {
@@ -47,8 +83,8 @@ export default function AiSettingsPage() {
       topK: 40,
       topP: 0.95,
       useGoogleSearch: false,
-      enrichmentPrompt: '',
-      emailPrompt: '',
+      enrichmentPrompt: DEFAULT_ENRICHMENT_PROMPT,
+      emailPrompt: DEFAULT_EMAIL_PROMPT,
     },
   });
 
@@ -69,8 +105,8 @@ export default function AiSettingsPage() {
           topK: settings.top_k || 40,
           topP: settings.top_p || 0.95,
           useGoogleSearch: settings.use_google_search || false,
-          enrichmentPrompt: settings.enrichment_prompt || '',
-          emailPrompt: settings.email_prompt || '',
+          enrichmentPrompt: settings.enrichment_prompt || DEFAULT_ENRICHMENT_PROMPT,
+          emailPrompt: settings.email_prompt || DEFAULT_EMAIL_PROMPT,
         });
       }
     } catch (error) {
@@ -92,8 +128,8 @@ export default function AiSettingsPage() {
           top_k: values.topK,
           top_p: values.topP,
           use_google_search: values.useGoogleSearch,
-          enrichment_prompt: values.enrichmentPrompt,
-          email_prompt: values.emailPrompt,
+          enrichment_prompt: values.enrichmentPrompt || DEFAULT_ENRICHMENT_PROMPT,
+          email_prompt: values.emailPrompt || DEFAULT_EMAIL_PROMPT,
           updated_at: new Date().toISOString(),
         })
         .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
@@ -241,7 +277,7 @@ export default function AiSettingsPage() {
                     <Textarea
                       {...field}
                       rows={5}
-                      placeholder="Enter prompt template for lead enrichment..."
+                      placeholder={DEFAULT_ENRICHMENT_PROMPT}
                     />
                   </FormControl>
                   <FormDescription>
@@ -262,7 +298,7 @@ export default function AiSettingsPage() {
                     <Textarea
                       {...field}
                       rows={5}
-                      placeholder="Enter prompt template for email generation..."
+                      placeholder={DEFAULT_EMAIL_PROMPT}
                     />
                   </FormControl>
                   <FormDescription>
