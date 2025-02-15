@@ -7,16 +7,28 @@ export async function POST(request: Request) {
     // Expect impersonatedEmail to be passed in the request body along with to, subject, and body.
     const { to, subject, body, impersonatedEmail } = await request.json();
 
+    // Get the Gmail client with impersonation
+    const auth = await getGoogleAuthClient(impersonatedEmail);
+    const gmail = google.gmail({ version: 'v1', auth });
+
+    // Get sender info
+    const { data: profile } = await gmail.users.getProfile({ userId: 'me' });
+    const actualSenderEmail = profile.emailAddress;
+    const displayName = actualSenderEmail?.split('@')[0].split('.').map(
+      part => part.charAt(0).toUpperCase() + part.slice(1)
+    ).join(' ');
+
     // Format the subject in UTF-8 (Base64 encoded)
     const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
     const messageParts = [
-      'From: "Lead Processing System" <your-email@yourdomain.com>', // update sender email if needed
+      `From: "${displayName}" <${actualSenderEmail}>`,
       `To: ${to}`,
       `Subject: ${utf8Subject}`,
       'MIME-Version: 1.0',
       'Content-Type: text/html; charset=utf-8',
       '',
-      body,
+      // Update signature in the body with the correct name
+      body.replace('[Vaše jméno]', displayName),
     ];
     const message = messageParts.join('\n');
     const encodedMessage = Buffer.from(message)
@@ -25,12 +37,8 @@ export async function POST(request: Request) {
       .replace(/\//g, '_')
       .replace(/=+$/, '');
 
-    // Use the impersonatedEmail from the request
-    const auth = await getGoogleAuthClient(impersonatedEmail);
-    const gmail = google.gmail({ version: 'v1', auth });
-
     await gmail.users.messages.send({
-      userId: 'me', // 'me' means that Gmail uses the impersonated account from our JWT client.
+      userId: 'me',
       requestBody: { raw: encodedMessage },
     });
 

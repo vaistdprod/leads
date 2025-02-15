@@ -1,22 +1,38 @@
 import { google } from 'googleapis';
 import { getGoogleAuthClient } from './googleAuth';
 
-export async function sendEmail(to: string, subject: string, body: string, impersonatedEmail?: string) {
+interface EmailOptions {
+  to: string;
+  subject: string;
+  body: string;
+  impersonatedEmail?: string;
+  senderName?: string;
+}
+
+export async function sendEmail({ to, subject, body, impersonatedEmail, senderName }: EmailOptions) {
   try {
     console.log('Sending email to:', to, 'as:', impersonatedEmail || 'default user');
     const auth = await getGoogleAuthClient(impersonatedEmail);
     const gmail = google.gmail({ version: 'v1', auth });
 
-    // Format the email in MIME format
+    // Get sender info
+    const { data: profile } = await gmail.users.getProfile({ userId: 'me' });
+    const actualSenderEmail = profile.emailAddress;
+    const displayName = senderName || actualSenderEmail?.split('@')[0].split('.').map(
+      part => part.charAt(0).toUpperCase() + part.slice(1)
+    ).join(' ');
+
+    // Format the subject in UTF-8 (Base64 encoded)
     const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
     const messageParts = [
-      `Content-Type: text/html; charset=utf-8`,
-      `MIME-Version: 1.0`,
-      `Content-Transfer-Encoding: 7bit`,
-      `to: ${to}`,
-      `subject: ${utf8Subject}`,
-      ``,
-      body,
+      `From: "${displayName}" <${actualSenderEmail}>`,
+      `To: ${to}`,
+      `Subject: ${utf8Subject}`,
+      'MIME-Version: 1.0',
+      'Content-Type: text/html; charset=utf-8',
+      '',
+      // Update signature in the body with the correct name
+      body.replace('[Vaše jméno]', displayName),
     ];
     const message = messageParts.join('\n');
 
@@ -27,7 +43,7 @@ export async function sendEmail(to: string, subject: string, body: string, imper
       .replace(/\//g, '_')
       .replace(/=+$/, '');
 
-    console.log('Sending email via Gmail API as:', impersonatedEmail || 'default user');
+    console.log('Sending email via Gmail API as:', displayName, `<${actualSenderEmail}>`);
     const result = await gmail.users.messages.send({
       userId: 'me',
       requestBody: {
