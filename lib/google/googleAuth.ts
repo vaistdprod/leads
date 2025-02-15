@@ -25,14 +25,14 @@ export const getGoogleAuthClient = async (impersonatedUser?: string) => {
       email: serviceAccountEmail,
       key: privateKey,
       scopes: SCOPES,
-      // Use admin user for directory access, then impersonate for sending
-      subject: defaultUser,
+      // Use provided user for impersonation, fallback to admin
+      subject: impersonatedUser || defaultUser,
     });
 
     try {
-      console.log('Authorizing client for:', defaultUser);
+      console.log('Authorizing client for:', impersonatedUser || defaultUser);
       await client.authorize();
-      console.log('Authorization successful for:', defaultUser);
+      console.log('Authorization successful for:', impersonatedUser || defaultUser);
     } catch (authError) {
       console.error('Authorization failed:', authError);
       throw new Error(`Authorization failed: ${authError instanceof Error ? authError.message : String(authError)}`);
@@ -45,10 +45,19 @@ export const getGoogleAuthClient = async (impersonatedUser?: string) => {
   }
 };
 
-export const getUserInfo = async (auth: any, email: string) => {
+export const getUserInfo = async (email: string) => {
   try {
-    const admin = google.admin({ version: 'directory_v1', auth });
-    const { data: user } = await admin.users.get({ userKey: email });
+    // Create admin client for directory access
+    const adminAuth = await getGoogleAuthClient();
+    const admin = google.admin({ version: 'directory_v1', auth: adminAuth });
+    
+    console.log('Fetching user info for:', email);
+    const { data: user } = await admin.users.get({ 
+      userKey: email,
+      projection: 'full',
+      viewType: 'domain_public'
+    });
+
     return {
       name: user.name?.fullName || user.primaryEmail?.split('@')[0],
       email: user.primaryEmail,

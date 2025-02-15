@@ -10,20 +10,22 @@ interface EmailOptions {
 
 export async function sendEmail({ to, subject, body, impersonatedEmail }: EmailOptions) {
   try {
-    console.log('Sending email to:', to, 'as:', impersonatedEmail || 'default user');
-    const auth = await getGoogleAuthClient();
+    if (!impersonatedEmail) {
+      throw new Error('Impersonated email is required');
+    }
+
+    console.log('Sending email to:', to, 'as:', impersonatedEmail);
+    
+    // First, get the sender's info from Directory API
+    const senderInfo = await getUserInfo(impersonatedEmail);
+    console.log('Sender info:', senderInfo);
+
+    // Create auth client for sending as impersonated user
+    const auth = await getGoogleAuthClient(impersonatedEmail);
     const gmail = google.gmail({ version: 'v1', auth });
 
-    // Get sender info from Directory API
-    const senderInfo = await getUserInfo(auth, impersonatedEmail || '');
-    
-    // Create a new JWT client for sending as the impersonated user
-    const sendingAuth = await getGoogleAuthClient(impersonatedEmail);
-    const sendingGmail = google.gmail({ version: 'v1', auth: sendingAuth });
-
-    // Format the subject in UTF-8 (Base64 encoded)
+    // Format the email headers with proper sender info
     const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
-    
     const messageParts = [
       `From: "${senderInfo.name}" <${senderInfo.email}>`,
       `To: ${to}`,
@@ -31,20 +33,21 @@ export async function sendEmail({ to, subject, body, impersonatedEmail }: EmailO
       'MIME-Version: 1.0',
       'Content-Type: text/html; charset=utf-8',
       '',
-      // Update signature in the body with the correct name
+      // Update signature in the body with the sender's name
       body.replace('[Vaše jméno]', senderInfo.name),
     ];
     const message = messageParts.join('\n');
 
-    // Encode the message in base64url format
+    // Encode the message
     const encodedMessage = Buffer.from(message)
       .toString('base64')
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=+$/, '');
 
+    // Send the email
     console.log('Sending email via Gmail API as:', senderInfo.name, `<${senderInfo.email}>`);
-    const result = await sendingGmail.users.messages.send({
+    const result = await gmail.users.messages.send({
       userId: 'me',
       requestBody: {
         raw: encodedMessage,
