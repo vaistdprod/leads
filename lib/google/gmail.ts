@@ -10,6 +10,7 @@ async function getUserInfo(impersonatedEmail: string) {
     const { data: user } = await admin.users.get({
       userKey: impersonatedEmail,
       projection: 'full',
+      viewType: 'domain_public',
     });
 
     return {
@@ -20,14 +21,22 @@ async function getUserInfo(impersonatedEmail: string) {
   } catch (error) {
     console.error('Failed to get user info:', error);
     // Fallback to basic info from email
+    const name = impersonatedEmail.split('@')[0].split('.')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+    
     return {
       email: impersonatedEmail,
-      name: impersonatedEmail.split('@')[0].split('.').map(
-        part => part.charAt(0).toUpperCase() + part.slice(1)
-      ).join(' '),
+      name,
       photoUrl: null,
     };
   }
+}
+
+function encodeHeader(text: string): string {
+  // Convert to Base64 with UTF-8 encoding
+  const base64 = Buffer.from(text, 'utf8').toString('base64');
+  return `=?UTF-8?B?${base64}?=`;
 }
 
 export async function sendEmail(to: string, subject: string, body: string, impersonatedEmail?: string) {
@@ -46,20 +55,37 @@ export async function sendEmail(to: string, subject: string, body: string, imper
     const auth = await getGoogleAuthClient(impersonatedEmail);
     const gmail = google.gmail({ version: 'v1', auth });
 
-    // Format the email in MIME format
-    const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
-    const messageParts = [
-      `From: "${userInfo.name}" <${userInfo.email}>`,
-      `To: ${to}`,
-      `Subject: ${utf8Subject}`,
-      'MIME-Version: 1.0',
-      'Content-Type: text/html; charset=utf-8',
-      '',
-      body.replace('[Vaše jméno]', userInfo.name),
-    ];
-    const message = messageParts.join('\n');
+    // Encode headers properly
+    const encodedSubject = encodeHeader(subject);
+    const encodedName = encodeHeader(userInfo.name);
 
-    // Encode the message
+    // Format the email in MIME format with proper encoding
+    const messageParts = [
+      'MIME-Version: 1.0',
+      'Content-Type: text/html; charset=UTF-8',
+      'Content-Transfer-Encoding: base64',
+      `From: ${encodedName} <${userInfo.email}>`,
+      `To: ${to}`,
+      `Subject: ${encodedSubject}`,
+      '',
+    ];
+
+    // Add profile image if available
+    let htmlBody = body;
+    if (userInfo.photoUrl) {
+      htmlBody = htmlBody.replace('</body>', `
+        <img src="${userInfo.photoUrl}" alt="${userInfo.name}" style="width: 48px; height: 48px; border-radius: 50%; margin-top: 16px;">
+        </body>
+      `);
+    }
+
+    // Replace name placeholder and encode body
+    htmlBody = htmlBody.replace('[Vaše jméno]', userInfo.name);
+    const encodedBody = Buffer.from(htmlBody, 'utf8').toString('base64');
+    messageParts.push(encodedBody);
+
+    // Join message parts and encode for Gmail API
+    const message = messageParts.join('\r\n');
     const encodedMessage = Buffer.from(message)
       .toString('base64')
       .replace(/\+/g, '-')
