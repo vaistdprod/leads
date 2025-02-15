@@ -63,6 +63,7 @@
   /* Button hover/focus effects */
   .button, button, [type='button'], [type='submit'] {
     transition: all 0.2s ease-in-out;
+    outline-offset: 1px;
   }
 
   .button:hover, button:hover, [type='button']:hover, [type='submit']:hover {
@@ -72,13 +73,17 @@
 
   .button:focus, button:focus, [type='button']:focus, [type='submit']:focus {
     outline: 1px solid var(--color-ring);
-    outline-offset: 1px;
     transform: translateY(-1px);
   }
 
-  /* Slider improvements */
+/* Slider improvements */
   [role="slider"] {
-    background-color: var(--color-primary);
+    background-color: var(--color-foreground);
+    transition: background-color 0.2s ease-in-out;
+  }
+
+  [role="slider"]:hover{
+    background-color: var(--color-muted-foreground);
   }
 
   .slider-track {
@@ -92,13 +97,22 @@
     border: 1px solid var(--color-border);
   }
 
-  /* Toggle improvements */
+/* Toggle improvements */
   [role="switch"] {
-    background-color: var(--color-muted);
+    background-color: var(--color-muted-foreground);
+    transition: background-color 0.2s ease-in-out;
+  }
+
+  [role="switch"]:hover {
+     background-color: var(--color-muted);
   }
 
   [role="switch"][data-state="checked"] {
     background-color: var(--color-primary);
+  }
+
+  [role="switch"][data-state="checked"]:hover {
+    background-color: var(--color-primary-foreground);
   }
 
   /* Chart improvements */
