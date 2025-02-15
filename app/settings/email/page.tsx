@@ -38,7 +38,7 @@ const emailSettingsSchema = z.object({
 
 export default function EmailSettingsPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [domainUsers, setDomainUsers] = useState<DomainUser[]>([]);
   
   const form = useForm<z.infer<typeof emailSettingsSchema>>({
@@ -50,9 +50,13 @@ export default function EmailSettingsPage() {
 
   const loadSettings = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+
       const { data: settings, error } = await supabase
         .from('settings')
         .select('*')
+        .eq('user_id', user.id)
         .single();
 
       if (error) throw error;
@@ -81,17 +85,21 @@ export default function EmailSettingsPage() {
 
   const onSubmit = async (values: z.infer<typeof emailSettingsSchema>) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+
       const { error } = await supabase
         .from('settings')
         .update({
           impersonated_email: values.impersonatedEmail,
           updated_at: new Date().toISOString(),
         })
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+        .eq('user_id', user.id);
 
       if (error) throw error;
 
       toast.success('Email settings saved successfully');
+      router.refresh(); // Refresh the page to update any cached data
     } catch (error) {
       console.error('Failed to save email settings:', error);
       toast.error('Failed to save settings. Please try again.');
@@ -101,6 +109,19 @@ export default function EmailSettingsPage() {
   useEffect(() => {
     loadSettings();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="container mx-auto py-8">
+        <Card className="p-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+            <div className="h-12 bg-gray-200 rounded"></div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8">

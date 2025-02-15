@@ -150,12 +150,12 @@ export async function POST() {
               topK: settings.top_k || 40,
               topP: settings.top_p || 0.95,
               emailPrompt: settings.email_prompt ?? undefined,
-              senderEmail: process.env.GOOGLE_DELEGATED_USER
+              senderEmail: settings.impersonated_email
             }
           );
           
           // Send email
-          console.log('Sending email to:', contact.email);
+          console.log('Sending email to:', contact.email, 'as:', settings.impersonated_email);
           await sendEmail(contact.email, email.subject, email.body, settings.impersonated_email);
           
           // Log success
@@ -165,7 +165,8 @@ export async function POST() {
             status: 'success',
             details: {
               enrichment_data: enrichmentData,
-              email_subject: email.subject
+              email_subject: email.subject,
+              sent_as: settings.impersonated_email
             }
           });
 
@@ -177,7 +178,7 @@ export async function POST() {
           });
 
           successCount++;
-          await logProcessing(supabase, userId, 'email', 'success', `Email sent to ${contact.email}`);
+          await logProcessing(supabase, userId, 'email', 'success', `Email sent to ${contact.email} as ${settings.impersonated_email}`);
           console.log('Successfully processed:', contact.email);
         } catch (error) {
           console.error('Failed to process contact:', contact.email, error);
