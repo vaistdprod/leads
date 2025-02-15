@@ -13,10 +13,15 @@ async function getUserInfo(impersonatedEmail: string) {
       viewType: 'domain_public',
     });
 
+    // Check if the photo URL is a placeholder
+    const isPlaceholderPhoto = !user.thumbnailPhotoUrl || 
+      user.thumbnailPhotoUrl.includes('ALV-') || 
+      user.thumbnailPhotoUrl.includes('AAAAA');
+
     return {
       email: user.primaryEmail,
       name: user.name?.fullName || user.name?.givenName || user.primaryEmail?.split('@')[0],
-      photoUrl: user.thumbnailPhotoUrl,
+      photoUrl: isPlaceholderPhoto ? null : user.thumbnailPhotoUrl,
     };
   } catch (error) {
     console.error('Failed to get user info:', error);
@@ -32,6 +37,9 @@ async function getUserInfo(impersonatedEmail: string) {
     };
   }
 }
+
+// Rest of the file remains the same...
+
 
 function encodeHeader(text: string): string {
   // Convert to Base64 with UTF-8 encoding
