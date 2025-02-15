@@ -3,10 +3,11 @@ import { getEnvOrThrow } from '@/lib/env/validateEnv';
 
 const SCOPES = [
   'https://www.googleapis.com/auth/gmail.send',
-  'https://www.googleapis.com/auth/spreadsheets.readonly',
-  'https://www.googleapis.com/auth/userinfo.profile',
+  'https://www.googleapis.com/auth/gmail.settings.basic',
+  'https://www.googleapis.com/auth/gmail.settings.sharing',
+  'https://www.googleapis.com/auth/gmail.compose',
   'https://www.googleapis.com/auth/admin.directory.user.readonly',
-  'openid',
+  'https://www.googleapis.com/auth/spreadsheets.readonly',
 ];
 
 export const getGoogleAuthClient = async (impersonatedUser?: string) => {
@@ -24,37 +25,19 @@ export const getGoogleAuthClient = async (impersonatedUser?: string) => {
       email: serviceAccountEmail,
       key: privateKey,
       scopes: SCOPES,
-      // Always use the admin account for initial authentication
-      subject: defaultUser,
+      // Use impersonated user if provided, otherwise use default admin
+      subject: impersonatedUser || defaultUser,
     });
 
-    // Test authorization
     try {
       console.log('Authorizing client for:', impersonatedUser || defaultUser);
-      const credentials = await client.authorize();
+      await client.authorize();
+      
+      // Verify Gmail access
+      const gmail = google.gmail({ version: 'v1', auth: client });
+      await gmail.users.getProfile({ userId: 'me' });
 
-      // If we're impersonating a user, set up domain-wide delegation
-      if (impersonatedUser && impersonatedUser !== defaultUser) {
-        const oauth2Client = new google.auth.OAuth2();
-        oauth2Client.setCredentials({
-          access_token: credentials.access_token,
-        });
-
-        const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-        await gmail.users.settings.sendAs.list({
-          userId: 'me',
-        });
-
-        // Update the client to use the impersonated user
-        client.subject = impersonatedUser;
-        await client.authorize();
-      }
-
-      console.log('Authorization successful:', {
-        accessToken: credentials.access_token ? 'Present' : 'Missing',
-        expiryDate: credentials.expiry_date,
-        impersonatedUser: client.subject,
-      });
+      console.log('Authorization successful for:', impersonatedUser || defaultUser);
     } catch (authError) {
       console.error('Authorization failed:', authError);
       throw new Error(`Authorization failed: ${authError instanceof Error ? authError.message : String(authError)}`);

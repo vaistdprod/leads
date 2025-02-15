@@ -19,18 +19,23 @@ export async function sendEmail({ to, subject, body, impersonatedEmail, senderNa
     const { data: profile } = await gmail.users.getProfile({ userId: 'me' });
     const actualSenderEmail = profile.emailAddress;
 
-    // Get user info to get the proper display name
-    const { data: userInfo } = await gmail.users.getProfile({
-      userId: 'me',
-    });
-
-    // Use the sender name from settings, or try to get it from Gmail profile
-    const displayName = senderName || userInfo.emailAddress?.split('@')[0].split('.').map(
-      part => part.charAt(0).toUpperCase() + part.slice(1)
-    ).join(' ');
-
     // Format the subject in UTF-8 (Base64 encoded)
     const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
+    
+    // Get user display name from Directory API
+    const admin = google.admin({ version: 'directory_v1', auth });
+    let displayName = senderName;
+    
+    try {
+      const { data: userInfo } = await admin.users.get({
+        userKey: actualSenderEmail,
+      });
+      displayName = userInfo.name?.fullName || displayName || actualSenderEmail?.split('@')[0];
+    } catch (error) {
+      console.warn('Could not fetch user info:', error);
+      displayName = displayName || actualSenderEmail?.split('@')[0];
+    }
+
     const messageParts = [
       `From: "${displayName}" <${actualSenderEmail}>`,
       `To: ${to}`,
