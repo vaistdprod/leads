@@ -15,6 +15,7 @@ interface EmailOptions {
   topK?: number;
   topP?: number;
   emailPrompt?: string;
+  senderEmail?: string;
 }
 
 function replaceVariables(template: string, data: Record<string, any>): string {
@@ -84,6 +85,7 @@ export const generateEmail = async (
     topK = 40,
     topP = 0.95,
     emailPrompt = '',
+    senderEmail = '',
   } = options;
 
   if (!geminiApiKey) {
@@ -99,6 +101,11 @@ export const generateEmail = async (
       topP,
     }
   });
+
+  // Extract sender name from email
+  const senderName = senderEmail ? senderEmail.split('@')[0].split('.').map(
+    part => part.charAt(0).toUpperCase() + part.slice(1)
+  ).join(' ') : '[Vaše jméno]';
 
   const defaultPrompt = `
     Napiš profesionální email v češtině pro potenciálního klienta.
@@ -117,6 +124,7 @@ export const generateEmail = async (
     - Nabídka pomoci, ne prodej
     - Zmínka o zlepšení efektivity jejich operací
     - Možnost odpovědět "ne" pro odmítnutí
+    - Podpis: "${senderName}"
     
     Odpověz přesně v tomto formátu:
     [SUBJECT]: <předmět emailu>
@@ -127,6 +135,7 @@ export const generateEmail = async (
   const templateData = {
     ...lead,
     enrichmentData,
+    senderName,
   };
 
   const prompt = emailPrompt ? replaceVariables(emailPrompt, templateData) : defaultPrompt;
@@ -183,6 +192,14 @@ export const generateEmail = async (
       body = lines.slice(1).join('\n').trim();
     }
 
+    // Clean up subject and body
+    subject = subject
+      .replace(/^\*+|\*+$/g, '') // Remove asterisks at start/end
+      .replace(/^["']|["']$/g, '') // Remove quotes at start/end
+      .trim();
+
+    body = body.replace(/\[Vaše jméno\]/g, senderName);
+
     // Final validation
     if (!subject || !body) {
       throw new Error('Failed to parse email content');
@@ -192,6 +209,7 @@ export const generateEmail = async (
     const processedBody = replaceVariables(body, {
       ...lead,
       enrichmentData,
+      senderName,
     });
 
     return { 

@@ -149,7 +149,8 @@ export async function POST() {
               temperature: settings.temperature || 0.7,
               topK: settings.top_k || 40,
               topP: settings.top_p || 0.95,
-              emailPrompt: settings.email_prompt ?? undefined
+              emailPrompt: settings.email_prompt ?? undefined,
+              senderEmail: process.env.GOOGLE_DELEGATED_USER
             }
           );
           
