@@ -135,36 +135,60 @@ export const generateEmail = async (
     const result = await model.generateContent(prompt);
     const text = result.response.text();
     
-    // Parse the response using more robust regex
-    const subjectMatch = text.match(/\[SUBJECT\]:\s*([^\n]+)/);
-    const bodyMatch = text.match(/\[BODY\]:\s*([\s\S]*?)(?:\[\/BODY\]|$)/);
+    // Enhanced parsing logic
+    let subject = '';
+    let body = '';
 
-    if (!subjectMatch || !bodyMatch) {
-      console.error('Failed to parse email template. Response:', text);
-      
-      // Fallback parsing for different formats
-      const fallbackSubjectMatch = text.match(/(?:\*\*SUBJECT:\*\*|Subject:|Předmět:)\s*([^\n]+)/i);
-      const remainingText = text.replace(/(?:\*\*SUBJECT:\*\*|Subject:|Předmět:)\s*[^\n]+\n+/i, '').trim();
-      
-      if (fallbackSubjectMatch) {
-        return {
-          subject: fallbackSubjectMatch[1].trim(),
-          body: remainingText
-        };
+    // Try different format patterns
+    const formats = [
+      // Standard format
+      {
+        subjectRegex: /\[SUBJECT\]:\s*([^\n]+)/,
+        bodyRegex: /\[BODY\]:\s*([\s\S]*?)(?:\[\/BODY\]|$)/
+      },
+      // Alternative format with **
+      {
+        subjectRegex: /\*\*SUBJECT:\*\*\s*([^\n]+)/i,
+        bodyRegex: /(?:\*\*SUBJECT:\*\*[^\n]+\n\s*)([\s\S]*)/i
+      },
+      // Simple Subject: format
+      {
+        subjectRegex: /Subject:\s*([^\n]+)/i,
+        bodyRegex: /(?:Subject:[^\n]+\n\s*)([\s\S]*)/i
+      },
+      // Předmět: format (Czech)
+      {
+        subjectRegex: /Předmět:\s*([^\n]+)/i,
+        bodyRegex: /(?:Předmět:[^\n]+\n\s*)([\s\S]*)/i
       }
-      
-      throw new Error('Failed to parse email template');
+    ];
+
+    // Try each format until we find a match
+    for (const format of formats) {
+      const subjectMatch = text.match(format.subjectRegex);
+      const bodyMatch = text.match(format.bodyRegex);
+
+      if (subjectMatch && bodyMatch) {
+        subject = subjectMatch[1].trim();
+        body = bodyMatch[1].trim();
+        break;
+      }
     }
 
-    const subject = subjectMatch[1].trim();
-    const body = bodyMatch[1].trim();
-
-    // Validate the output
+    // If no format matched, use fallback
     if (!subject || !body) {
-      throw new Error('Generated email is missing subject or body');
+      // Use first line as subject and rest as body
+      const lines = text.split('\n');
+      subject = lines[0].replace(/^[^:]*:\s*/, '').trim();
+      body = lines.slice(1).join('\n').trim();
     }
 
-    // Replace any remaining variables in the body
+    // Final validation
+    if (!subject || !body) {
+      throw new Error('Failed to parse email content');
+    }
+
+    // Replace any remaining variables
     const processedBody = replaceVariables(body, {
       ...lead,
       enrichmentData,
