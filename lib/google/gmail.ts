@@ -18,7 +18,14 @@ export async function sendEmail({ to, subject, body, impersonatedEmail, senderNa
     // Get sender info
     const { data: profile } = await gmail.users.getProfile({ userId: 'me' });
     const actualSenderEmail = profile.emailAddress;
-    const displayName = senderName || actualSenderEmail?.split('@')[0].split('.').map(
+
+    // Get user info to get the proper display name
+    const { data: userInfo } = await gmail.users.getProfile({
+      userId: 'me',
+    });
+
+    // Use the sender name from settings, or try to get it from Gmail profile
+    const displayName = senderName || userInfo.emailAddress?.split('@')[0].split('.').map(
       part => part.charAt(0).toUpperCase() + part.slice(1)
     ).join(' ');
 

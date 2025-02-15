@@ -24,17 +24,36 @@ export const getGoogleAuthClient = async (impersonatedUser?: string) => {
       email: serviceAccountEmail,
       key: privateKey,
       scopes: SCOPES,
-      subject: impersonatedUser || defaultUser, // Use impersonated user if provided, otherwise use default
+      // Always use the admin account for initial authentication
+      subject: defaultUser,
     });
 
     // Test authorization
     try {
       console.log('Authorizing client for:', impersonatedUser || defaultUser);
       const credentials = await client.authorize();
+
+      // If we're impersonating a user, set up domain-wide delegation
+      if (impersonatedUser && impersonatedUser !== defaultUser) {
+        const oauth2Client = new google.auth.OAuth2();
+        oauth2Client.setCredentials({
+          access_token: credentials.access_token,
+        });
+
+        const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+        await gmail.users.settings.sendAs.list({
+          userId: 'me',
+        });
+
+        // Update the client to use the impersonated user
+        client.subject = impersonatedUser;
+        await client.authorize();
+      }
+
       console.log('Authorization successful:', {
         accessToken: credentials.access_token ? 'Present' : 'Missing',
         expiryDate: credentials.expiry_date,
-        impersonatedUser: impersonatedUser || defaultUser,
+        impersonatedUser: client.subject,
       });
     } catch (authError) {
       console.error('Authorization failed:', authError);
