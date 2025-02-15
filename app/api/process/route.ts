@@ -81,13 +81,13 @@ export async function POST() {
     console.log('Starting blacklist processing...');
     // 1. Load and process blacklist
     try {
-      const blacklist = await getBlacklist(settings.blacklist_sheet_id);
+      const blacklist = await getBlacklist(settings.blacklist_sheet_id ?? "");
       await logProcessing(supabase, userId, 'blacklist', 'success', `Loaded ${blacklist.length} blacklisted emails`);
       console.log('Blacklist loaded:', blacklist.length, 'emails');
 
       // 2. Load and filter contacts
       console.log('Loading contacts...');
-      const contacts = await getContacts(settings.contacts_sheet_id);
+      const contacts = await getContacts(settings.contacts_sheet_id ?? "");
       if (!contacts || !Array.isArray(contacts)) {
         throw new Error('Failed to load contacts: Invalid response format');
       }
@@ -131,7 +131,7 @@ export async function POST() {
           console.log('Enriching data for:', contact.email);
           const enrichmentData = await enrichLeadData({
             ...contact,
-            geminiApiKey: settings.gemini_api_key,
+            geminiApiKey: settings.gemini_api_key ?? "",
             temperature: settings.temperature || 0.7,
             topK: settings.top_k || 40,
             topP: settings.top_p || 0.95,
@@ -145,11 +145,11 @@ export async function POST() {
             contact, 
             enrichmentData,
             {
-              geminiApiKey: settings.gemini_api_key,
+              geminiApiKey: settings.gemini_api_key ?? "",
               temperature: settings.temperature || 0.7,
               topK: settings.top_k || 40,
               topP: settings.top_p || 0.95,
-              emailPrompt: settings.email_prompt
+              emailPrompt: settings.email_prompt ?? undefined
             }
           );
           
@@ -207,7 +207,7 @@ export async function POST() {
       // Update last execution time
       await supabase
         .from('settings')
-        .update({ last_execution_at: new Date().toISOString() })
+        .update({ updated_at: new Date().toISOString() })
         .eq('user_id', userId);
 
       console.log('Processing completed successfully');

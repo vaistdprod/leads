@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeProvider as NextThemesProvider } from "next-themes";
 
 const plusJakartaSans = Plus_Jakarta_Sans({ 
   subsets: ['latin'],
@@ -33,14 +34,11 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
       </head>
       <body className={plusJakartaSans.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-          <Toaster />
+        <ThemeProvider data-attribute="class">
+          <NextThemesProvider defaultTheme="system" enableSystem disableTransitionOnChange>
+            {children}
+            <Toaster />
+          </NextThemesProvider>
         </ThemeProvider>
       </body>
     </html>
