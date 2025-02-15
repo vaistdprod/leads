@@ -65,7 +65,7 @@ export async function sendEmail(to: string, subject: string, body: string, imper
 
     // Encode headers properly
     const encodedSubject = encodeHeader(subject);
-    const encodedName = encodeHeader(userInfo.name);
+    const encodedName = encodeHeader(userInfo.name ?? "");
 
     // Format the email in MIME format with proper encoding
     const messageParts = [
@@ -88,7 +88,7 @@ export async function sendEmail(to: string, subject: string, body: string, imper
     }
 
     // Replace name placeholder and encode body
-    htmlBody = htmlBody.replace('[Vaše jméno]', userInfo.name);
+    htmlBody = htmlBody.replace('[Vaše jméno]', userInfo.name ?? "");
     const encodedBody = Buffer.from(htmlBody, 'utf8').toString('base64');
     messageParts.push(encodedBody);
 

@@ -23,6 +23,7 @@ export default function OverviewPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [testMode, setTestMode] = useState(false);
   const [stats, setStats] = useState<DashboardStats>({
     total_leads: 0,
     processed_leads: 0,
@@ -51,7 +52,6 @@ export default function OverviewPage() {
 
       if (error) {
         if (error.code === 'PGRST116') {
-          // No record found, create one
           const { data: newStats, error: insertError } = await supabase
             .from('dashboard_stats')
             .insert({ user_id: user.id })
@@ -74,24 +74,41 @@ export default function OverviewPage() {
     }
   };
 
-  const handleProcess = async () => {
+  const handleProcess = async (isTest: boolean = false) => {
     setProcessing(true);
+    setTestMode(isTest);
     try {
       const response = await fetch('/api/process', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ testMode: isTest })
       });
 
       if (!response.ok) {
         throw new Error('Processing failed');
       }
 
-      toast.success('Processing completed successfully');
+      const data = await response.json();
+      
+      if (isTest) {
+        // Show test results in a toast
+        toast.success('Test run completed', {
+          description: `Would have processed ${data.stats.total} contacts with ${data.stats.success} successful generations`,
+          duration: 5000,
+        });
+      } else {
+        toast.success('Processing completed successfully');
+      }
+      
       await loadDashboardStats();
     } catch (error) {
       console.error('Processing failed:', error);
       toast.error('Failed to process contacts');
     } finally {
       setProcessing(false);
+      setTestMode(false);
     }
   };
 
@@ -119,14 +136,31 @@ export default function OverviewPage() {
             onClick={() => router.push('/settings')}
             variant="outline"
             size="icon"
+            className="hover:bg-accent"
           >
             <Settings className="h-4 w-4" />
           </Button>
           <Button
-            onClick={handleProcess}
+            onClick={() => handleProcess(true)}
             disabled={processing}
+            variant="outline"
+            className="hover:bg-accent"
           >
-            {processing ? (
+            {processing && testMode ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                Testing...
+              </>
+            ) : (
+              "Test Run"
+            )}
+          </Button>
+          <Button
+            onClick={() => handleProcess(false)}
+            disabled={processing}
+            className="hover:bg-primary/90"
+          >
+            {processing && !testMode ? (
               <>
                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
                 Processing...
@@ -139,7 +173,7 @@ export default function OverviewPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <Card className="p-6">
+        <Card className="p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Contacts</p>
@@ -149,7 +183,7 @@ export default function OverviewPage() {
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card className="p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Processed</p>
@@ -159,7 +193,7 @@ export default function OverviewPage() {
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card className="p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Success Rate</p>
@@ -169,7 +203,7 @@ export default function OverviewPage() {
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card className="p-6 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Last Processed</p>

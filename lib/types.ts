@@ -32,7 +32,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
-          details?: Json | null
+          details: Json | null
           duration?: number
           endpoint?: string
           id?: string
@@ -197,7 +197,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
-          details?: Json | null
+          details: Json | null
           duration?: number | null
           id?: string
           leads_processed?: number | null
@@ -218,6 +218,7 @@ export type Database = {
           enrichment_prompt: string | null
           gemini_api_key: string | null
           id: string
+          impersonated_email: string | null
           model: string | null
           temperature: number | null
           top_k: number | null
@@ -236,6 +237,7 @@ export type Database = {
           enrichment_prompt?: string | null
           gemini_api_key?: string | null
           id?: string
+          impersonated_email?: string | null
           model?: string | null
           temperature?: number | null
           top_k?: number | null
@@ -254,6 +256,7 @@ export type Database = {
           enrichment_prompt?: string | null
           gemini_api_key?: string | null
           id?: string
+          impersonated_email?: string | null
           model?: string | null
           temperature?: number | null
           top_k?: number | null
@@ -376,24 +379,3 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
     ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
-
-export interface EmailHistory {
-  id: string;
-  user_id: string;
-  email: string;
-  subject: string;
-  status: 'sent' | 'failed';
-  error?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface LeadHistory {
-  id: string;
-  user_id: string;
-  email: string;
-  status: string;
-  details?: Record<string, unknown>;
-  created_at: string;
-  updated_at: string;
-}

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
+import { createServerClient } from '@supabase/ssr';
+import { Database } from '@/lib/types';
 import { getBlacklist, getContacts } from '@/lib/google/sheets';
 import { verifyEmail } from '@/lib/api/disify';
 import { enrichLeadData, generateEmail } from '@/lib/api/gemini';
@@ -8,7 +10,7 @@ import { sendEmail } from '@/lib/google/gmail';
 
 type LogStatus = 'success' | 'error' | 'warning';
 
-async function logProcessing(supabase: any, userId: string, stage: string, status: LogStatus, message: string, metadata?: any) {
+async function logProcessing(supabase: ReturnType<typeof createServerClient<Database>>, userId: string, stage: string, status: LogStatus, message: string, metadata?: any) {
   try {
     const dbStatus = status === 'warning' ? 'error' : status;
     
@@ -28,12 +30,15 @@ async function logProcessing(supabase: any, userId: string, stage: string, statu
   }
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   const cookieStore = cookies();
   const supabase = createServerSupabaseClient(cookieStore);
   let userId: string;
 
   try {
+    // Get test mode from request body
+    const { testMode = false } = await request.json();
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -99,6 +104,7 @@ export async function POST() {
 
       let successCount = 0;
       let failureCount = 0;
+      let generatedEmails: Array<{ to: string, subject: string, body: string }> = [];
 
       for (const contact of filteredContacts) {
         try {
@@ -141,33 +147,44 @@ export async function POST() {
               topK: settings.top_k || 40,
               topP: settings.top_p || 0.95,
               emailPrompt: settings.email_prompt ?? undefined,
-              senderEmail: settings.impersonated_email
+              senderEmail: settings.impersonated_email ?? ""
             }
           );
-          
-          console.log('Sending email to:', contact.email, 'as:', settings.impersonated_email);
-          await sendEmail(contact.email, email.subject, email.body, settings.impersonated_email);
-          
-          await supabase.from('lead_history').insert({
-            user_id: userId,
-            email: contact.email,
-            status: 'success',
-            details: {
-              enrichment_data: enrichmentData,
-              email_subject: email.subject,
-              sent_as: settings.impersonated_email
-            }
-          });
 
-          await supabase.from('email_history').insert({
-            user_id: userId,
-            email: contact.email,
-            subject: email.subject,
-            status: 'sent'
-          });
+          if (!testMode) {
+            console.log('Sending email to:', contact.email, 'as:', settings.impersonated_email);
+            await sendEmail(contact.email, email.subject, email.body, settings.impersonated_email ?? "");
+            
+            await supabase.from('lead_history').insert({
+              user_id: userId,
+              email: contact.email,
+              status: 'success',
+              details: {
+                enrichment_data: enrichmentData,
+                email_subject: email.subject,
+                sent_as: settings.impersonated_email
+              }
+            });
+
+            await supabase.from('email_history').insert({
+              user_id: userId,
+              email: contact.email,
+              subject: email.subject,
+              status: 'sent'
+            });
+          } else {
+            // Store generated email for test mode
+            generatedEmails.push({
+              to: contact.email,
+              subject: email.subject,
+              body: email.body
+            });
+          }
 
           successCount++;
-          await logProcessing(supabase, userId, 'email', 'success', `Email sent to ${contact.email} as ${settings.impersonated_email}`);
+          await logProcessing(supabase, userId, 'email', 'success', 
+            testMode ? `Test email generated for ${contact.email}` : `Email sent to ${contact.email} as ${settings.impersonated_email}`
+          );
           console.log('Successfully processed:', contact.email);
         } catch (error) {
           console.error('Failed to process contact:', contact.email, error);
@@ -178,26 +195,28 @@ export async function POST() {
         }
       }
 
-      console.log('Updating dashboard stats...');
-      await supabase
-        .from('dashboard_stats')
-        .upsert({
-          user_id: userId,
-          total_leads: contacts.length,
-          processed_leads: successCount + failureCount,
-          success_rate: successCount > 0 ? (successCount / (successCount + failureCount)) * 100 : 0,
-          last_processed: new Date().toISOString(),
-          blacklist_count: blacklist.length,
-          contacts_count: contacts.length,
-          emails_sent: successCount,
-        }, {
-          onConflict: 'user_id'
-        });
+      if (!testMode) {
+        console.log('Updating dashboard stats...');
+        await supabase
+          .from('dashboard_stats')
+          .upsert({
+            user_id: userId,
+            total_leads: contacts.length,
+            processed_leads: successCount + failureCount,
+            success_rate: successCount > 0 ? (successCount / (successCount + failureCount)) * 100 : 0,
+            last_processed: new Date().toISOString(),
+            blacklist_count: blacklist.length,
+            contacts_count: contacts.length,
+            emails_sent: successCount,
+          }, {
+            onConflict: 'user_id'
+          });
 
-      await supabase
-        .from('settings')
-        .update({ updated_at: new Date().toISOString() })
-        .eq('user_id', userId);
+        await supabase
+          .from('settings')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('user_id', userId);
+      }
 
       console.log('Processing completed successfully');
       return NextResponse.json({ 
@@ -207,7 +226,8 @@ export async function POST() {
           processed: successCount + failureCount,
           success: successCount,
           failure: failureCount
-        }
+        },
+        testResults: testMode ? generatedEmails : undefined
       });
     } catch (error) {
       console.error('Blacklist/contacts error:', error);
