@@ -4,7 +4,13 @@ import { getGoogleAuthClient } from './googleAuth';
 export async function sendEmail(to: string, subject: string, body: string) {
   try {
     console.log('Sending email to:', to);
-    const auth = await getGoogleAuthClient();
+    
+    // Get settings to check for impersonated email
+    const response = await fetch('/api/settings');
+    const settings = await response.json();
+    const impersonatedEmail = settings.impersonated_email;
+    
+    const auth = await getGoogleAuthClient(impersonatedEmail);
     const gmail = google.gmail({ version: 'v1', auth });
 
     // Format the email in MIME format

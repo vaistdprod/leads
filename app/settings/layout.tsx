@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { supabase } from '@/lib/supabase/client';
 
 export default function SettingsLayout({
   children,
@@ -12,24 +11,19 @@ export default function SettingsLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-
-  useEffect(() => {
-  }, [router]);
-
   const currentTab = pathname.split('/').pop() || 'general';
 
   const handleTabChange = (value: string) => {
     router.push(`/settings/${value}`);
   };
 
-
   return (
     <div className="container mx-auto py-8 px-4">
       <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-8">
-        <TabsList className="grid grid-cols-2 w-full">
+        <TabsList className="grid grid-cols-3 w-full">
           <TabsTrigger value="general">General</TabsTrigger>
-        
           <TabsTrigger value="ai">AI Settings</TabsTrigger>
+          <TabsTrigger value="email">Email Settings</TabsTrigger>
         </TabsList>
         {children}
       </Tabs>
