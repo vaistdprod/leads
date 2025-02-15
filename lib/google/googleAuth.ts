@@ -6,8 +6,8 @@ const SCOPES = [
   'https://www.googleapis.com/auth/gmail.settings.basic',
   'https://www.googleapis.com/auth/gmail.settings.sharing',
   'https://www.googleapis.com/auth/gmail.compose',
-  'https://www.googleapis.com/auth/admin.directory.user.readonly',
   'https://www.googleapis.com/auth/spreadsheets.readonly',
+  'https://www.googleapis.com/auth/admin.directory.user.readonly',
 ];
 
 export const getGoogleAuthClient = async (impersonatedUser?: string) => {
@@ -25,19 +25,14 @@ export const getGoogleAuthClient = async (impersonatedUser?: string) => {
       email: serviceAccountEmail,
       key: privateKey,
       scopes: SCOPES,
-      // Use impersonated user if provided, otherwise use default admin
-      subject: impersonatedUser || defaultUser,
+      // Use admin user for directory access, then impersonate for sending
+      subject: defaultUser,
     });
 
     try {
-      console.log('Authorizing client for:', impersonatedUser || defaultUser);
+      console.log('Authorizing client for:', defaultUser);
       await client.authorize();
-      
-      // Verify Gmail access
-      const gmail = google.gmail({ version: 'v1', auth: client });
-      await gmail.users.getProfile({ userId: 'me' });
-
-      console.log('Authorization successful for:', impersonatedUser || defaultUser);
+      console.log('Authorization successful for:', defaultUser);
     } catch (authError) {
       console.error('Authorization failed:', authError);
       throw new Error(`Authorization failed: ${authError instanceof Error ? authError.message : String(authError)}`);
@@ -47,5 +42,27 @@ export const getGoogleAuthClient = async (impersonatedUser?: string) => {
   } catch (error) {
     console.error('Failed to create Google auth client:', error);
     throw new Error(`Google auth failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+};
+
+export const getUserInfo = async (auth: any, email: string) => {
+  try {
+    const admin = google.admin({ version: 'directory_v1', auth });
+    const { data: user } = await admin.users.get({ userKey: email });
+    return {
+      name: user.name?.fullName || user.primaryEmail?.split('@')[0],
+      email: user.primaryEmail,
+      photoUrl: user.thumbnailPhotoUrl,
+    };
+  } catch (error) {
+    console.error('Failed to get user info:', error);
+    // Return basic info if directory access fails
+    return {
+      name: email.split('@')[0].split('.').map(part => 
+        part.charAt(0).toUpperCase() + part.slice(1)
+      ).join(' '),
+      email: email,
+      photoUrl: null,
+    };
   }
 };

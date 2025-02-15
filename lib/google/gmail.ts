@@ -1,50 +1,38 @@
 import { google } from 'googleapis';
-import { getGoogleAuthClient } from './googleAuth';
+import { getGoogleAuthClient, getUserInfo } from './googleAuth';
 
 interface EmailOptions {
   to: string;
   subject: string;
   body: string;
   impersonatedEmail?: string;
-  senderName?: string;
 }
 
-export async function sendEmail({ to, subject, body, impersonatedEmail, senderName }: EmailOptions) {
+export async function sendEmail({ to, subject, body, impersonatedEmail }: EmailOptions) {
   try {
     console.log('Sending email to:', to, 'as:', impersonatedEmail || 'default user');
-    const auth = await getGoogleAuthClient(impersonatedEmail);
+    const auth = await getGoogleAuthClient();
     const gmail = google.gmail({ version: 'v1', auth });
 
-    // Get sender info
-    const { data: profile } = await gmail.users.getProfile({ userId: 'me' });
-    const actualSenderEmail = profile.emailAddress;
+    // Get sender info from Directory API
+    const senderInfo = await getUserInfo(auth, impersonatedEmail || '');
+    
+    // Create a new JWT client for sending as the impersonated user
+    const sendingAuth = await getGoogleAuthClient(impersonatedEmail);
+    const sendingGmail = google.gmail({ version: 'v1', auth: sendingAuth });
 
     // Format the subject in UTF-8 (Base64 encoded)
     const utf8Subject = `=?utf-8?B?${Buffer.from(subject).toString('base64')}?=`;
     
-    // Get user display name from Directory API
-    const admin = google.admin({ version: 'directory_v1', auth });
-    let displayName = senderName;
-    
-    try {
-      const { data: userInfo } = await admin.users.get({
-        userKey: actualSenderEmail,
-      });
-      displayName = userInfo.name?.fullName || displayName || actualSenderEmail?.split('@')[0];
-    } catch (error) {
-      console.warn('Could not fetch user info:', error);
-      displayName = displayName || actualSenderEmail?.split('@')[0];
-    }
-
     const messageParts = [
-      `From: "${displayName}" <${actualSenderEmail}>`,
+      `From: "${senderInfo.name}" <${senderInfo.email}>`,
       `To: ${to}`,
       `Subject: ${utf8Subject}`,
       'MIME-Version: 1.0',
       'Content-Type: text/html; charset=utf-8',
       '',
       // Update signature in the body with the correct name
-      body.replace('[Vaše jméno]', displayName),
+      body.replace('[Vaše jméno]', senderInfo.name),
     ];
     const message = messageParts.join('\n');
 
@@ -55,8 +43,8 @@ export async function sendEmail({ to, subject, body, impersonatedEmail, senderNa
       .replace(/\//g, '_')
       .replace(/=+$/, '');
 
-    console.log('Sending email via Gmail API as:', displayName, `<${actualSenderEmail}>`);
-    const result = await gmail.users.messages.send({
+    console.log('Sending email via Gmail API as:', senderInfo.name, `<${senderInfo.email}>`);
+    const result = await sendingGmail.users.messages.send({
       userId: 'me',
       requestBody: {
         raw: encodedMessage,
