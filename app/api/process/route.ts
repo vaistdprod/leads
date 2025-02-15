@@ -10,7 +10,6 @@ type LogStatus = 'success' | 'error' | 'warning';
 
 async function logProcessing(supabase: any, userId: string, stage: string, status: LogStatus, message: string, metadata?: any) {
   try {
-    // Map 'warning' to 'error' for database compatibility while preserving the warning in metadata
     const dbStatus = status === 'warning' ? 'error' : status;
     
     console.log(`[${stage}] ${status}: ${message}`, metadata);
@@ -21,7 +20,7 @@ async function logProcessing(supabase: any, userId: string, stage: string, statu
       message,
       metadata: {
         ...metadata,
-        level: status, // Store original status level in metadata
+        level: status,
       },
     });
   } catch (error) {
@@ -35,7 +34,6 @@ export async function POST() {
   let userId: string;
 
   try {
-    // Get authenticated user
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
@@ -65,6 +63,7 @@ export async function POST() {
       'Blacklist Sheet ID': settings.blacklist_sheet_id,
       'Contacts Sheet ID': settings.contacts_sheet_id,
       'Gemini API Key': settings.gemini_api_key,
+      'Impersonated Email': settings.impersonated_email,
     };
 
     const missingSettings = Object.entries(requiredSettings)
@@ -79,13 +78,11 @@ export async function POST() {
     }
 
     console.log('Starting blacklist processing...');
-    // 1. Load and process blacklist
     try {
       const blacklist = await getBlacklist(settings.blacklist_sheet_id ?? "");
       await logProcessing(supabase, userId, 'blacklist', 'success', `Loaded ${blacklist.length} blacklisted emails`);
       console.log('Blacklist loaded:', blacklist.length, 'emails');
 
-      // 2. Load and filter contacts
       console.log('Loading contacts...');
       const contacts = await getContacts(settings.contacts_sheet_id ?? "");
       if (!contacts || !Array.isArray(contacts)) {
@@ -100,7 +97,6 @@ export async function POST() {
       await logProcessing(supabase, userId, 'blacklist', 'success', `Filtered ${contacts.length - filteredContacts.length} blacklisted contacts`);
       console.log('Filtered contacts:', filteredContacts.length);
 
-      // 3. Process each contact
       let successCount = 0;
       let failureCount = 0;
 
@@ -108,18 +104,15 @@ export async function POST() {
         try {
           console.log('Processing contact:', contact.email);
           
-          // Skip if no email
           if (!contact.email) {
             await logProcessing(supabase, userId, 'verification', 'error', 'Missing email address', { contact });
             failureCount++;
             continue;
           }
 
-          // Verify email
           console.log('Verifying email:', contact.email);
           const isValid = await verifyEmail(contact.email);
           
-          // Continue with processing even if email verification fails
           if (!isValid) {
             await logProcessing(supabase, userId, 'verification', 'warning', `Email verification failed: ${contact.email}`, {
               email: contact.email,
@@ -127,7 +120,6 @@ export async function POST() {
             });
           }
 
-          // Enrich data
           console.log('Enriching data for:', contact.email);
           const enrichmentData = await enrichLeadData({
             ...contact,
@@ -139,7 +131,6 @@ export async function POST() {
             enrichmentPrompt: settings.enrichment_prompt
           });
           
-          // Generate email
           console.log('Generating email for:', contact.email);
           const email = await generateEmail(
             contact, 
@@ -154,16 +145,9 @@ export async function POST() {
             }
           );
           
-          // Send email
           console.log('Sending email to:', contact.email, 'as:', settings.impersonated_email);
-          await sendEmail({
-            to: contact.email,
-            subject: email.subject,
-            body: email.body,
-            impersonatedEmail: settings.impersonated_email
-          });
+          await sendEmail(contact.email, email.subject, email.body, settings.impersonated_email);
           
-          // Log success
           await supabase.from('lead_history').insert({
             user_id: userId,
             email: contact.email,
@@ -194,7 +178,6 @@ export async function POST() {
         }
       }
 
-      // Update dashboard stats
       console.log('Updating dashboard stats...');
       await supabase
         .from('dashboard_stats')
@@ -211,7 +194,6 @@ export async function POST() {
           onConflict: 'user_id'
         });
 
-      // Update last execution time
       await supabase
         .from('settings')
         .update({ updated_at: new Date().toISOString() })
