@@ -52,10 +52,18 @@ function Calendar({
           'aria-selected:bg-accent aria-selected:text-accent-foreground',
         day_hidden: 'invisible',
         ...classNames,
-      }} as any
+      }}
       components={{
-        IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
-        IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
+        PreviousMonthButton: (props: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+          <button {...props}>
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+        ),
+        NextMonthButton: (props: React.ButtonHTMLAttributes<HTMLButtonElement>) => (
+          <button {...props}>
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        ),
       }}
       {...props}
     />
