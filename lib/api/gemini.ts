@@ -97,7 +97,6 @@ export const generateEmail = async (
       temperature,
       topK,
       topP,
-      stopSequences: ["[BODY]", "[/BODY]"],
     }
   });
 
@@ -119,11 +118,10 @@ export const generateEmail = async (
     - Zmínka o zlepšení efektivity jejich operací
     - Možnost odpovědět "ne" pro odmítnutí
     
-    Formát odpovědi:
-    1. První řádek musí začínat "[SUBJECT]:" následovaný předmětem emailu (max 3 slova)
-    2. Druhý řádek musí být prázdný
-    3. Třetí řádek musí začínat "[BODY]:" následovaný tělem emailu
-    4. Poslední řádek musí být "[/BODY]"
+    Odpověz přesně v tomto formátu:
+    [SUBJECT]: <předmět emailu>
+    [BODY]: <tělo emailu>
+    [/BODY]
   `;
 
   const templateData = {
@@ -143,6 +141,18 @@ export const generateEmail = async (
 
     if (!subjectMatch || !bodyMatch) {
       console.error('Failed to parse email template. Response:', text);
+      
+      // Fallback parsing for different formats
+      const fallbackSubjectMatch = text.match(/(?:\*\*SUBJECT:\*\*|Subject:|Předmět:)\s*([^\n]+)/i);
+      const remainingText = text.replace(/(?:\*\*SUBJECT:\*\*|Subject:|Předmět:)\s*[^\n]+\n+/i, '').trim();
+      
+      if (fallbackSubjectMatch) {
+        return {
+          subject: fallbackSubjectMatch[1].trim(),
+          body: remainingText
+        };
+      }
+      
       throw new Error('Failed to parse email template');
     }
 
