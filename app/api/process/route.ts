@@ -156,7 +156,7 @@ export async function POST() {
           
           // Send email
           console.log('Sending email to:', contact.email);
-          await sendEmail(contact.email, email.subject, email.body);
+          await sendEmail(contact.email, email.subject, email.body, settings.impersonated_email);
           
           // Log success
           await supabase.from('lead_history').insert({

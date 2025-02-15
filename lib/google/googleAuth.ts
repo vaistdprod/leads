@@ -5,6 +5,7 @@ const SCOPES = [
   'https://www.googleapis.com/auth/gmail.send',
   'https://www.googleapis.com/auth/spreadsheets.readonly',
   'https://www.googleapis.com/auth/userinfo.profile',
+  'https://www.googleapis.com/auth/admin.directory.user.readonly',
   'openid',
 ];
 
@@ -15,7 +16,7 @@ export const getGoogleAuthClient = async (impersonatedUser?: string) => {
     const privateKey = getEnvOrThrow('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY')
       .replace(/\\n/g, '\n')
       .replace(/"$/, '')
-      .replace(/^"/, ''); // Remove any extra quotes
+      .replace(/^"/, '');
     const defaultUser = getEnvOrThrow('GOOGLE_DELEGATED_USER');
 
     // Log configuration (remove in production)
@@ -27,12 +28,13 @@ export const getGoogleAuthClient = async (impersonatedUser?: string) => {
       privateKeyLength: privateKey.length,
     });
 
-    // Create JWT client
+    // Create JWT client with subject (impersonation)
     const client = new google.auth.JWT({
       email: serviceAccountEmail,
       key: privateKey,
       scopes: SCOPES,
-      subject: impersonatedUser || defaultUser,
+      // Important: For Admin Directory API, we must always use an admin account
+      subject: defaultUser, // Always use admin for directory access
     });
 
     // Test authorization

@@ -1,15 +1,9 @@
 import { google } from 'googleapis';
 import { getGoogleAuthClient } from './googleAuth';
 
-export async function sendEmail(to: string, subject: string, body: string) {
+export async function sendEmail(to: string, subject: string, body: string, impersonatedEmail?: string) {
   try {
     console.log('Sending email to:', to);
-    
-    // Get settings to check for impersonated email
-    const response = await fetch('/api/settings');
-    const settings = await response.json();
-    const impersonatedEmail = settings.impersonated_email;
-    
     const auth = await getGoogleAuthClient(impersonatedEmail);
     const gmail = google.gmail({ version: 'v1', auth });
 
