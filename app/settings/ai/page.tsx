@@ -73,7 +73,8 @@ const aiSettingsSchema = z.object({
 
 export default function AiSettingsPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [hasApiKey, setHasApiKey] = useState(false);
   const form = useForm<z.infer<typeof aiSettingsSchema>>({
     resolver: zodResolver(aiSettingsSchema),
     defaultValues: {
@@ -98,6 +99,7 @@ export default function AiSettingsPage() {
       if (error) throw error;
 
       if (settings) {
+        // Only update form if we have settings
         form.reset({
           geminiApiKey: settings.gemini_api_key || '',
           model: settings.model || 'gemini-pro',
@@ -108,6 +110,9 @@ export default function AiSettingsPage() {
           enrichmentPrompt: settings.enrichment_prompt || DEFAULT_ENRICHMENT_PROMPT,
           emailPrompt: settings.email_prompt || DEFAULT_EMAIL_PROMPT,
         });
+        
+        // Set hasApiKey if we have a key
+        setHasApiKey(!!settings.gemini_api_key);
       }
     } catch (error) {
       console.error('Failed to load AI settings:', error);
@@ -136,6 +141,7 @@ export default function AiSettingsPage() {
 
       if (error) throw error;
 
+      setHasApiKey(!!values.geminiApiKey);
       toast.success('AI settings saved successfully');
     } catch (error) {
       console.error('Failed to save AI settings:', error);
@@ -165,10 +171,32 @@ export default function AiSettingsPage() {
                 <FormItem>
                   <FormLabel>Gemini API Key</FormLabel>
                   <FormControl>
-                    <Input type="password" {...field} />
+                    {hasApiKey ? (
+                      <div className="flex gap-2">
+                        <Input 
+                          type="password" 
+                          {...field} 
+                          placeholder="API key is set" 
+                          value="" 
+                          onChange={(e) => {
+                            field.onChange(e);
+                            setHasApiKey(false);
+                          }}
+                        />
+                        <Button 
+                          type="button" 
+                          variant="outline"
+                          onClick={() => setHasApiKey(false)}
+                        >
+                          Change
+                        </Button>
+                      </div>
+                    ) : (
+                      <Input type="password" {...field} />
+                    )}
                   </FormControl>
                   <FormDescription>
-                    Your Gmail, Sheets, Gemini API key for AI operations
+                    Your Gemini API key for AI operations
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

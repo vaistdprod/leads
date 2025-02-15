@@ -19,31 +19,22 @@ export const getGoogleAuthClient = async (impersonatedUser?: string) => {
       .replace(/^"/, '');
     const defaultUser = getEnvOrThrow('GOOGLE_DELEGATED_USER');
 
-    // Log configuration (remove in production)
-    console.log('Auth Configuration:', {
-      serviceAccountEmail,
-      defaultUser,
-      impersonatedUser,
-      scopes: SCOPES,
-      privateKeyLength: privateKey.length,
-    });
-
     // Create JWT client with subject (impersonation)
     const client = new google.auth.JWT({
       email: serviceAccountEmail,
       key: privateKey,
       scopes: SCOPES,
-      // Important: For Admin Directory API, we must always use an admin account
-      subject: defaultUser, // Always use admin for directory access
+      subject: impersonatedUser || defaultUser, // Use impersonated user if provided, otherwise use default
     });
 
     // Test authorization
     try {
-      console.log('Authorizing client...');
+      console.log('Authorizing client for:', impersonatedUser || defaultUser);
       const credentials = await client.authorize();
       console.log('Authorization successful:', {
         accessToken: credentials.access_token ? 'Present' : 'Missing',
         expiryDate: credentials.expiry_date,
+        impersonatedUser: impersonatedUser || defaultUser,
       });
     } catch (authError) {
       console.error('Authorization failed:', authError);

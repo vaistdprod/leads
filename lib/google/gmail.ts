@@ -3,7 +3,7 @@ import { getGoogleAuthClient } from './googleAuth';
 
 export async function sendEmail(to: string, subject: string, body: string, impersonatedEmail?: string) {
   try {
-    console.log('Sending email to:', to);
+    console.log('Sending email to:', to, 'as:', impersonatedEmail || 'default user');
     const auth = await getGoogleAuthClient(impersonatedEmail);
     const gmail = google.gmail({ version: 'v1', auth });
 
@@ -27,7 +27,7 @@ export async function sendEmail(to: string, subject: string, body: string, imper
       .replace(/\//g, '_')
       .replace(/=+$/, '');
 
-    console.log('Sending email via Gmail API...');
+    console.log('Sending email via Gmail API as:', impersonatedEmail || 'default user');
     const result = await gmail.users.messages.send({
       userId: 'me',
       requestBody: {
