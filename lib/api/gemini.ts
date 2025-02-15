@@ -97,6 +97,7 @@ export const generateEmail = async (
       temperature,
       topK,
       topP,
+      stopSequences: ["[BODY]", "[/BODY]"],
     }
   });
 
@@ -118,9 +119,11 @@ export const generateEmail = async (
     - Zmínka o zlepšení efektivity jejich operací
     - Možnost odpovědět "ne" pro odmítnutí
     
-    Formát:
-    [SUBJECT]: <předmět emailu - max 3 slova>
-    [BODY]: <tělo emailu>
+    Formát odpovědi:
+    1. První řádek musí začínat "[SUBJECT]:" následovaný předmětem emailu (max 3 slova)
+    2. Druhý řádek musí být prázdný
+    3. Třetí řádek musí začínat "[BODY]:" následovaný tělem emailu
+    4. Poslední řádek musí být "[/BODY]"
   `;
 
   const templateData = {
@@ -134,23 +137,32 @@ export const generateEmail = async (
     const result = await model.generateContent(prompt);
     const text = result.response.text();
     
-    const subjectMatch = text.match(/\[SUBJECT\]:\s*(.+?)(?=\s*\[BODY\]|\s*$)/s);
-    const bodyMatch = text.match(/\[BODY\]:\s*(.+)$/s);
+    // Parse the response using more robust regex
+    const subjectMatch = text.match(/\[SUBJECT\]:\s*([^\n]+)/);
+    const bodyMatch = text.match(/\[BODY\]:\s*([\s\S]*?)(?:\[\/BODY\]|$)/);
 
     if (!subjectMatch || !bodyMatch) {
+      console.error('Failed to parse email template. Response:', text);
       throw new Error('Failed to parse email template');
     }
 
     const subject = subjectMatch[1].trim();
     const body = bodyMatch[1].trim();
 
-    // Don't replace variables in the subject line
+    // Validate the output
+    if (!subject || !body) {
+      throw new Error('Generated email is missing subject or body');
+    }
+
+    // Replace any remaining variables in the body
+    const processedBody = replaceVariables(body, {
+      ...lead,
+      enrichmentData,
+    });
+
     return { 
       subject,
-      body: replaceVariables(body, {
-        ...lead,
-        enrichmentData,
-      })
+      body: processedBody
     };
   } catch (error) {
     console.error('Failed to generate email:', error);
