@@ -43,28 +43,20 @@ export async function enrichLeadData(input: EnrichmentInput): Promise<Enrichment
   const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
   const defaultPrompt = `
-    Help me understand more about this lead:
+    You are a lead enrichment assistant. Your task is to analyze this lead and provide insights:
     Name: ${input.firstName} ${input.lastName}
     Company: ${input.company}
     Position: ${input.position}
     Email: ${input.email}
 
-    Please provide:
-    1. Company information and background
-    2. Position responsibilities and challenges
-    3. Industry trends and challenges
-    4. Potential common interests or talking points
-    5. Possible pain points or needs
-    6. Recent news or developments (if any)
-
-    Format the response as JSON with these keys:
+    Provide insights in this exact JSON format (do not include any other text):
     {
-      "companyInfo": "...",
-      "positionInfo": "...",
-      "industryTrends": "...",
-      "commonInterests": "...",
-      "potentialPainPoints": "...",
-      "relevantNews": "..."
+      "companyInfo": "Brief company background and key information",
+      "positionInfo": "Role responsibilities and typical challenges",
+      "industryTrends": "Current industry trends and challenges",
+      "commonInterests": "Potential talking points based on role/industry",
+      "potentialPainPoints": "Likely business challenges or needs",
+      "relevantNews": "Any recent developments or news"
     }
   `;
 
@@ -82,14 +74,30 @@ export async function enrichLeadData(input: EnrichmentInput): Promise<Enrichment
       // If not valid JSON, try to extract JSON from the text
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        try {
+          return JSON.parse(jsonMatch[0]);
+        } catch {
+          // If still can't parse, return structured error
+          console.error('Failed to parse enrichment data:', text);
+          return {
+            companyInfo: "Unable to retrieve company information at this time.",
+            positionInfo: "Position details not available.",
+            industryTrends: "Industry trend data unavailable.",
+            commonInterests: "Common interests could not be determined.",
+            potentialPainPoints: "Pain points analysis unavailable.",
+            relevantNews: "Recent news could not be retrieved."
+          };
+        }
       }
       
-      // If still can't parse, return structured error
-      console.error('Failed to parse enrichment data:', text);
+      // If no JSON found, return default structure
       return {
-        error: 'Failed to parse enrichment data',
-        rawResponse: text
+        companyInfo: "Unable to retrieve company information at this time.",
+        positionInfo: "Position details not available.",
+        industryTrends: "Industry trend data unavailable.",
+        commonInterests: "Common interests could not be determined.",
+        potentialPainPoints: "Pain points analysis unavailable.",
+        relevantNews: "Recent news could not be retrieved."
       };
     }
   } catch (error) {
@@ -103,26 +111,26 @@ export async function generateEmail(contact: { firstName: string; lastName: stri
   const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
   const defaultPrompt = `
-    Write a personalized cold email to:
+    You are an email writing assistant. Write a personalized cold email in this exact JSON format (do not include any other text):
+    {
+      "subject": "Brief, engaging subject line",
+      "body": "Complete email body with signature"
+    }
+
+    The email is for:
     Name: ${contact.firstName} ${contact.lastName}
     Company: ${contact.company}
     Position: ${contact.position}
 
-    Using this enrichment data:
+    Use these insights:
     ${JSON.stringify(enrichmentData, null, 2)}
 
-    The email should:
-    1. Be concise and professional
+    Requirements:
+    1. Keep it concise and professional
     2. Reference specific insights from the enrichment data
     3. Focus on value proposition
-    4. Have a clear call to action
-    5. Include a signature from: ${config.senderEmail}
-
-    Format the response as JSON with these keys:
-    {
-      "subject": "The email subject line",
-      "body": "The complete email body with signature"
-    }
+    4. Include a clear call to action
+    5. End with a signature from: ${config.senderEmail}
   `;
 
   const prompt = config.emailPrompt || defaultPrompt;
@@ -139,12 +147,22 @@ export async function generateEmail(contact: { firstName: string; lastName: stri
       // If not valid JSON, try to extract JSON from the text
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        try {
+          return JSON.parse(jsonMatch[0]);
+        } catch {
+          // If still can't parse, return default structure
+          return {
+            subject: `Introduction from ${config.senderEmail}`,
+            body: `Dear ${contact.firstName},\n\nI hope this email finds you well. I noticed your role as ${contact.position} at ${contact.company} and wanted to connect.\n\nBest regards,\n${config.senderEmail}`
+          };
+        }
       }
       
-      // If still can't parse, return error
-      console.error('Failed to parse email:', text);
-      throw new Error('Failed to generate email: Invalid response format');
+      // If no JSON found, return default structure
+      return {
+        subject: `Introduction from ${config.senderEmail}`,
+        body: `Dear ${contact.firstName},\n\nI hope this email finds you well. I noticed your role as ${contact.position} at ${contact.company} and wanted to connect.\n\nBest regards,\n${config.senderEmail}`
+      };
     }
   } catch (error) {
     console.error('Failed to generate email:', error);

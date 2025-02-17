@@ -147,30 +147,52 @@ export async function POST(request: Request) {
           }
 
           console.log('Enriching data for:', contact.email);
-          const enrichmentData = await enrichLeadData({
-            ...contact,
-            geminiApiKey: settings.gemini_api_key ?? "",
-            temperature: settings.temperature || 0.7,
-            topK: settings.top_k || 40,
-            topP: settings.top_p || 0.95,
-            useGoogleSearch: settings.use_google_search || false,
-            enrichmentPrompt: settings.enrichment_prompt || undefined
-          });
-          
-          console.log('Generating email for:', contact.email);
-          const email = await generateEmail(
-            contact, 
-            enrichmentData,
-            {
+          let enrichmentData: EnrichmentData;
+          try {
+            enrichmentData = await enrichLeadData({
               ...contact,
               geminiApiKey: settings.gemini_api_key ?? "",
               temperature: settings.temperature || 0.7,
               topK: settings.top_k || 40,
               topP: settings.top_p || 0.95,
-              emailPrompt: settings.email_prompt || undefined,
-              senderEmail: settings.impersonated_email ?? ""
-            }
-          );
+              useGoogleSearch: settings.use_google_search || false,
+              enrichmentPrompt: settings.enrichment_prompt || undefined
+            });
+          } catch (error) {
+            console.error('Failed to enrich data:', error);
+            enrichmentData = {
+              companyInfo: "Unable to retrieve company information at this time.",
+              positionInfo: "Position details not available.",
+              industryTrends: "Industry trend data unavailable.",
+              commonInterests: "Common interests could not be determined.",
+              potentialPainPoints: "Pain points analysis unavailable.",
+              relevantNews: "Recent news could not be retrieved."
+            };
+          }
+          
+          console.log('Generating email for:', contact.email);
+          let email;
+          try {
+            email = await generateEmail(
+              contact, 
+              enrichmentData,
+              {
+                ...contact,
+                geminiApiKey: settings.gemini_api_key ?? "",
+                temperature: settings.temperature || 0.7,
+                topK: settings.top_k || 40,
+                topP: settings.top_p || 0.95,
+                emailPrompt: settings.email_prompt || undefined,
+                senderEmail: settings.impersonated_email ?? ""
+              }
+            );
+          } catch (error) {
+            console.error('Failed to generate email:', error);
+            email = {
+              subject: `Introduction from ${settings.impersonated_email}`,
+              body: `Dear ${contact.firstName},\n\nI hope this email finds you well. I noticed your role as ${contact.position} at ${contact.company} and wanted to connect.\n\nBest regards,\n${settings.impersonated_email}`
+            };
+          }
 
           if (!testMode) {
             // Calculate scheduled time with delay
