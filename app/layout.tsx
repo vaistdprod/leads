@@ -1,26 +1,8 @@
-import './globals.css';
-import type { Metadata } from 'next';
-import { Plus_Jakarta_Sans } from 'next/font/google';
-import { Toaster } from "@/components/ui/sonner";
+"use client";
+
 import { ThemeProvider } from "@/components/theme-provider";
-import { ThemeProvider as NextThemesProvider } from "next-themes";
-
-const plusJakartaSans = Plus_Jakarta_Sans({ 
-  subsets: ['latin'],
-  variable: '--font-plus-jakarta-sans',
-});
-
-export const metadata: Metadata = {
-  title: 'Lead Management',
-  description: 'Automated Lead Management System',
-  robots: {
-    index: false,
-    follow: false,
-  },
-  icons: {
-    icon: '/favicon.svg',
-  },
-};
+import { Toaster } from "@/components/ui/sonner";
+import "./globals.css";
 
 export default function RootLayout({
   children,
@@ -28,17 +10,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="cs" suppressHydrationWarning className={plusJakartaSans.variable}>
+    <html lang="en" suppressHydrationWarning>
       <head>
-        <meta name="robots" content="noindex,nofollow" />
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <title>Lead Manager</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
-      <body className={plusJakartaSans.className}>
-        <ThemeProvider data-attribute="class">
-          <NextThemesProvider defaultTheme="system" enableSystem disableTransitionOnChange>
-            {children}
-            <Toaster />
-          </NextThemesProvider>
+      <body className="min-h-screen bg-background antialiased">
+        <ThemeProvider>
+          <main className="relative">{children}</main>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>
