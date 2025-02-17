@@ -4,9 +4,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChart, LineChart, RefreshCw, Settings, Users } from "lucide-react";
+import { BarChart, LineChart, RefreshCw, Settings, Users, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from '@/lib/supabase/client';
+import { ProcessConfigDialog, ProcessConfig } from '@/components/ui/process-config-dialog';
+import { PreviewResultsDialog } from '@/components/ui/preview-results-dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 interface DashboardStats {
   total_leads: number;
@@ -19,11 +22,36 @@ interface DashboardStats {
   emails_queued: number;
 }
 
+interface PreviewResults {
+  emails: Array<{
+    to: string;
+    subject: string;
+    body: string;
+    enrichmentData: any;
+  }>;
+  delayBetweenEmails: number;
+}
+
+interface ProcessingStats {
+  total: number;
+  processed: number;
+  success: number;
+  failure: number;
+  rowRange?: {
+    start: number;
+    end: number;
+  };
+}
+
 export default function OverviewPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [testMode, setTestMode] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [previewResults, setPreviewResults] = useState<PreviewResults | null>(null);
+  const [processingStats, setProcessingStats] = useState<ProcessingStats | null>(null);
   const [stats, setStats] = useState<DashboardStats>({
     total_leads: 0,
     processed_leads: 0,
@@ -74,41 +102,44 @@ export default function OverviewPage() {
     }
   };
 
-  const handleProcess = async (isTest: boolean = false) => {
+  const handleProcess = async (config: ProcessConfig) => {
     setProcessing(true);
-    setTestMode(isTest);
     try {
       const response = await fetch('/api/process', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ testMode: isTest })
+        body: JSON.stringify(config)
       });
 
-      if (!response.ok) {
-        throw new Error('Processing failed');
-      }
-
       const data = await response.json();
+
+      if (!response.ok) {
+        // Check for API key error
+        if (data.error?.includes('API key expired') || data.error?.includes('API_KEY_INVALID')) {
+          setErrorMessage('Your Gemini API key has expired or is invalid. Please update it in the AI settings.');
+          setErrorDialogOpen(true);
+          return;
+        }
+        throw new Error(data.error || 'Processing failed');
+      }
       
-      if (isTest) {
-        // Show test results in a toast
-        toast.success('Test run completed', {
-          description: `Would have processed ${data.stats.total} contacts with ${data.stats.success} successful generations`,
-          duration: 5000,
-        });
+      if (config.testMode) {
+        setProcessingStats(data.stats);
+        if (data.testResults) {
+          setPreviewResults(data.testResults);
+          setPreviewOpen(true);
+        }
       } else {
         toast.success('Processing completed successfully');
+        await loadDashboardStats();
       }
-      
-      await loadDashboardStats();
     } catch (error) {
       console.error('Processing failed:', error);
-      toast.error('Failed to process contacts');
+      toast.error(error instanceof Error ? error.message : 'Failed to process contacts');
     } finally {
       setProcessing(false);
-      setTestMode(false);
     }
   };
 
@@ -140,35 +171,15 @@ export default function OverviewPage() {
           >
             <Settings className="h-4 w-4" />
           </Button>
-          <Button
-            onClick={() => handleProcess(true)}
-            disabled={processing}
-            variant="outline"
-            className="hover:bg-accent"
-          >
-            {processing && testMode ? (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Testing...
-              </>
-            ) : (
-              "Test Run"
-            )}
-          </Button>
-          <Button
-            onClick={() => handleProcess(false)}
-            disabled={processing}
-            className="hover:bg-primary/90"
-          >
-            {processing && !testMode ? (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              "Process Contacts"
-            )}
-          </Button>
+          <ProcessConfigDialog
+            onProcess={handleProcess}
+            isTest={true}
+            processing={processing}
+          />
+          <ProcessConfigDialog
+            onProcess={handleProcess}
+            processing={processing}
+          />
         </div>
       </div>
 
@@ -215,6 +226,35 @@ export default function OverviewPage() {
           </div>
         </Card>
       </div>
+
+      {previewResults && processingStats && (
+        <PreviewResultsDialog
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          results={previewResults}
+          stats={processingStats}
+        />
+      )}
+
+      <Dialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+              API Key Error
+            </DialogTitle>
+          </DialogHeader>
+          <p>{errorMessage}</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setErrorDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => router.push('/settings/ai')}>
+              Go to AI Settings
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
