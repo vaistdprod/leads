@@ -1,6 +1,11 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-interface EnrichmentOptions {
+interface EnrichmentInput {
+  firstName: string;
+  lastName: string;
+  email: string;
+  company: string;
+  position: string;
   geminiApiKey: string;
   temperature?: number;
   topK?: number;
@@ -9,215 +14,140 @@ interface EnrichmentOptions {
   enrichmentPrompt?: string;
 }
 
-interface EmailOptions {
+interface EmailInput {
+  firstName: string;
+  lastName: string;
+  email: string;
+  company: string;
+  position: string;
   geminiApiKey: string;
   temperature?: number;
   topK?: number;
   topP?: number;
   emailPrompt?: string;
-  senderEmail?: string;
+  senderEmail: string;
 }
 
-function replaceVariables(template: string, data: Record<string, any>): string {
-  return template.replace(/\{([^}]+)\}/g, (match, key) => {
-    const value = data[key.trim()];
-    return value !== undefined ? value : match; // Keep the placeholder if value is undefined
-  });
+export interface EnrichmentData {
+  companyInfo?: string;
+  positionInfo?: string;
+  industryTrends?: string;
+  commonInterests?: string;
+  potentialPainPoints?: string;
+  relevantNews?: string;
+  [key: string]: string | undefined;
 }
 
-export const enrichLeadData = async (lead: Record<string, any>): Promise<string> => {
-  const {
-    geminiApiKey,
-    temperature = 0.7,
-    topK = 40,
-    topP = 0.95,
-    useGoogleSearch = false,
-    enrichmentPrompt = '',
-    ...contactData
-  } = lead;
-
-  if (!geminiApiKey) {
-    throw new Error('Gemini API key is required');
-  }
-
-  const genAI = new GoogleGenerativeAI(geminiApiKey);
-  const model = genAI.getGenerativeModel({ 
-    model: 'gemini-pro',
-    generationConfig: {
-      temperature,
-      topK,
-      topP,
-    }
-  });
+export async function enrichLeadData(input: EnrichmentInput): Promise<EnrichmentData> {
+  const genAI = new GoogleGenerativeAI(input.geminiApiKey);
+  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
   const defaultPrompt = `
-    Hledej na internetu podrobnosti o tomto kontaktu a napiš stručné shrnutí v češtině:
-    
-    Jméno: ${contactData.firstName} ${contactData.lastName}
-    Společnost: ${contactData.company}
-    Pozice: ${contactData.position}
-    
-    Zaměř se na:
-    1. Profesní historii
-    2. Úspěchy ve firmě
-    3. Relevantní projekty
+    Help me understand more about this lead:
+    Name: ${input.firstName} ${input.lastName}
+    Company: ${input.company}
+    Position: ${input.position}
+    Email: ${input.email}
+
+    Please provide:
+    1. Company information and background
+    2. Position responsibilities and challenges
+    3. Industry trends and challenges
+    4. Potential common interests or talking points
+    5. Possible pain points or needs
+    6. Recent news or developments (if any)
+
+    Format the response as JSON with these keys:
+    {
+      "companyInfo": "...",
+      "positionInfo": "...",
+      "industryTrends": "...",
+      "commonInterests": "...",
+      "potentialPainPoints": "...",
+      "relevantNews": "..."
+    }
   `;
 
-  const prompt = enrichmentPrompt ? replaceVariables(enrichmentPrompt, contactData) : defaultPrompt;
+  const prompt = input.enrichmentPrompt || defaultPrompt;
 
   try {
     const result = await model.generateContent(prompt);
-    return result.response.text();
+    const response = result.response;
+    const text = response.text();
+    
+    try {
+      // Try to parse as JSON
+      return JSON.parse(text);
+    } catch (e) {
+      // If not valid JSON, try to extract JSON from the text
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+      
+      // If still can't parse, return structured error
+      console.error('Failed to parse enrichment data:', text);
+      return {
+        error: 'Failed to parse enrichment data',
+        rawResponse: text
+      };
+    }
   } catch (error) {
     console.error('Failed to enrich lead data:', error);
-    throw new Error('Failed to enrich lead data');
+    throw error;
   }
-};
+}
 
-export const generateEmail = async (
-  lead: Record<string, string>, 
-  enrichmentData: string,
-  options: EmailOptions
-): Promise<{ subject: string; body: string }> => {
-  const {
-    geminiApiKey,
-    temperature = 0.7,
-    topK = 40,
-    topP = 0.95,
-    emailPrompt = '',
-    senderEmail = '',
-  } = options;
-
-  if (!geminiApiKey) {
-    throw new Error('Gemini API key is required');
-  }
-
-  const genAI = new GoogleGenerativeAI(geminiApiKey);
-  const model = genAI.getGenerativeModel({ 
-    model: 'gemini-pro',
-    generationConfig: {
-      temperature,
-      topK,
-      topP,
-    }
-  });
-
-  // Extract sender name from email
-  const senderName = senderEmail ? senderEmail.split('@')[0].split('.').map(
-    part => part.charAt(0).toUpperCase() + part.slice(1)
-  ).join(' ') : '[Vaše jméno]';
+export async function generateEmail(contact: { firstName: string; lastName: string; email: string; company: string; position: string }, enrichmentData: EnrichmentData, config: EmailInput): Promise<{ subject: string; body: string }> {
+  const genAI = new GoogleGenerativeAI(config.geminiApiKey);
+  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
   const defaultPrompt = `
-    Napiš profesionální email v češtině pro potenciálního klienta.
-    
-    Kontakt:
-    Jméno: ${lead.firstName} ${lead.lastName}
-    Společnost: ${lead.company}
-    Pozice: ${lead.position}
-    
-    Dodatečné informace:
-    ${enrichmentData}
-    
-    Požadavky:
-    - Krátký, profesionální, ale přátelský tón
-    - Personalizovaný úvod využívající dodatečné informace
-    - Nabídka pomoci, ne prodej
-    - Zmínka o zlepšení efektivity jejich operací
-    - Možnost odpovědět "ne" pro odmítnutí
-    - Podpis: "${senderName}"
-    
-    Odpověz přesně v tomto formátu:
-    [SUBJECT]: <předmět emailu>
-    [BODY]: <tělo emailu>
-    [/BODY]
+    Write a personalized cold email to:
+    Name: ${contact.firstName} ${contact.lastName}
+    Company: ${contact.company}
+    Position: ${contact.position}
+
+    Using this enrichment data:
+    ${JSON.stringify(enrichmentData, null, 2)}
+
+    The email should:
+    1. Be concise and professional
+    2. Reference specific insights from the enrichment data
+    3. Focus on value proposition
+    4. Have a clear call to action
+    5. Include a signature from: ${config.senderEmail}
+
+    Format the response as JSON with these keys:
+    {
+      "subject": "The email subject line",
+      "body": "The complete email body with signature"
+    }
   `;
 
-  const templateData = {
-    ...lead,
-    enrichmentData,
-    senderName,
-  };
-
-  const prompt = emailPrompt ? replaceVariables(emailPrompt, templateData) : defaultPrompt;
+  const prompt = config.emailPrompt || defaultPrompt;
 
   try {
     const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const response = result.response;
+    const text = response.text();
     
-    // Enhanced parsing logic
-    let subject = '';
-    let body = '';
-
-    // Try different format patterns
-    const formats = [
-      // Standard format
-      {
-        subjectRegex: /\[SUBJECT\]:\s*([^\n]+)/,
-        bodyRegex: /\[BODY\]:\s*([\s\S]*?)(?:\[\/BODY\]|$)/
-      },
-      // Alternative format with **
-      {
-        subjectRegex: /\*\*SUBJECT:\*\*\s*([^\n]+)/i,
-        bodyRegex: /(?:\*\*SUBJECT:\*\*[^\n]+\n\s*)([\s\S]*)/i
-      },
-      // Simple Subject: format
-      {
-        subjectRegex: /Subject:\s*([^\n]+)/i,
-        bodyRegex: /(?:Subject:[^\n]+\n\s*)([\s\S]*)/i
-      },
-      // Předmět: format (Czech)
-      {
-        subjectRegex: /Předmět:\s*([^\n]+)/i,
-        bodyRegex: /(?:Předmět:[^\n]+\n\s*)([\s\S]*)/i
+    try {
+      // Try to parse as JSON
+      return JSON.parse(text);
+    } catch (e) {
+      // If not valid JSON, try to extract JSON from the text
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
       }
-    ];
-
-    // Try each format until we find a match
-    for (const format of formats) {
-      const subjectMatch = text.match(format.subjectRegex);
-      const bodyMatch = text.match(format.bodyRegex);
-
-      if (subjectMatch && bodyMatch) {
-        subject = subjectMatch[1].trim();
-        body = bodyMatch[1].trim();
-        break;
-      }
+      
+      // If still can't parse, return error
+      console.error('Failed to parse email:', text);
+      throw new Error('Failed to generate email: Invalid response format');
     }
-
-    // If no format matched, use fallback
-    if (!subject || !body) {
-      // Use first line as subject and rest as body
-      const lines = text.split('\n');
-      subject = lines[0].replace(/^[^:]*:\s*/, '').trim();
-      body = lines.slice(1).join('\n').trim();
-    }
-
-    // Clean up subject and body
-    subject = subject
-      .replace(/^\*+|\*+$/g, '') // Remove asterisks at start/end
-      .replace(/^["']|["']$/g, '') // Remove quotes at start/end
-      .trim();
-
-    body = body.replace(/\[Vaše jméno\]/g, senderName);
-
-    // Final validation
-    if (!subject || !body) {
-      throw new Error('Failed to parse email content');
-    }
-
-    // Replace any remaining variables
-    const processedBody = replaceVariables(body, {
-      ...lead,
-      enrichmentData,
-      senderName,
-    });
-
-    return { 
-      subject,
-      body: processedBody
-    };
   } catch (error) {
     console.error('Failed to generate email:', error);
-    throw new Error('Failed to generate email');
+    throw error;
   }
-};
+}

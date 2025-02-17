@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase/client';
 import { ProcessConfigDialog, ProcessConfig } from '@/components/ui/process-config-dialog';
 import { PreviewResultsDialog } from '@/components/ui/preview-results-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { EnrichmentData } from '@/lib/api/gemini';
 
 interface DashboardStats {
   total_leads: number;
@@ -27,7 +28,7 @@ interface PreviewResults {
     to: string;
     subject: string;
     body: string;
-    enrichmentData: any;
+    enrichmentData: EnrichmentData;
   }>;
   delayBetweenEmails: number;
 }

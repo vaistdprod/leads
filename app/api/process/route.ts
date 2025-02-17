@@ -3,12 +3,10 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { Database } from '@/lib/types';
-import { getBlacklist, getContacts } from '@/lib/google/sheets';
+import { getBlacklist, getContacts, updateContact } from '@/lib/google/sheets';
 import { verifyEmail } from '@/lib/api/disify';
-import { enrichLeadData, generateEmail } from '@/lib/api/gemini';
+import { enrichLeadData, generateEmail, EnrichmentData } from '@/lib/api/gemini';
 import { sendEmail } from '@/lib/google/gmail';
-import { google } from 'googleapis';
-import { getGoogleAuthClient } from '@/lib/google/googleAuth';
 
 type LogStatus = 'success' | 'error' | 'warning';
 
@@ -42,75 +40,6 @@ async function logProcessing(supabase: ReturnType<typeof createServerClient<Data
 
 async function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function updateSheetStatus(sheetId: string, email: string, scheduledFor?: string, status?: string) {
-  try {
-    const auth = await getGoogleAuthClient();
-    const sheets = google.sheets({ version: 'v4', auth });
-
-    // First get the sheet data to find the row
-    const { data } = await sheets.spreadsheets.values.get({
-      spreadsheetId: sheetId,
-      range: 'A:K',
-    });
-
-    if (!data.values || data.values.length < 2) {
-      console.warn('No data found in sheet');
-      return;
-    }
-
-    const [headers, ...rows] = data.values;
-    const emailColumnIndex = headers.findIndex((header: string) => 
-      header.toLowerCase().trim() === 'email'
-    );
-    const scheduledForColumnIndex = headers.findIndex((header: string) => 
-      header.toLowerCase().trim() === 'scheduledfor'
-    );
-    const statusColumnIndex = headers.findIndex((header: string) => 
-      header.toLowerCase().trim() === 'status'
-    );
-
-    if (emailColumnIndex === -1) {
-      console.warn('Email column not found');
-      return;
-    }
-
-    // Find the row with matching email
-    const rowIndex = rows.findIndex(row => 
-      row[emailColumnIndex]?.toLowerCase().trim() === email.toLowerCase().trim()
-    );
-
-    if (rowIndex === -1) {
-      console.warn('Contact not found:', email);
-      return;
-    }
-
-    // Update the scheduling and status columns
-    if (scheduledFor && scheduledForColumnIndex !== -1) {
-      await sheets.spreadsheets.values.update({
-        spreadsheetId: sheetId,
-        range: `${String.fromCharCode(65 + scheduledForColumnIndex)}${rowIndex + 2}`,
-        valueInputOption: 'RAW',
-        requestBody: {
-          values: [[scheduledFor]]
-        }
-      });
-    }
-
-    if (status && statusColumnIndex !== -1) {
-      await sheets.spreadsheets.values.update({
-        spreadsheetId: sheetId,
-        range: `${String.fromCharCode(65 + statusColumnIndex)}${rowIndex + 2}`,
-        valueInputOption: 'RAW',
-        requestBody: {
-          values: [[status]]
-        }
-      });
-    }
-  } catch (error) {
-    console.warn('Failed to update sheet:', error);
-  }
 }
 
 export async function POST(request: Request) {
@@ -195,7 +124,7 @@ export async function POST(request: Request) {
 
       let successCount = 0;
       let failureCount = 0;
-      let generatedEmails: Array<{ to: string, subject: string, body: string, enrichmentData: any }> = [];
+      let generatedEmails: Array<{ to: string, subject: string, body: string, enrichmentData: EnrichmentData }> = [];
 
       for (const [index, contact] of filteredContacts.entries()) {
         try {
@@ -225,7 +154,7 @@ export async function POST(request: Request) {
             topK: settings.top_k || 40,
             topP: settings.top_p || 0.95,
             useGoogleSearch: settings.use_google_search || false,
-            enrichmentPrompt: settings.enrichment_prompt
+            enrichmentPrompt: settings.enrichment_prompt || undefined
           });
           
           console.log('Generating email for:', contact.email);
@@ -233,11 +162,12 @@ export async function POST(request: Request) {
             contact, 
             enrichmentData,
             {
+              ...contact,
               geminiApiKey: settings.gemini_api_key ?? "",
               temperature: settings.temperature || 0.7,
               topK: settings.top_k || 40,
               topP: settings.top_p || 0.95,
-              emailPrompt: settings.email_prompt ?? undefined,
+              emailPrompt: settings.email_prompt || undefined,
               senderEmail: settings.impersonated_email ?? ""
             }
           );
@@ -247,11 +177,13 @@ export async function POST(request: Request) {
             const scheduledTime = new Date(Date.now() + (index * delayBetweenEmails));
             
             if (config.updateScheduling) {
-              await updateSheetStatus(
+              await updateContact(
                 settings.contacts_sheet_id ?? "",
                 contact.email,
-                scheduledTime.toISOString(),
-                'pending'
+                {
+                  scheduledFor: scheduledTime.toISOString(),
+                  status: 'pending'
+                }
               );
             }
 
@@ -260,11 +192,12 @@ export async function POST(request: Request) {
             
             // Update status to sent
             if (config.updateScheduling) {
-              await updateSheetStatus(
+              await updateContact(
                 settings.contacts_sheet_id ?? "",
                 contact.email,
-                undefined,
-                'sent'
+                {
+                  status: 'sent'
+                }
               );
             }
             
@@ -321,11 +254,12 @@ export async function POST(request: Request) {
           }
           
           if (config.updateScheduling) {
-            await updateSheetStatus(
+            await updateContact(
               settings.contacts_sheet_id ?? "",
               contact.email,
-              undefined,
-              'failed'
+              {
+                status: 'failed'
+              }
             );
           }
           
