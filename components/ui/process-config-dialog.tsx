@@ -4,6 +4,7 @@ import { Button } from "./button";
 import { Input } from "./input";
 import { Label } from "./label";
 import { RefreshCw } from "lucide-react";
+import { Progress } from "./progress";
 
 interface ProcessConfigDialogProps {
   onProcess: (config: ProcessConfig) => Promise<void>;
@@ -78,12 +79,12 @@ export function ProcessConfigDialog({ onProcess, isTest = false, processing }: P
                 <Input
                   id="startRow"
                   type="number"
-                  min="0"
+                  min="1"
                   placeholder="From beginning"
                   value={config.startRow || ""}
                   onChange={(e) => setConfig(prev => ({
                     ...prev,
-                    startRow: e.target.value ? parseInt(e.target.value) : undefined
+                    startRow: e.target.value ? parseInt(e.target.value) - 1 : undefined
                   }))}
                 />
               </div>
@@ -92,7 +93,7 @@ export function ProcessConfigDialog({ onProcess, isTest = false, processing }: P
                 <Input
                   id="endRow"
                   type="number"
-                  min="0"
+                  min="1"
                   placeholder="To end"
                   value={config.endRow || ""}
                   onChange={(e) => setConfig(prev => ({
@@ -115,6 +116,14 @@ export function ProcessConfigDialog({ onProcess, isTest = false, processing }: P
                   delayBetweenEmails: parseInt(e.target.value) || 30
                 }))}
               />
+              {config.startRow !== undefined && config.endRow !== undefined && (
+                <p className="text-sm text-muted-foreground">
+                  Estimated duration: {((config.endRow - (config.startRow ?? 0)) * config.delayBetweenEmails / 60).toFixed(1)} minutes
+                </p>
+              )}
+              <p className="text-sm text-muted-foreground">
+                Note: Processing is done in batches to handle large volumes
+              </p>
             </div>
 
             <div className="flex items-center space-x-2">

@@ -46,7 +46,7 @@ export function PreviewResultsDialog({ open, onOpenChange, results, stats }: Pre
               <p>Successful Generations: {stats.success}</p>
               <p>Failed Generations: {stats.failure}</p>
               {stats.rowRange && (
-                <p>Row Range: {stats.rowRange.start} - {stats.rowRange.end}</p>
+                <p>Row Range: {stats.rowRange.start + 1} - {stats.rowRange.end}</p>
               )}
             </div>
           </Card>
@@ -55,7 +55,8 @@ export function PreviewResultsDialog({ open, onOpenChange, results, stats }: Pre
             <h3 className="font-semibold mb-2">Timing Configuration</h3>
             <div className="space-y-1 text-sm">
               <p>Delay Between Emails: {results.delayBetweenEmails} seconds</p>
-              <p>Estimated Total Duration: {(results.delayBetweenEmails * (stats.processed - 1) / 60).toFixed(1)} minutes</p>
+              <p>Estimated Total Duration: {((results.delayBetweenEmails * (stats.processed - 1)) / 60).toFixed(1)} minutes</p>
+              <p className="text-muted-foreground mt-2">Note: Processing is done in batches to handle large volumes</p>
             </div>
           </Card>
         </div>
@@ -84,10 +85,13 @@ export function PreviewResultsDialog({ open, onOpenChange, results, stats }: Pre
 
                   <div>
                     <h5 className="font-medium">Enrichment Data</h5>
-                    <div className="text-sm mt-1 bg-muted p-2 rounded">
-                      <pre className="whitespace-pre-wrap overflow-auto">
-                        {JSON.stringify(email.enrichmentData, null, 2)}
-                      </pre>
+                    <div className="text-sm mt-1 space-y-2">
+                      {Object.entries(email.enrichmentData).map(([key, value]) => (
+                        <div key={key} className="bg-muted p-2 rounded">
+                          <span className="font-medium">{key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}: </span>
+                          <span>{value as string}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
