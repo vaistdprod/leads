@@ -130,7 +130,6 @@ export async function GET(request: Request) {
   }
 }
 
-// Add PUT endpoint to update contact status and scheduling
 export async function PUT(request: Request) {
   try {
     const { searchParams } = new URL(request.url);

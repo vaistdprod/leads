@@ -128,6 +128,7 @@ export default function OverviewPage() {
       if (config.testMode) {
         setProcessingStats(data.stats);
         if (data.testResults) {
+          console.log('Preview results:', data.testResults);
           setPreviewResults(data.testResults);
           setPreviewOpen(true);
         }

@@ -7,6 +7,7 @@ import { getBlacklist, getContacts } from '@/lib/google/sheets';
 import { verifyEmail } from '@/lib/api/disify';
 import { enrichLeadData, generateEmail } from '@/lib/api/gemini';
 import { sendEmail } from '@/lib/google/gmail';
+import { getBaseUrl } from '@/lib/utils/url';
 
 type LogStatus = 'success' | 'error' | 'warning';
 
@@ -126,6 +127,8 @@ export async function POST(request: Request) {
       let failureCount = 0;
       let generatedEmails: Array<{ to: string, subject: string, body: string, enrichmentData: any }> = [];
 
+      const baseUrl = getBaseUrl();
+
       for (const [index, contact] of filteredContacts.entries()) {
         try {
           console.log('Processing contact:', contact.email);
@@ -177,7 +180,7 @@ export async function POST(request: Request) {
             
             if (config.updateScheduling) {
               // Update scheduling information in sheets
-              const response = await fetch(`/api/sheets/contacts?sheetId=${settings.contacts_sheet_id}`, {
+              const response = await fetch(`${baseUrl}/api/sheets/contacts?sheetId=${settings.contacts_sheet_id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -197,7 +200,7 @@ export async function POST(request: Request) {
             
             // Update status to sent
             if (config.updateScheduling) {
-              await fetch(`/api/sheets/contacts?sheetId=${settings.contacts_sheet_id}`, {
+              await fetch(`${baseUrl}/api/sheets/contacts?sheetId=${settings.contacts_sheet_id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -261,7 +264,7 @@ export async function POST(request: Request) {
           
           if (config.updateScheduling) {
             // Update status to failed
-            await fetch(`/api/sheets/contacts?sheetId=${settings.contacts_sheet_id}`, {
+            await fetch(`${baseUrl}/api/sheets/contacts?sheetId=${settings.contacts_sheet_id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
