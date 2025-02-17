@@ -1,6 +1,7 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "./dialog";
 import { ScrollArea } from "./scroll-area";
 import { Card } from "./card";
+import { Button } from "./button";
 
 interface PreviewResultsDialogProps {
   open: boolean;
@@ -92,6 +93,12 @@ export function PreviewResultsDialog({ open, onOpenChange, results, stats }: Pre
             ))}
           </div>
         </ScrollArea>
+
+        <DialogFooter className="mt-4">
+          <DialogClose asChild>
+            <Button>Close</Button>
+          </DialogClose>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -48,7 +48,6 @@ export async function POST(request: Request) {
   let userId: string;
 
   try {
-    // Get processing configuration from request body
     const config: ProcessingConfig = await request.json();
     const testMode = config.testMode ?? false;
     const delayBetweenEmails = (config.delayBetweenEmails ?? 30) * 1000; // Convert to milliseconds
@@ -251,6 +250,15 @@ export async function POST(request: Request) {
           console.error('Failed to process contact:', contact.email, error);
           failureCount++;
           
+          // Check for API key error
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          if (errorMessage.includes('API key expired') || errorMessage.includes('API_KEY_INVALID')) {
+            return NextResponse.json({ 
+              error: errorMessage,
+              details: 'Please update your Gemini API key in the AI settings.'
+            }, { status: 400 });
+          }
+          
           if (config.updateScheduling) {
             // Update status to failed
             await fetch(`/api/sheets/contacts?sheetId=${settings.contacts_sheet_id}`, {
@@ -264,7 +272,7 @@ export async function POST(request: Request) {
           }
           
           await logProcessing(supabase, userId, 'email', 'error', `Failed to process contact: ${contact.email}`, { 
-            error: error instanceof Error ? error.message : String(error) 
+            error: errorMessage
           });
         }
       }

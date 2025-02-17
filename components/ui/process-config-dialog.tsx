@@ -20,7 +20,6 @@ export interface ProcessConfig {
 }
 
 export function ProcessConfigDialog({ onProcess, isTest = false, processing }: ProcessConfigDialogProps) {
-  const [open, setOpen] = useState(false);
   const [config, setConfig] = useState<ProcessConfig>({
     delayBetweenEmails: 30,
     testMode: isTest,
@@ -29,12 +28,15 @@ export function ProcessConfigDialog({ onProcess, isTest = false, processing }: P
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setOpen(false);
-    await onProcess(config);
+    try {
+      await onProcess(config);
+    } catch (error) {
+      console.error('Process error:', error);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog>
       <DialogTrigger asChild>
         <Button
           variant={isTest ? "outline" : "default"}
@@ -114,9 +116,16 @@ export function ProcessConfigDialog({ onProcess, isTest = false, processing }: P
             <Label htmlFor="updateScheduling">Update scheduling information in sheets</Label>
           </div>
 
-          <Button type="submit" className="w-full">
-            {isTest ? "Run Test" : "Start Processing"}
-          </Button>
+          <div className="flex justify-end space-x-2">
+            <DialogTrigger asChild>
+              <Button type="button" variant="outline">
+                Cancel
+              </Button>
+            </DialogTrigger>
+            <Button type="submit">
+              {isTest ? "Run Test" : "Start Processing"}
+            </Button>
+          </div>
         </form>
       </DialogContent>
     </Dialog>
