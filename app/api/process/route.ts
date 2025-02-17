@@ -10,6 +10,14 @@ import { sendEmail } from '@/lib/google/gmail';
 
 type LogStatus = 'success' | 'error' | 'warning';
 
+interface ProcessingConfig {
+  startRow?: number;
+  endRow?: number;
+  delayBetweenEmails?: number; // in seconds
+  testMode?: boolean;
+  updateScheduling?: boolean;
+}
+
 async function logProcessing(supabase: ReturnType<typeof createServerClient<Database>>, userId: string, stage: string, status: LogStatus, message: string, metadata?: any) {
   try {
     const dbStatus = status === 'warning' ? 'error' : status;
@@ -30,14 +38,20 @@ async function logProcessing(supabase: ReturnType<typeof createServerClient<Data
   }
 }
 
+async function delay(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export async function POST(request: Request) {
   const cookieStore = cookies();
   const supabase = createServerSupabaseClient(cookieStore);
   let userId: string;
 
   try {
-    // Get test mode from request body
-    const { testMode = false } = await request.json();
+    // Get processing configuration from request body
+    const config: ProcessingConfig = await request.json();
+    const testMode = config.testMode ?? false;
+    const delayBetweenEmails = (config.delayBetweenEmails ?? 30) * 1000; // Convert to milliseconds
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -95,18 +109,25 @@ export async function POST(request: Request) {
       }
 
       console.log('Contacts loaded:', contacts.length);
-      const filteredContacts = contacts.filter(
+      let filteredContacts = contacts.filter(
         contact => contact.email && !blacklist.includes(contact.email.toLowerCase().trim())
       );
+      
+      // Apply row range filtering if specified
+      if (config.startRow !== undefined || config.endRow !== undefined) {
+        const start = config.startRow ?? 0;
+        const end = config.endRow ?? filteredContacts.length;
+        filteredContacts = filteredContacts.slice(start, end);
+      }
       
       await logProcessing(supabase, userId, 'blacklist', 'success', `Filtered ${contacts.length - filteredContacts.length} blacklisted contacts`);
       console.log('Filtered contacts:', filteredContacts.length);
 
       let successCount = 0;
       let failureCount = 0;
-      let generatedEmails: Array<{ to: string, subject: string, body: string }> = [];
+      let generatedEmails: Array<{ to: string, subject: string, body: string, enrichmentData: any }> = [];
 
-      for (const contact of filteredContacts) {
+      for (const [index, contact] of filteredContacts.entries()) {
         try {
           console.log('Processing contact:', contact.email);
           
@@ -152,8 +173,40 @@ export async function POST(request: Request) {
           );
 
           if (!testMode) {
+            // Calculate scheduled time with delay
+            const scheduledTime = new Date(Date.now() + (index * delayBetweenEmails));
+            
+            if (config.updateScheduling) {
+              // Update scheduling information in sheets
+              const response = await fetch(`/api/sheets/contacts?sheetId=${settings.contacts_sheet_id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  email: contact.email,
+                  scheduledFor: scheduledTime.toISOString(),
+                  status: 'pending'
+                })
+              });
+              
+              if (!response.ok) {
+                console.warn('Failed to update scheduling info:', await response.text());
+              }
+            }
+
             console.log('Sending email to:', contact.email, 'as:', settings.impersonated_email);
             await sendEmail(contact.email, email.subject, email.body, settings.impersonated_email ?? "");
+            
+            // Update status to sent
+            if (config.updateScheduling) {
+              await fetch(`/api/sheets/contacts?sheetId=${settings.contacts_sheet_id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  email: contact.email,
+                  status: 'sent'
+                })
+              });
+            }
             
             await supabase.from('lead_history').insert({
               user_id: userId,
@@ -162,7 +215,8 @@ export async function POST(request: Request) {
               details: {
                 enrichment_data: enrichmentData,
                 email_subject: email.subject,
-                sent_as: settings.impersonated_email
+                sent_as: settings.impersonated_email,
+                scheduled_for: scheduledTime.toISOString()
               }
             });
 
@@ -170,14 +224,21 @@ export async function POST(request: Request) {
               user_id: userId,
               email: contact.email,
               subject: email.subject,
-              status: 'sent'
+              status: 'sent',
+              scheduled_for: scheduledTime.toISOString()
             });
+
+            // Add delay between emails
+            if (index < filteredContacts.length - 1) {
+              await delay(delayBetweenEmails);
+            }
           } else {
             // Store generated email for test mode
             generatedEmails.push({
               to: contact.email,
               subject: email.subject,
-              body: email.body
+              body: email.body,
+              enrichmentData
             });
           }
 
@@ -189,6 +250,19 @@ export async function POST(request: Request) {
         } catch (error) {
           console.error('Failed to process contact:', contact.email, error);
           failureCount++;
+          
+          if (config.updateScheduling) {
+            // Update status to failed
+            await fetch(`/api/sheets/contacts?sheetId=${settings.contacts_sheet_id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: contact.email,
+                status: 'failed'
+              })
+            });
+          }
+          
           await logProcessing(supabase, userId, 'email', 'error', `Failed to process contact: ${contact.email}`, { 
             error: error instanceof Error ? error.message : String(error) 
           });
@@ -225,9 +299,16 @@ export async function POST(request: Request) {
           total: contacts.length,
           processed: successCount + failureCount,
           success: successCount,
-          failure: failureCount
+          failure: failureCount,
+          rowRange: config.startRow !== undefined || config.endRow !== undefined ? {
+            start: config.startRow ?? 0,
+            end: config.endRow ?? contacts.length
+          } : undefined
         },
-        testResults: testMode ? generatedEmails : undefined
+        testResults: testMode ? {
+          emails: generatedEmails,
+          delayBetweenEmails: config.delayBetweenEmails
+        } : undefined
       });
     } catch (error) {
       console.error('Blacklist/contacts error:', error);
