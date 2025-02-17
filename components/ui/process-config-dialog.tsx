@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./dialog";
 import { Button } from "./button";
 import { Input } from "./input";
 import { Label } from "./label";
@@ -20,6 +20,7 @@ export interface ProcessConfig {
 }
 
 export function ProcessConfigDialog({ onProcess, isTest = false, processing }: ProcessConfigDialogProps) {
+  const [open, setOpen] = useState(false);
   const [config, setConfig] = useState<ProcessConfig>({
     delayBetweenEmails: 30,
     testMode: isTest,
@@ -28,106 +29,118 @@ export function ProcessConfigDialog({ onProcess, isTest = false, processing }: P
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
     try {
-      await onProcess(config);
+      await onProcess({
+        ...config,
+        testMode: isTest
+      });
+      setOpen(false);
     } catch (error) {
       console.error('Process error:', error);
     }
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!processing) {
+      setOpen(newOpen);
+    }
+  };
+
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button
-          variant={isTest ? "outline" : "default"}
-          className={isTest ? "hover:bg-accent" : "hover:bg-primary/90"}
-          disabled={processing}
-        >
-          {processing ? (
-            <>
-              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-              {isTest ? "Testing..." : "Processing..."}
-            </>
-          ) : (
-            isTest ? "Test Run" : "Process Contacts"
-          )}
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{isTest ? "Test Configuration" : "Process Configuration"}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+    <>
+      <Button
+        variant={isTest ? "outline" : "default"}
+        className={isTest ? "hover:bg-accent" : "hover:bg-primary/90"}
+        disabled={processing}
+        onClick={() => handleOpenChange(true)}
+      >
+        {processing ? (
+          <>
+            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+            {isTest ? "Testing..." : "Processing..."}
+          </>
+        ) : (
+          isTest ? "Test Run" : "Process Contacts"
+        )}
+      </Button>
+
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>{isTest ? "Test Configuration" : "Process Configuration"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="startRow">Start Row (optional)</Label>
+                <Input
+                  id="startRow"
+                  type="number"
+                  min="0"
+                  placeholder="From beginning"
+                  value={config.startRow || ""}
+                  onChange={(e) => setConfig(prev => ({
+                    ...prev,
+                    startRow: e.target.value ? parseInt(e.target.value) : undefined
+                  }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endRow">End Row (optional)</Label>
+                <Input
+                  id="endRow"
+                  type="number"
+                  min="0"
+                  placeholder="To end"
+                  value={config.endRow || ""}
+                  onChange={(e) => setConfig(prev => ({
+                    ...prev,
+                    endRow: e.target.value ? parseInt(e.target.value) : undefined
+                  }))}
+                />
+              </div>
+            </div>
+            
             <div className="space-y-2">
-              <Label htmlFor="startRow">Start Row (optional)</Label>
+              <Label htmlFor="delay">Delay Between Emails (seconds)</Label>
               <Input
-                id="startRow"
+                id="delay"
                 type="number"
-                min="0"
-                placeholder="From beginning"
-                value={config.startRow || ""}
+                min="1"
+                value={config.delayBetweenEmails}
                 onChange={(e) => setConfig(prev => ({
                   ...prev,
-                  startRow: e.target.value ? parseInt(e.target.value) : undefined
+                  delayBetweenEmails: parseInt(e.target.value) || 30
                 }))}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="endRow">End Row (optional)</Label>
-              <Input
-                id="endRow"
-                type="number"
-                min="0"
-                placeholder="To end"
-                value={config.endRow || ""}
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="updateScheduling"
+                checked={config.updateScheduling}
                 onChange={(e) => setConfig(prev => ({
                   ...prev,
-                  endRow: e.target.value ? parseInt(e.target.value) : undefined
+                  updateScheduling: e.target.checked
                 }))}
               />
+              <Label htmlFor="updateScheduling">Update scheduling information in sheets</Label>
             </div>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="delay">Delay Between Emails (seconds)</Label>
-            <Input
-              id="delay"
-              type="number"
-              min="1"
-              value={config.delayBetweenEmails}
-              onChange={(e) => setConfig(prev => ({
-                ...prev,
-                delayBetweenEmails: parseInt(e.target.value) || 30
-              }))}
-            />
-          </div>
 
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="updateScheduling"
-              checked={config.updateScheduling}
-              onChange={(e) => setConfig(prev => ({
-                ...prev,
-                updateScheduling: e.target.checked
-              }))}
-            />
-            <Label htmlFor="updateScheduling">Update scheduling information in sheets</Label>
-          </div>
-
-          <div className="flex justify-end space-x-2">
-            <DialogTrigger asChild>
-              <Button type="button" variant="outline">
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancel
               </Button>
-            </DialogTrigger>
-            <Button type="submit">
-              {isTest ? "Run Test" : "Start Processing"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+              <Button type="submit">
+                {isTest ? "Run Test" : "Start Processing"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

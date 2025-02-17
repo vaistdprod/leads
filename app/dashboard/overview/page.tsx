@@ -249,7 +249,10 @@ export default function OverviewPage() {
             <Button variant="outline" onClick={() => setErrorDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={() => router.push('/settings/ai')}>
+            <Button onClick={() => {
+              setErrorDialogOpen(false);
+              router.push('/settings/ai');
+            }}>
               Go to AI Settings
             </Button>
           </DialogFooter>

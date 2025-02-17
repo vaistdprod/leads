@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "./dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./dialog";
 import { ScrollArea } from "./scroll-area";
 import { Card } from "./card";
 import { Button } from "./button";
@@ -28,9 +28,11 @@ interface PreviewResultsDialogProps {
 }
 
 export function PreviewResultsDialog({ open, onOpenChange, results, stats }: PreviewResultsDialogProps) {
+  if (!results?.emails?.length) return null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent onPointerDownOutside={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Preview Results</DialogTitle>
         </DialogHeader>
@@ -94,11 +96,11 @@ export function PreviewResultsDialog({ open, onOpenChange, results, stats }: Pre
           </div>
         </ScrollArea>
 
-        <DialogFooter className="mt-4">
-          <DialogClose asChild>
-            <Button>Close</Button>
-          </DialogClose>
-        </DialogFooter>
+        <div className="flex justify-end mt-4">
+          <Button onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
