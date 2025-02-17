@@ -32,7 +32,7 @@ export function PreviewResultsDialog({ open, onOpenChange, results, stats }: Pre
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent onPointerDownOutside={(e) => e.preventDefault()}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle>Preview Results</DialogTitle>
         </DialogHeader>
@@ -72,7 +72,7 @@ export function PreviewResultsDialog({ open, onOpenChange, results, stats }: Pre
 
                   <div>
                     <h5 className="font-medium">Subject</h5>
-                    <p className="text-sm mt-1">{email.subject}</p>
+                    <p className="text-sm mt-1 bg-muted p-2 rounded">{email.subject}</p>
                   </div>
 
                   <div>
@@ -85,7 +85,7 @@ export function PreviewResultsDialog({ open, onOpenChange, results, stats }: Pre
                   <div>
                     <h5 className="font-medium">Enrichment Data</h5>
                     <div className="text-sm mt-1 bg-muted p-2 rounded">
-                      <pre className="whitespace-pre-wrap">
+                      <pre className="whitespace-pre-wrap overflow-auto">
                         {JSON.stringify(email.enrichmentData, null, 2)}
                       </pre>
                     </div>

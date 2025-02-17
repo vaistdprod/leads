@@ -7,7 +7,8 @@ import { getBlacklist, getContacts } from '@/lib/google/sheets';
 import { verifyEmail } from '@/lib/api/disify';
 import { enrichLeadData, generateEmail } from '@/lib/api/gemini';
 import { sendEmail } from '@/lib/google/gmail';
-import { getBaseUrl } from '@/lib/utils/url';
+import { google } from 'googleapis';
+import { getGoogleAuthClient } from '@/lib/google/googleAuth';
 
 type LogStatus = 'success' | 'error' | 'warning';
 
@@ -41,6 +42,75 @@ async function logProcessing(supabase: ReturnType<typeof createServerClient<Data
 
 async function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function updateSheetStatus(sheetId: string, email: string, scheduledFor?: string, status?: string) {
+  try {
+    const auth = await getGoogleAuthClient();
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    // First get the sheet data to find the row
+    const { data } = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: 'A:K',
+    });
+
+    if (!data.values || data.values.length < 2) {
+      console.warn('No data found in sheet');
+      return;
+    }
+
+    const [headers, ...rows] = data.values;
+    const emailColumnIndex = headers.findIndex((header: string) => 
+      header.toLowerCase().trim() === 'email'
+    );
+    const scheduledForColumnIndex = headers.findIndex((header: string) => 
+      header.toLowerCase().trim() === 'scheduledfor'
+    );
+    const statusColumnIndex = headers.findIndex((header: string) => 
+      header.toLowerCase().trim() === 'status'
+    );
+
+    if (emailColumnIndex === -1) {
+      console.warn('Email column not found');
+      return;
+    }
+
+    // Find the row with matching email
+    const rowIndex = rows.findIndex(row => 
+      row[emailColumnIndex]?.toLowerCase().trim() === email.toLowerCase().trim()
+    );
+
+    if (rowIndex === -1) {
+      console.warn('Contact not found:', email);
+      return;
+    }
+
+    // Update the scheduling and status columns
+    if (scheduledFor && scheduledForColumnIndex !== -1) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `${String.fromCharCode(65 + scheduledForColumnIndex)}${rowIndex + 2}`,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [[scheduledFor]]
+        }
+      });
+    }
+
+    if (status && statusColumnIndex !== -1) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `${String.fromCharCode(65 + statusColumnIndex)}${rowIndex + 2}`,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [[status]]
+        }
+      });
+    }
+  } catch (error) {
+    console.warn('Failed to update sheet:', error);
+  }
 }
 
 export async function POST(request: Request) {
@@ -127,8 +197,6 @@ export async function POST(request: Request) {
       let failureCount = 0;
       let generatedEmails: Array<{ to: string, subject: string, body: string, enrichmentData: any }> = [];
 
-      const baseUrl = getBaseUrl();
-
       for (const [index, contact] of filteredContacts.entries()) {
         try {
           console.log('Processing contact:', contact.email);
@@ -179,20 +247,12 @@ export async function POST(request: Request) {
             const scheduledTime = new Date(Date.now() + (index * delayBetweenEmails));
             
             if (config.updateScheduling) {
-              // Update scheduling information in sheets
-              const response = await fetch(`${baseUrl}/api/sheets/contacts?sheetId=${settings.contacts_sheet_id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  email: contact.email,
-                  scheduledFor: scheduledTime.toISOString(),
-                  status: 'pending'
-                })
-              });
-              
-              if (!response.ok) {
-                console.warn('Failed to update scheduling info:', await response.text());
-              }
+              await updateSheetStatus(
+                settings.contacts_sheet_id ?? "",
+                contact.email,
+                scheduledTime.toISOString(),
+                'pending'
+              );
             }
 
             console.log('Sending email to:', contact.email, 'as:', settings.impersonated_email);
@@ -200,14 +260,12 @@ export async function POST(request: Request) {
             
             // Update status to sent
             if (config.updateScheduling) {
-              await fetch(`${baseUrl}/api/sheets/contacts?sheetId=${settings.contacts_sheet_id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  email: contact.email,
-                  status: 'sent'
-                })
-              });
+              await updateSheetStatus(
+                settings.contacts_sheet_id ?? "",
+                contact.email,
+                undefined,
+                'sent'
+              );
             }
             
             await supabase.from('lead_history').insert({
@@ -263,15 +321,12 @@ export async function POST(request: Request) {
           }
           
           if (config.updateScheduling) {
-            // Update status to failed
-            await fetch(`${baseUrl}/api/sheets/contacts?sheetId=${settings.contacts_sheet_id}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                email: contact.email,
-                status: 'failed'
-              })
-            });
+            await updateSheetStatus(
+              settings.contacts_sheet_id ?? "",
+              contact.email,
+              undefined,
+              'failed'
+            );
           }
           
           await logProcessing(supabase, userId, 'email', 'error', `Failed to process contact: ${contact.email}`, { 

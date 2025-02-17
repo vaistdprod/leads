@@ -67,7 +67,7 @@ export function ProcessConfigDialog({ onProcess, isTest = false, processing }: P
       </Button>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>{isTest ? "Test Configuration" : "Process Configuration"}</DialogTitle>
           </DialogHeader>
@@ -121,6 +121,7 @@ export function ProcessConfigDialog({ onProcess, isTest = false, processing }: P
               <input
                 type="checkbox"
                 id="updateScheduling"
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                 checked={config.updateScheduling}
                 onChange={(e) => setConfig(prev => ({
                   ...prev,
@@ -134,7 +135,7 @@ export function ProcessConfigDialog({ onProcess, isTest = false, processing }: P
               <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                 Cancel
               </Button>
-              <Button type="submit">
+              <Button type="submit" disabled={processing}>
                 {isTest ? "Run Test" : "Start Processing"}
               </Button>
             </div>
