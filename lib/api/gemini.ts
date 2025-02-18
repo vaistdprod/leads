@@ -40,10 +40,17 @@ export interface EnrichmentData {
 
 export async function enrichLeadData(input: EnrichmentInput): Promise<EnrichmentData> {
   const genAI = new GoogleGenerativeAI(input.geminiApiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+  const model = genAI.getGenerativeModel({ 
+    model: "gemini-pro",
+    generationConfig: {
+      temperature: input.temperature || 0.3, // Lower temperature for more consistent, factual responses
+      topK: input.topK || 20,
+      topP: input.topP || 0.8
+    }
+  });
 
   const defaultPrompt = `You are a lead enrichment assistant. Your responses must:
-1. Be in exact JSON format with no additional text
+1. Return ONLY valid JSON, no markdown or other formatting
 2. Handle Czech names and companies appropriately
 3. Provide clear Czech messages when information is unavailable
 4. Maintain professional tone
@@ -55,14 +62,34 @@ Company: ${input.company}
 Position: ${input.position}
 Email: ${input.email}
 
-Return in this exact JSON format:
+Return EXACTLY this JSON structure with Czech content (no other text, no markdown):
 {
-  "companyInfo": "Brief company background and key information",
-  "positionInfo": "Role responsibilities and typical challenges",
-  "industryTrends": "Current industry trends and challenges",
-  "commonInterests": "Potential talking points based on role/industry",
-  "potentialPainPoints": "Likely business challenges or needs",
-  "relevantNews": "Any recent developments or news"
+  "companyInfo": "Stručný popis společnosti a klíčové informace",
+  "positionInfo": "Odpovědnosti role a typické výzvy",
+  "industryTrends": "Aktuální trendy a výzvy v oboru",
+  "commonInterests": "Možné společné zájmy na základě role/oboru",
+  "potentialPainPoints": "Pravděpodobné obchodní výzvy nebo potřeby",
+  "relevantNews": "Aktuální vývoj nebo novinky"
+}
+
+Example of valid response:
+{
+  "companyInfo": "Společnost se zaměřuje na vývoj softwaru pro automatizaci výroby",
+  "positionInfo": "Jako technický ředitel zodpovídá za strategii a implementaci IT řešení",
+  "industryTrends": "Rostoucí důraz na AI a automatizaci v průmyslu",
+  "commonInterests": "Zájem o moderní technologie a optimalizaci procesů",
+  "potentialPainPoints": "Potřeba efektivnější správy IT infrastruktury",
+  "relevantNews": "Nedávné rozšíření výrobních kapacit"
+}
+
+If information is unavailable, use these default Czech messages:
+{
+  "companyInfo": "Informace o společnosti nejsou k dispozici",
+  "positionInfo": "Detaily o pozici nejsou k dispozici",
+  "industryTrends": "Aktuální trendy v oboru nejsou k dispozici",
+  "commonInterests": "Společné zájmy nelze určit",
+  "potentialPainPoints": "Možné problémy nelze identifikovat",
+  "relevantNews": "Žádné relevantní novinky nejsou k dispozici"
 }`;
 
   const prompt = input.enrichmentPrompt || defaultPrompt;
@@ -140,7 +167,14 @@ Return in this exact JSON format:
 
 export async function generateEmail(contact: { firstName: string; lastName: string; email: string; company: string; position: string }, enrichmentData: EnrichmentData, config: EmailInput): Promise<{ subject: string; body: string }> {
   const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-  const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+  const model = genAI.getGenerativeModel({ 
+    model: "gemini-pro",
+    generationConfig: {
+      temperature: config.temperature || 0.7, // Higher temperature for more creative email writing
+      topK: config.topK || 40,
+      topP: config.topP || 0.95
+    }
+  });
 
   const defaultPrompt = `You are an email writing assistant. Your responses must:
 1. Be in exact JSON format with no additional text
