@@ -50,7 +50,7 @@ interface ProcessingConfig {
 
 const VERCEL_TIMEOUT = 60000; // 60 seconds to be extra safe
 const DEFAULT_DELAY = 30; // 30 seconds between emails by default
-const MAX_EMAILS_PER_BATCH = 2; // Process max 2 emails per batch to stay well within limits
+const MAX_EMAILS_PER_BATCH = 3; // Process max 3 emails per batch
 
 async function logProcessing(supabase: ReturnType<typeof createServerClient<Database>>, userId: string, stage: string, status: LogStatus, message: string, metadata?: any) {
   try {
@@ -90,10 +90,11 @@ async function processBatch(
   let generatedEmails: Array<{ to: string, subject: string, body: string, enrichmentData: EnrichmentData }> = [];
 
   for (let i = 0; i < contacts.length; i++) {
-    // Check if we're approaching the timeout, including scheduled delay
+    // Check if we're approaching the timeout
     const timeElapsed = Date.now() - batchStartTime;
-    const scheduledDelay = (startIndex + i) * ((config.delayBetweenEmails ?? DEFAULT_DELAY) * 1000);
-    if (timeElapsed + scheduledDelay > VERCEL_TIMEOUT) {
+    const remainingTime = VERCEL_TIMEOUT - timeElapsed;
+    const estimatedProcessingTime = 20000; // 20 seconds per email for processing
+    if (remainingTime < estimatedProcessingTime) {
       console.log('Approaching Vercel timeout, stopping batch processing');
       break;
     }
@@ -342,21 +343,26 @@ export async function POST(request: Request) {
       }
 
       console.log('Contacts loaded:', contacts.length);
+      
       // Mark blacklisted contacts and filter them out
-      let filteredContacts = contacts.filter(contact => {
-        if (contact.email && blacklist.includes(contact.email.toLowerCase().trim())) {
-          // Update status to blacklisted
-          updateContact(
-            settings.contacts_sheet_id ?? "",
-            contact.email,
-            {
-              status: 'blacklisted'
-            }
-          );
-          return false;
-        }
-        return contact.email;
-      });
+      const blacklistedContacts = contacts.filter(contact => 
+        contact.email && blacklist.includes(contact.email.toLowerCase().trim())
+      );
+
+      // Update blacklisted contacts status
+      await Promise.all(blacklistedContacts.map(contact => 
+        updateContact(
+          settings.contacts_sheet_id ?? "",
+          contact.email,
+          {
+            status: 'blacklisted'
+          }
+        )
+      ));
+
+      let filteredContacts = contacts.filter(contact => 
+        contact.email && !blacklist.includes(contact.email.toLowerCase().trim())
+      );
       
       // Apply row range filtering if specified
       if (config.startRow !== undefined || config.endRow !== undefined) {

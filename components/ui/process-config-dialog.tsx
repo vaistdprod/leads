@@ -125,9 +125,9 @@ export function ProcessConfigDialog({ onProcess, isTest = false, processing }: P
       </Button>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-[425px] p-0">
+        <DialogContent className="sm:max-w-[425px] p-0 relative">
           {processing && (
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center" style={{ zIndex: 9999 }}>
               <div className="w-[80%] space-y-4 p-4">
                 <Progress value={progress} className="h-2" />
                 <p className="text-sm text-center text-muted-foreground">
