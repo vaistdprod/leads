@@ -60,34 +60,42 @@
     --color-ring: oklch(0.831 0 0);
   }
 
-  /* Button hover/focus effects */
+  /* Button improvements */
   .button, button, [type='button'], [type='submit'] {
     transition: all 0.2s ease-in-out;
     outline-offset: 1px;
+    border: 1px solid var(--color-border);
   }
 
   .button:hover, button:hover, [type='button']:hover, [type='submit']:hover {
     opacity: 0.9;
-    transform: translateY(-1px);
+    border-color: var(--color-ring);
   }
 
   .button:focus, button:focus, [type='button']:focus, [type='submit']:focus {
-    outline: 1px solid var(--color-ring);
-    transform: translateY(-1px);
+    outline: 2px solid var(--color-ring);
+    border-color: var(--color-ring);
   }
 
-/* Slider improvements */
+  /* Slider improvements */
   [role="slider"] {
-    background-color: var(--color-foreground);
-    transition: background-color 0.2s ease-in-out;
+    background-color: var(--color-primary);
+    border: 2px solid var(--color-border);
+    transition: all 0.2s ease-in-out;
+    height: 1.5rem !important;
+    width: 1.5rem !important;
   }
 
-  [role="slider"]:hover{
-    background-color: var(--color-muted-foreground);
+  [role="slider"]:hover {
+    background-color: var(--color-primary-foreground);
+    border-color: var(--color-primary);
+    transform: scale(1.1);
   }
 
   .slider-track {
-    background-color: var(--color-border);
+    background-color: var(--color-muted);
+    border: 1px solid var(--color-border);
+    height: 0.5rem !important;
   }
 
   /* Select and dropdown improvements */
@@ -97,22 +105,38 @@
     border: 1px solid var(--color-border);
   }
 
-/* Toggle improvements */
+  /* Toggle improvements */
   [role="switch"] {
-    background-color: var(--color-muted-foreground);
-    transition: background-color 0.2s ease-in-out;
+    background-color: var(--color-muted);
+    border: 2px solid var(--color-border);
+    transition: all 0.2s ease-in-out;
+    height: 1.75rem !important;
+    width: 3rem !important;
   }
 
   [role="switch"]:hover {
-     background-color: var(--color-muted);
+    border-color: var(--color-primary);
   }
 
   [role="switch"][data-state="checked"] {
     background-color: var(--color-primary);
+    border-color: var(--color-primary);
   }
 
   [role="switch"][data-state="checked"]:hover {
+    opacity: 0.9;
+  }
+
+  [role="switch"] span {
+    background-color: var(--color-background);
+    border: 1px solid var(--color-border);
+    height: 1.25rem !important;
+    width: 1.25rem !important;
+  }
+
+  [role="switch"][data-state="checked"] span {
     background-color: var(--color-primary-foreground);
+    border-color: var(--color-primary);
   }
 
   /* Chart improvements */

@@ -48,8 +48,13 @@ interface ProcessingConfig {
   updateScheduling?: boolean;
 }
 
-const BATCH_SIZE = 3; // Process 3 contacts per batch
 const VERCEL_TIMEOUT = 85000; // 85 seconds to be safe
+const DEFAULT_DELAY = 30; // 30 seconds between emails by default
+
+// Calculate max batch size based on delay and timeout
+// Use 80% of timeout for safety margin
+const SAFE_TIMEOUT = VERCEL_TIMEOUT * 0.8;
+const BATCH_SIZE = Math.max(1, Math.floor(SAFE_TIMEOUT / (DEFAULT_DELAY * 1000)));
 
 async function logProcessing(supabase: ReturnType<typeof createServerClient<Database>>, userId: string, stage: string, status: LogStatus, message: string, metadata?: any) {
   try {
@@ -89,17 +94,16 @@ async function processBatch(
   let generatedEmails: Array<{ to: string, subject: string, body: string, enrichmentData: EnrichmentData }> = [];
 
   for (let i = 0; i < contacts.length; i++) {
-    // Check if we're approaching the timeout
+    // Check if we're approaching the timeout, including scheduled delay
     const timeElapsed = Date.now() - batchStartTime;
-    if (timeElapsed > VERCEL_TIMEOUT) {
+    const scheduledDelay = (startIndex + i) * ((config.delayBetweenEmails ?? DEFAULT_DELAY) * 1000);
+    if (timeElapsed + scheduledDelay > VERCEL_TIMEOUT) {
+      console.log('Approaching Vercel timeout, stopping batch processing');
       break;
     }
 
     const contact = contacts[i];
     const currentIndex = startIndex + i;
-
-    // Calculate scheduled time with delay
-    const scheduledTime = new Date(Date.now() + (currentIndex * (config.delayBetweenEmails ?? 30) * 1000));
 
     try {
       console.log('Processing contact:', contact.email);
@@ -173,7 +177,7 @@ async function processBatch(
 
       if (!config.testMode) {
         // Calculate scheduled time with delay
-        const scheduledTime = new Date(Date.now() + (currentIndex * (config.delayBetweenEmails ?? 30) * 1000));
+        const scheduledTime = new Date(Date.now() + (currentIndex * (config.delayBetweenEmails ?? DEFAULT_DELAY) * 1000));
         
         // Always update scheduling information
         await updateContact(
@@ -184,6 +188,14 @@ async function processBatch(
             status: 'pending'
           }
         );
+
+        // Wait until scheduled time
+        const now = Date.now();
+        const waitTime = scheduledTime.getTime() - now;
+        if (waitTime > 0) {
+          console.log(`Waiting ${waitTime/1000} seconds before sending to:`, contact.email);
+          await delay(waitTime);
+        }
 
         // Important: We only send to the email address from the sheet, never to any alternative addresses
         console.log('Sending email to:', contact.email, 'as:', settings.impersonated_email);
