@@ -33,7 +33,8 @@ export const getGoogleAuthClient = async (impersonatedUser?: string) => {
         key: privateKey,
         scopes: [
           'https://www.googleapis.com/auth/gmail.send',
-          'https://www.googleapis.com/auth/spreadsheets'
+          'https://www.googleapis.com/auth/spreadsheets',
+          'https://www.googleapis.com/auth/webmasters.readonly'
         ],
         subject: impersonatedUser,
       });
