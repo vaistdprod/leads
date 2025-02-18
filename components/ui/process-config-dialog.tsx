@@ -125,126 +125,128 @@ export function ProcessConfigDialog({ onProcess, isTest = false, processing }: P
       </Button>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-[425px] p-0 relative">
-          {processing && (
-            <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center" style={{ zIndex: 9999 }}>
-              <div className="w-[80%] space-y-4 p-4">
-                <Progress value={progress} className="h-2" />
-                <p className="text-sm text-center text-muted-foreground">
-                  {totalContacts === null ? (
-                    "Loading contacts..."
-                  ) : (
-                    `Processing ${totalProcessed} of ${totalContacts} contacts...`
-                  )}
-                </p>
-              </div>
-            </div>
-          )}
-          <div className="flex flex-col h-full">
-            <div className="p-6 pb-2">
-              <DialogHeader>
-                <DialogTitle>{isTest ? "Test Configuration" : "Process Configuration"}</DialogTitle>
-                <DialogDescription>
-                  Configure how contacts will be processed and scheduled
-                </DialogDescription>
-              </DialogHeader>
-            </div>
-
-            <form id="processConfigForm" onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6">
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="startRow">Start Row (optional)</Label>
-                    <Input
-                      id="startRow"
-                      type="number"
-                      min="1"
-                      placeholder="From beginning"
-                      value={config.startRow || ""}
-                      onChange={(e) => setConfig(prev => ({
-                        ...prev,
-                        startRow: e.target.value ? parseInt(e.target.value) - 1 : undefined
-                      }))}
-                      aria-describedby="startRowHelp"
-                    />
-                    <p id="startRowHelp" className="text-xs text-muted-foreground">
-                      First row to process (1-based)
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="endRow">End Row (optional)</Label>
-                    <Input
-                      id="endRow"
-                      type="number"
-                      min="1"
-                      placeholder="To end"
-                      value={config.endRow || ""}
-                      onChange={(e) => setConfig(prev => ({
-                        ...prev,
-                        endRow: e.target.value ? parseInt(e.target.value) : undefined
-                      }))}
-                      aria-describedby="endRowHelp"
-                    />
-                    <p id="endRowHelp" className="text-xs text-muted-foreground">
-                      Last row to process (1-based)
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="delay">Delay Between Emails (seconds)</Label>
-                  <Input
-                    id="delay"
-                    type="number"
-                    min="1"
-                    value={config.delayBetweenEmails}
-                    onChange={(e) => setConfig(prev => ({
-                      ...prev,
-                      delayBetweenEmails: parseInt(e.target.value) || 30
-                    }))}
-                    aria-describedby="delayHelp"
-                  />
-                  <p id="delayHelp" className="text-xs text-muted-foreground">
-                    Time to wait between sending each email
-                  </p>
-                  {config.startRow !== undefined && config.endRow !== undefined && (
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Estimated duration: {((config.endRow - (config.startRow ?? 0)) * config.delayBetweenEmails / 60).toFixed(1)} minutes
-                    </p>
-                  )}
-                  <p className="text-sm text-muted-foreground">
-                    Note: Processing is done in batches to handle large volumes
+        <DialogContent className="sm:max-w-[425px] p-0">
+          <div className="relative">
+            {processing && (
+              <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+                <div className="w-[80%] space-y-4 p-4">
+                  <Progress value={progress} className="h-2" />
+                  <p className="text-sm text-center text-muted-foreground">
+                    {totalContacts === null ? (
+                      "Loading contacts..."
+                    ) : (
+                      `Processing ${totalProcessed} of ${totalContacts} contacts...`
+                    )}
                   </p>
                 </div>
-
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="updateScheduling"
-                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                    checked={config.updateScheduling}
-                    onChange={(e) => setConfig(prev => ({
-                      ...prev,
-                      updateScheduling: e.target.checked
-                    }))}
-                    aria-describedby="updateSchedulingHelp"
-                  />
-                  <Label htmlFor="updateScheduling">Update scheduling information in sheets</Label>
-                </div>
-                <p id="updateSchedulingHelp" className="text-xs text-muted-foreground ml-6">
-                  Track email status and scheduling in Google Sheets
-                </p>
               </div>
-            </form>
+            )}
+            <div className="flex flex-col h-full">
+              <div className="p-6 pb-2">
+                <DialogHeader>
+                  <DialogTitle>{isTest ? "Test Configuration" : "Process Configuration"}</DialogTitle>
+                  <DialogDescription>
+                    Configure how contacts will be processed and scheduled
+                  </DialogDescription>
+                </DialogHeader>
+              </div>
 
-            <div className="p-6 pt-2 border-t mt-6">
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" form="processConfigForm" disabled={processing}>
-                  {isTest ? "Run Test" : "Start Processing"}
-                </Button>
+              <form id="processConfigForm" onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="startRow">Start Row (optional)</Label>
+                      <Input
+                        id="startRow"
+                        type="number"
+                        min="1"
+                        placeholder="From beginning"
+                        value={config.startRow || ""}
+                        onChange={(e) => setConfig(prev => ({
+                          ...prev,
+                          startRow: e.target.value ? parseInt(e.target.value) - 1 : undefined
+                        }))}
+                        aria-describedby="startRowHelp"
+                      />
+                      <p id="startRowHelp" className="text-xs text-muted-foreground">
+                        First row to process (1-based)
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="endRow">End Row (optional)</Label>
+                      <Input
+                        id="endRow"
+                        type="number"
+                        min="1"
+                        placeholder="To end"
+                        value={config.endRow || ""}
+                        onChange={(e) => setConfig(prev => ({
+                          ...prev,
+                          endRow: e.target.value ? parseInt(e.target.value) : undefined
+                        }))}
+                        aria-describedby="endRowHelp"
+                      />
+                      <p id="endRowHelp" className="text-xs text-muted-foreground">
+                        Last row to process (1-based)
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="delay">Delay Between Emails (seconds)</Label>
+                    <Input
+                      id="delay"
+                      type="number"
+                      min="1"
+                      value={config.delayBetweenEmails}
+                      onChange={(e) => setConfig(prev => ({
+                        ...prev,
+                        delayBetweenEmails: parseInt(e.target.value) || 30
+                      }))}
+                      aria-describedby="delayHelp"
+                    />
+                    <p id="delayHelp" className="text-xs text-muted-foreground">
+                      Time to wait between sending each email
+                    </p>
+                    {config.startRow !== undefined && config.endRow !== undefined && (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Estimated duration: {((config.endRow - (config.startRow ?? 0)) * config.delayBetweenEmails / 60).toFixed(1)} minutes
+                      </p>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                      Note: Processing is done in batches to handle large volumes
+                    </p>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="updateScheduling"
+                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                      checked={config.updateScheduling}
+                      onChange={(e) => setConfig(prev => ({
+                        ...prev,
+                        updateScheduling: e.target.checked
+                      }))}
+                      aria-describedby="updateSchedulingHelp"
+                    />
+                    <Label htmlFor="updateScheduling">Update scheduling information in sheets</Label>
+                  </div>
+                  <p id="updateSchedulingHelp" className="text-xs text-muted-foreground ml-6">
+                    Track email status and scheduling in Google Sheets
+                  </p>
+                </div>
+              </form>
+
+              <div className="p-6 pt-2 border-t mt-6">
+                <div className="flex justify-end space-x-2">
+                  <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" form="processConfigForm" disabled={processing}>
+                    {isTest ? "Run Test" : "Start Processing"}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

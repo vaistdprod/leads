@@ -48,9 +48,10 @@ interface ProcessingConfig {
   updateScheduling?: boolean;
 }
 
-const VERCEL_TIMEOUT = 60000; // 60 seconds to be extra safe
+const VERCEL_TIMEOUT = 800000; // 800 seconds
 const DEFAULT_DELAY = 30; // 30 seconds between emails by default
-const MAX_EMAILS_PER_BATCH = 3; // Process max 3 emails per batch
+const MAX_EMAILS_PER_BATCH = 15; // Process max 15 emails per batch
+const PROCESSING_TIME_PER_EMAIL = 20000; // 20 seconds per email for processing
 
 async function logProcessing(supabase: ReturnType<typeof createServerClient<Database>>, userId: string, stage: string, status: LogStatus, message: string, metadata?: any) {
   try {
@@ -76,6 +77,20 @@ async function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+async function updateContactStatus(sheetId: string, email: string, status: string, scheduledFor?: string) {
+  try {
+    const updates: any = { status };
+    if (scheduledFor) {
+      updates.scheduledFor = scheduledFor;
+    }
+    await updateContact(sheetId, email, updates);
+    return true;
+  } catch (error) {
+    console.error('Failed to update contact status:', error);
+    return false;
+  }
+}
+
 async function processBatch(
   contacts: any[],
   settings: any,
@@ -93,8 +108,10 @@ async function processBatch(
     // Check if we're approaching the timeout
     const timeElapsed = Date.now() - batchStartTime;
     const remainingTime = VERCEL_TIMEOUT - timeElapsed;
-    const estimatedProcessingTime = 20000; // 20 seconds per email for processing
-    if (remainingTime < estimatedProcessingTime) {
+    const remainingEmails = contacts.length - i;
+    const estimatedTimeNeeded = remainingEmails * PROCESSING_TIME_PER_EMAIL;
+
+    if (remainingTime < estimatedTimeNeeded) {
       console.log('Approaching Vercel timeout, stopping batch processing');
       break;
     }
@@ -176,14 +193,12 @@ async function processBatch(
         // Calculate scheduled time with delay
         const scheduledTime = new Date(Date.now() + (currentIndex * (config.delayBetweenEmails ?? DEFAULT_DELAY) * 1000));
         
-        // Always update scheduling information
-        await updateContact(
+        // Update status to pending and set scheduled time
+        await updateContactStatus(
           settings.contacts_sheet_id ?? "",
           contact.email,
-          {
-            scheduledFor: scheduledTime.toISOString(),
-            status: 'pending'
-          }
+          'pending',
+          scheduledTime.toISOString()
         );
 
         // Wait until scheduled time
@@ -199,12 +214,10 @@ async function processBatch(
         await sendEmail(contact.email, email.subject, email.body, settings.impersonated_email ?? "");
         
         // Update status to sent
-        await updateContact(
+        await updateContactStatus(
           settings.contacts_sheet_id ?? "",
           contact.email,
-          {
-            status: 'sent'
-          }
+          'sent'
         );
         
         await supabase.from('lead_history').insert({
@@ -245,12 +258,10 @@ async function processBatch(
       console.error('Failed to process contact:', contact.email, error);
       failureCount++;
       
-      await updateContact(
+      await updateContactStatus(
         settings.contacts_sheet_id ?? "",
         contact.email,
-        {
-          status: 'failed'
-        }
+        'failed'
       );
       
       await logProcessing(supabase, userId, 'email', 'error', `Failed to process contact: ${contact.email}`, { 
@@ -324,10 +335,12 @@ export async function POST(request: Request) {
 
     console.log('Starting blacklist processing...');
     try {
+      // Load blacklist first
       const blacklist = await getBlacklist(settings.blacklist_sheet_id ?? "");
       await logProcessing(supabase, userId, 'blacklist', 'success', `Loaded ${blacklist.length} blacklisted emails`);
       console.log('Blacklist loaded:', blacklist.length, 'emails');
 
+      // Load all contacts
       console.log('Loading contacts...');
       const columnMappings = settings.column_mappings ?? {
         name: 'název',
@@ -341,25 +354,19 @@ export async function POST(request: Request) {
       if (!contacts || !Array.isArray(contacts)) {
         throw new Error('Failed to load contacts: Invalid response format');
       }
-
       console.log('Contacts loaded:', contacts.length);
-      
-      // Mark blacklisted contacts and filter them out
+
+      // Process blacklist first
       const blacklistedContacts = contacts.filter(contact => 
         contact.email && blacklist.includes(contact.email.toLowerCase().trim())
       );
 
-      // Update blacklisted contacts status
+      // Update all blacklisted contacts at once
       await Promise.all(blacklistedContacts.map(contact => 
-        updateContact(
-          settings.contacts_sheet_id ?? "",
-          contact.email,
-          {
-            status: 'blacklisted'
-          }
-        )
+        updateContactStatus(settings.contacts_sheet_id ?? "", contact.email, 'blacklisted')
       ));
-
+      
+      // Filter out blacklisted contacts
       let filteredContacts = contacts.filter(contact => 
         contact.email && !blacklist.includes(contact.email.toLowerCase().trim())
       );
