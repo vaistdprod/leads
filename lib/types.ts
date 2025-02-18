@@ -234,6 +234,29 @@ export type Database = {
             scheduledFor: string
             status: string
           } | null
+          seo_settings: {
+            analysis: {
+              autoAnalyze: boolean
+              crawlDepth: number
+              includeImages: boolean
+              checkBrokenLinks: boolean
+              analysisInterval: string
+              maxPagesPerScan: number
+            }
+            content: {
+              temperature: number
+              maxTokens: number
+              language: string
+              tone: string
+              includeSources: boolean
+            }
+            notifications: {
+              emailAlerts: boolean
+              weeklyReport: boolean
+              performanceAlerts: boolean
+              alertThreshold: number
+            }
+          } | null
         }
         Insert: {
           auto_execution_enabled?: boolean | null

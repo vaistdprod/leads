@@ -5,6 +5,7 @@ const SCOPES = [
   'https://www.googleapis.com/auth/gmail.send',
   'https://www.googleapis.com/auth/spreadsheets',
   'https://www.googleapis.com/auth/admin.directory.user.readonly',
+  'https://www.googleapis.com/auth/webmasters.readonly',
 ];
 
 export const getGoogleAuthClient = async (impersonatedUser?: string) => {

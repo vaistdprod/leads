@@ -42,7 +42,7 @@ export function ProcessConfigDialog({ onProcess, isTest = false, processing }: P
   const [open, setOpen] = useState(false);
   const [progress, setProgress] = useState(0);
   const [totalProcessed, setTotalProcessed] = useState(0);
-  const [totalContacts, setTotalContacts] = useState(0);
+  const [totalContacts, setTotalContacts] = useState<number | null>(null);
   const [config, setConfig] = useState<ProcessConfig>({
     delayBetweenEmails: 30,
     testMode: isTest,
@@ -50,7 +50,7 @@ export function ProcessConfigDialog({ onProcess, isTest = false, processing }: P
   });
 
   useEffect(() => {
-    if (totalContacts > 0) {
+    if (totalContacts && totalContacts > 0) {
       setProgress((totalProcessed / totalContacts) * 100);
     }
   }, [totalProcessed, totalContacts]);
@@ -64,8 +64,17 @@ export function ProcessConfigDialog({ onProcess, isTest = false, processing }: P
         testMode: isTest
       };
 
+      // Reset progress state
+      setTotalContacts(null);
+      setTotalProcessed(0);
+      setProgress(0);
+
       let result = await onProcess(currentConfig);
-      setTotalContacts(result.stats.total);
+      
+      // Set total contacts only on first batch
+      if (totalContacts === null) {
+        setTotalContacts(result.stats.total);
+      }
       setTotalProcessed(result.stats.processed);
 
       // Continue processing remaining batches
@@ -86,6 +95,12 @@ export function ProcessConfigDialog({ onProcess, isTest = false, processing }: P
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!processing) {
+      if (!newOpen) {
+        // Reset state when dialog is closed
+        setTotalContacts(null);
+        setTotalProcessed(0);
+        setProgress(0);
+      }
       setOpen(newOpen);
     }
   };
@@ -116,7 +131,11 @@ export function ProcessConfigDialog({ onProcess, isTest = false, processing }: P
               <div className="w-[80%] space-y-4 p-4">
                 <Progress value={progress} className="h-2" />
                 <p className="text-sm text-center text-muted-foreground">
-                  Processing {totalProcessed} of {totalContacts} contacts...
+                  {totalContacts === null ? (
+                    "Loading contacts..."
+                  ) : (
+                    `Processing ${totalProcessed} of ${totalContacts} contacts...`
+                  )}
                 </p>
               </div>
             </div>

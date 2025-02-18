@@ -20,10 +20,11 @@ export default function SettingsLayout({
   return (
     <div className="container mx-auto py-8 px-4">
       <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-8">
-        <TabsList className="grid grid-cols-3 w-full">
+        <TabsList className="grid grid-cols-4 w-full">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="ai">AI Settings</TabsTrigger>
           <TabsTrigger value="email">Email Settings</TabsTrigger>
+          <TabsTrigger value="seo">SEO Settings</TabsTrigger>
         </TabsList>
         {children}
       </Tabs>

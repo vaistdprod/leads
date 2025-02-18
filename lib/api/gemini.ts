@@ -72,7 +72,7 @@ Return EXACTLY this JSON structure with Czech content (no other text, no markdow
   "relevantNews": "Aktuální vývoj nebo novinky"
 }
 
-Example of valid response:
+Example of valid response when information is available:
 {
   "companyInfo": "Společnost se zaměřuje na vývoj softwaru pro automatizaci výroby",
   "positionInfo": "Jako technický ředitel zodpovídá za strategii a implementaci IT řešení",
@@ -82,15 +82,21 @@ Example of valid response:
   "relevantNews": "Nedávné rozšíření výrobních kapacit"
 }
 
-If information is unavailable, use these default Czech messages:
+Example of valid response when information is unavailable:
 {
-  "companyInfo": "Informace o společnosti nejsou k dispozici",
-  "positionInfo": "Detaily o pozici nejsou k dispozici",
-  "industryTrends": "Aktuální trendy v oboru nejsou k dispozici",
-  "commonInterests": "Společné zájmy nelze určit",
-  "potentialPainPoints": "Možné problémy nelze identifikovat",
-  "relevantNews": "Žádné relevantní novinky nejsou k dispozici"
-}`;
+  "companyInfo": "Pro společnost \${company} nejsou k dispozici dostatečné informace",
+  "positionInfo": "\${firstName} \${lastName} působí na pozici \${position}",
+  "industryTrends": "Pro tento obor nejsou k dispozici aktuální trendy",
+  "commonInterests": "Na základě dostupných informací nelze určit společné zájmy",
+  "potentialPainPoints": "Bez detailnějších informací nelze identifikovat konkrétní výzvy",
+  "relevantNews": "Pro společnost \${company} nejsou k dispozici aktuální novinky"
+}
+
+IMPORTANT: 
+1. Always return valid JSON
+2. Never use markdown formatting
+3. Replace template variables like \${firstName}, \${lastName}, \${company}, \${position} with actual values
+4. If information is unavailable, use personalized messages that include the contact's details`;
 
   const prompt = input.enrichmentPrompt || defaultPrompt;
 
@@ -104,13 +110,22 @@ If information is unavailable, use these default Czech messages:
       const parsed = JSON.parse(text);
       // Validate the structure
       if (typeof parsed === 'object' && parsed !== null) {
+        // Replace template variables in each field
+        const replaceTemplateVars = (str: string) => {
+          return str
+            .replace(/\${firstName}/g, input.firstName)
+            .replace(/\${lastName}/g, input.lastName)
+            .replace(/\${company}/g, input.company)
+            .replace(/\${position}/g, input.position);
+        };
+
         return {
-          companyInfo: parsed.companyInfo || "Informace o společnosti nejsou k dispozici.",
-          positionInfo: parsed.positionInfo || "Detaily o pozici nejsou k dispozici.",
-          industryTrends: parsed.industryTrends || "Aktuální trendy v oboru nejsou k dispozici.",
-          commonInterests: parsed.commonInterests || "Společné zájmy nelze určit.",
-          potentialPainPoints: parsed.potentialPainPoints || "Možné problémy nelze identifikovat.",
-          relevantNews: parsed.relevantNews || "Žádné relevantní novinky nejsou k dispozici."
+          companyInfo: replaceTemplateVars(parsed.companyInfo || `Pro společnost ${input.company} nejsou k dispozici dostatečné informace`),
+          positionInfo: replaceTemplateVars(parsed.positionInfo || `${input.firstName} ${input.lastName} působí na pozici ${input.position}`),
+          industryTrends: replaceTemplateVars(parsed.industryTrends || "Pro tento obor nejsou k dispozici aktuální trendy"),
+          commonInterests: replaceTemplateVars(parsed.commonInterests || "Na základě dostupných informací nelze určit společné zájmy"),
+          potentialPainPoints: replaceTemplateVars(parsed.potentialPainPoints || "Bez detailnějších informací nelze identifikovat konkrétní výzvy"),
+          relevantNews: replaceTemplateVars(parsed.relevantNews || `Pro společnost ${input.company} nejsou k dispozici aktuální novinky`)
         };
       }
       throw new Error('Invalid JSON structure');
