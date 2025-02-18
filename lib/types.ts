@@ -226,6 +226,14 @@ export type Database = {
           updated_at: string | null
           use_google_search: boolean | null
           user_id: string
+          column_mappings: {
+            name: string
+            email: string
+            company: string
+            position: string
+            scheduledFor: string
+            status: string
+          } | null
         }
         Insert: {
           auto_execution_enabled?: boolean | null

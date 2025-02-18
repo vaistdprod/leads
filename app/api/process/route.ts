@@ -319,7 +319,15 @@ export async function POST(request: Request) {
       console.log('Blacklist loaded:', blacklist.length, 'emails');
 
       console.log('Loading contacts...');
-      const contacts = await getContacts(settings.contacts_sheet_id ?? "");
+      const columnMappings = settings.column_mappings ?? {
+        name: 'název',
+        email: 'email',
+        company: 'společnost',
+        position: 'pozice',
+        scheduledFor: 'scheduledfor',
+        status: 'status'
+      };
+      const contacts = await getContacts(settings.contacts_sheet_id ?? "", columnMappings);
       if (!contacts || !Array.isArray(contacts)) {
         throw new Error('Failed to load contacts: Invalid response format');
       }

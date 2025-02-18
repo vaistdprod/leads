@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ColumnMappingForm } from "@/components/ui/column-mapping-form";
 import {
   Form,
   FormControl,
@@ -34,6 +35,14 @@ interface DomainUser {
 
 const emailSettingsSchema = z.object({
   impersonatedEmail: z.string().email('Valid email required'),
+  columnMappings: z.object({
+    name: z.string(),
+    email: z.string(),
+    company: z.string(),
+    position: z.string(),
+    scheduledFor: z.string(),
+    status: z.string()
+  }).optional()
 });
 
 export default function EmailSettingsPage() {
@@ -45,6 +54,14 @@ export default function EmailSettingsPage() {
     resolver: zodResolver(emailSettingsSchema),
     defaultValues: {
       impersonatedEmail: '',
+      columnMappings: {
+        name: 'název',
+        email: 'email',
+        company: 'společnost',
+        position: 'pozice',
+        scheduledFor: 'scheduledfor',
+        status: 'status'
+      }
     },
   });
 
@@ -64,6 +81,14 @@ export default function EmailSettingsPage() {
       if (settings) {
         form.reset({
           impersonatedEmail: settings.impersonated_email || '',
+          columnMappings: settings.column_mappings || {
+            name: 'název',
+            email: 'email',
+            company: 'společnost',
+            position: 'pozice',
+            scheduledFor: 'scheduledfor',
+            status: 'status'
+          }
         });
       }
 
@@ -92,6 +117,7 @@ export default function EmailSettingsPage() {
         .from('settings')
         .update({
           impersonated_email: values.impersonatedEmail,
+          column_mappings: values.columnMappings,
           updated_at: new Date().toISOString(),
         })
         .eq('user_id', user.id);
@@ -165,7 +191,17 @@ export default function EmailSettingsPage() {
               )}
             />
 
-            <div className="flex justify-between">
+            <div className="mt-8">
+              <ColumnMappingForm
+                initialMappings={form.getValues().columnMappings}
+                onSave={(mappings) => {
+                  form.setValue('columnMappings', mappings);
+                  form.handleSubmit(onSubmit)();
+                }}
+              />
+            </div>
+
+            <div className="flex justify-between mt-8">
               <Button
                 type="button"
                 variant="outline"
@@ -173,7 +209,7 @@ export default function EmailSettingsPage() {
               >
                 Back
               </Button>
-              <Button type="submit">Save Settings</Button>
+              <Button type="submit">Save All Settings</Button>
             </div>
           </form>
         </Form>

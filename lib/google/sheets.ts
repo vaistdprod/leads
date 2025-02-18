@@ -108,13 +108,14 @@ export async function getBlacklist(sheetId: string): Promise<string[]> {
   });
 }
 
-export async function getContacts(sheetId: string): Promise<Contact[]> {
+export async function getContacts(sheetId: string, columnMappings: Record<string, string>): Promise<Contact[]> {
   return retryOperation(async () => {
     try {
       const auth = await getGoogleAuthClient();
       const sheets = google.sheets({ version: 'v4', auth });
 
-      const requiredColumns = ['název', 'email', 'společnost', 'pozice', 'scheduledfor', 'status'];
+      // Use column mappings from settings
+      const requiredColumns = Object.values(columnMappings);
       const headers = await validateSheetStructure(sheets, sheetId, requiredColumns);
 
       const { data } = await sheets.spreadsheets.values.get({
@@ -129,13 +130,13 @@ export async function getContacts(sheetId: string): Promise<Contact[]> {
 
       const [, ...rows] = data.values;
 
-      // Find required column indices
-      const nameIndex = headers.indexOf('název');
-      const emailIndex = headers.indexOf('email');
-      const companyIndex = headers.findIndex((h: string) => h === 'společnost');
-      const positionIndex = headers.findIndex((h: string) => h === 'pozice');
-      const scheduledForIndex = headers.findIndex((h: string) => h === 'scheduledfor');
-      const statusIndex = headers.findIndex((h: string) => h === 'status');
+      // Find required column indices using mappings
+      const nameIndex = headers.indexOf(columnMappings.name);
+      const emailIndex = headers.indexOf(columnMappings.email);
+      const companyIndex = headers.findIndex((h: string) => h === columnMappings.company);
+      const positionIndex = headers.findIndex((h: string) => h === columnMappings.position);
+      const scheduledForIndex = headers.findIndex((h: string) => h === columnMappings.scheduledFor);
+      const statusIndex = headers.findIndex((h: string) => h === columnMappings.status);
 
       const contacts = rows
         .map(row => {
