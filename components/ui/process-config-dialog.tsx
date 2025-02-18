@@ -1,14 +1,33 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./dialog";
 import { Button } from "./button";
 import { Input } from "./input";
 import { Label } from "./label";
 import { RefreshCw } from "lucide-react";
+import { Progress } from "./progress";
 
 interface ProcessConfigDialogProps {
-  onProcess: (config: ProcessConfig) => Promise<void>;
+  onProcess: (config: ProcessConfig) => Promise<ProcessResult>;
   isTest?: boolean;
   processing: boolean;
+}
+
+interface ProcessResult {
+  success: boolean;
+  stats: {
+    total: number;
+    processed: number;
+    success: number;
+    failure: number;
+    currentBatch: {
+      start: number;
+      end: number;
+    };
+  };
+  nextBatch?: {
+    startRow: number;
+    remainingContacts: number;
+  } | null;
 }
 
 export interface ProcessConfig {
@@ -21,20 +40,44 @@ export interface ProcessConfig {
 
 export function ProcessConfigDialog({ onProcess, isTest = false, processing }: ProcessConfigDialogProps) {
   const [open, setOpen] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [totalProcessed, setTotalProcessed] = useState(0);
+  const [totalContacts, setTotalContacts] = useState(0);
   const [config, setConfig] = useState<ProcessConfig>({
     delayBetweenEmails: 30,
     testMode: isTest,
     updateScheduling: true
   });
 
+  useEffect(() => {
+    if (totalContacts > 0) {
+      setProgress((totalProcessed / totalContacts) * 100);
+    }
+  }, [totalProcessed, totalContacts]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
-      await onProcess({
+      let currentConfig = {
         ...config,
         testMode: isTest
-      });
+      };
+
+      let result = await onProcess(currentConfig);
+      setTotalContacts(result.stats.total);
+      setTotalProcessed(result.stats.processed);
+
+      // Continue processing remaining batches
+      while (result.nextBatch) {
+        currentConfig = {
+          ...currentConfig,
+          startRow: result.nextBatch.startRow
+        };
+        result = await onProcess(currentConfig);
+        setTotalProcessed(result.stats.processed);
+      }
+
       setOpen(false);
     } catch (error) {
       console.error('Process error:', error);
@@ -68,6 +111,16 @@ export function ProcessConfigDialog({ onProcess, isTest = false, processing }: P
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-[425px] p-0">
+          {processing && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50">
+              <div className="w-[80%] space-y-4 p-4">
+                <Progress value={progress} className="h-2" />
+                <p className="text-sm text-center text-muted-foreground">
+                  Processing {totalProcessed} of {totalContacts} contacts...
+                </p>
+              </div>
+            </div>
+          )}
           <div className="flex flex-col h-full">
             <div className="p-6 pb-2">
               <DialogHeader>

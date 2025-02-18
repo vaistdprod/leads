@@ -21,10 +21,10 @@ interface PreviewResultsDialogProps {
     processed: number;
     success: number;
     failure: number;
-    rowRange?: {
-      start: number;
-      end: number;
-    };
+  currentBatch: {
+    start: number;
+    end: number;
+  };
   };
 }
 
@@ -52,8 +52,8 @@ export function PreviewResultsDialog({ open, onOpenChange, results, stats }: Pre
                 <p>Would Process: {stats.processed}</p>
                 <p>Successful Generations: {stats.success}</p>
                 <p>Failed Generations: {stats.failure}</p>
-                {stats.rowRange && (
-                  <p>Row Range: {stats.rowRange.start + 1} - {stats.rowRange.end}</p>
+                {stats.currentBatch && (
+                  <p>Batch Range: {stats.currentBatch.start + 1} - {stats.currentBatch.end}</p>
                 )}
               </div>
             </Card>

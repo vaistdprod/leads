@@ -38,9 +38,22 @@ interface ProcessingStats {
   processed: number;
   success: number;
   failure: number;
-  rowRange?: {
+  currentBatch: {
     start: number;
     end: number;
+  };
+}
+
+interface ProcessResult {
+  success: boolean;
+  stats: ProcessingStats;
+  nextBatch?: {
+    startRow: number;
+    remainingContacts: number;
+  } | null;
+  testResults?: {
+    emails: PreviewResults['emails'];
+    delayBetweenEmails: number;
   };
 }
 
@@ -103,43 +116,89 @@ export default function OverviewPage() {
     }
   };
 
-  const handleProcess = async (config: ProcessConfig) => {
+  const handleProcess = async (config: ProcessConfig): Promise<ProcessResult> => {
     setProcessing(true);
     try {
-      const response = await fetch('/api/process', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(config)
-      });
+      let currentConfig = { ...config };
+      let allEmails: PreviewResults['emails'] = [];
+      let lastResult: ProcessResult | null = null;
 
-      const data = await response.json();
+      do {
+        const response = await fetch('/api/process', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(currentConfig)
+        });
 
-      if (!response.ok) {
-        // Check for API key error
-        if (data.error?.includes('API key expired') || data.error?.includes('API_KEY_INVALID')) {
-          setErrorMessage('Your Gemini API key has expired or is invalid. Please update it in the AI settings.');
-          setErrorDialogOpen(true);
-          return;
+        const data = await response.json();
+
+        if (!response.ok) {
+          // Check for API key error
+          if (data.error?.includes('API key expired') || data.error?.includes('API_KEY_INVALID')) {
+            setErrorMessage('Your Gemini API key has expired or is invalid. Please update it in the AI settings.');
+            setErrorDialogOpen(true);
+            throw new Error('API key error');
+          }
+          throw new Error(data.error || 'Processing failed');
         }
-        throw new Error(data.error || 'Processing failed');
-      }
-      
+
+        lastResult = data;
+        if (lastResult?.stats) {
+          setProcessingStats(lastResult.stats);
+        }
+
+        if (config.testMode && data.testResults) {
+          allEmails = [...allEmails, ...data.testResults.emails];
+        }
+
+        // Update progress
+        await loadDashboardStats();
+
+        // Setup next batch if available
+        if (data.nextBatch) {
+          currentConfig = {
+            ...currentConfig,
+            startRow: data.nextBatch.startRow
+          };
+          // Show progress toast
+          toast.info(`Processing batch ${data.stats.currentBatch.start + 1}-${data.stats.currentBatch.end} of ${data.stats.total}`);
+        } else {
+          break;
+        }
+      } while (true);
+
       if (config.testMode) {
-        setProcessingStats(data.stats);
-        if (data.testResults) {
-          console.log('Preview results:', data.testResults);
-          setPreviewResults(data.testResults);
-          setPreviewOpen(true);
-        }
+        setPreviewResults({
+          emails: allEmails,
+          delayBetweenEmails: config.delayBetweenEmails
+        });
+        setPreviewOpen(true);
       } else {
         toast.success('Processing completed successfully');
-        await loadDashboardStats();
       }
+
+      if (!lastResult) {
+        return {
+          success: false,
+          stats: {
+            total: 0,
+            processed: 0,
+            success: 0,
+            failure: 0,
+            currentBatch: {
+              start: 0,
+              end: 0
+            }
+          }
+        };
+      }
+      return lastResult;
     } catch (error) {
       console.error('Processing failed:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to process contacts');
+      throw error;
     } finally {
       setProcessing(false);
     }

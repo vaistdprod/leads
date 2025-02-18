@@ -48,13 +48,9 @@ interface ProcessingConfig {
   updateScheduling?: boolean;
 }
 
-const VERCEL_TIMEOUT = 85000; // 85 seconds to be safe
+const VERCEL_TIMEOUT = 60000; // 60 seconds to be extra safe
 const DEFAULT_DELAY = 30; // 30 seconds between emails by default
-
-// Calculate max batch size based on delay and timeout
-// Use 80% of timeout for safety margin
-const SAFE_TIMEOUT = VERCEL_TIMEOUT * 0.8;
-const BATCH_SIZE = Math.max(1, Math.floor(SAFE_TIMEOUT / (DEFAULT_DELAY * 1000)));
+const MAX_EMAILS_PER_BATCH = 2; // Process max 2 emails per batch to stay well within limits
 
 async function logProcessing(supabase: ReturnType<typeof createServerClient<Database>>, userId: string, stage: string, status: LogStatus, message: string, metadata?: any) {
   try {
@@ -346,9 +342,21 @@ export async function POST(request: Request) {
       }
 
       console.log('Contacts loaded:', contacts.length);
-      let filteredContacts = contacts.filter(
-        contact => contact.email && !blacklist.includes(contact.email.toLowerCase().trim())
-      );
+      // Mark blacklisted contacts and filter them out
+      let filteredContacts = contacts.filter(contact => {
+        if (contact.email && blacklist.includes(contact.email.toLowerCase().trim())) {
+          // Update status to blacklisted
+          updateContact(
+            settings.contacts_sheet_id ?? "",
+            contact.email,
+            {
+              status: 'blacklisted'
+            }
+          );
+          return false;
+        }
+        return contact.email;
+      });
       
       // Apply row range filtering if specified
       if (config.startRow !== undefined || config.endRow !== undefined) {
@@ -360,45 +368,40 @@ export async function POST(request: Request) {
       await logProcessing(supabase, userId, 'blacklist', 'success', `Filtered ${contacts.length - filteredContacts.length} blacklisted contacts`);
       console.log('Filtered contacts:', filteredContacts.length);
 
-      // Process contacts in batches
-      let totalSuccess = 0;
-      let totalFailure = 0;
-      let allGeneratedEmails: Array<{ to: string, subject: string, body: string, enrichmentData: EnrichmentData }> = [];
+      // Process a single batch
+      const startRow = config.startRow ?? 0;
+      const batchContacts = filteredContacts.slice(startRow, startRow + MAX_EMAILS_PER_BATCH);
+      const batchStartTime = Date.now();
+      
+      const { success, failure, emails } = await processBatch(
+        batchContacts,
+        settings,
+        config,
+        supabase,
+        userId,
+        startRow,
+        batchStartTime
+      );
 
-      for (let i = 0; i < filteredContacts.length; i += BATCH_SIZE) {
-        const batchContacts = filteredContacts.slice(i, i + BATCH_SIZE);
-        const batchStartTime = Date.now();
-        
-        const { success, failure, emails } = await processBatch(
-          batchContacts,
-          settings,
-          config,
-          supabase,
-          userId,
-          i,
-          batchStartTime
-        );
+      // Update progress in database
+      await supabase
+        .from('dashboard_stats')
+        .upsert({
+          user_id: userId,
+          total_leads: contacts.length,
+          processed_leads: startRow + success + failure,
+          success_rate: success > 0 ? (success / (success + failure)) * 100 : 0,
+          last_processed: new Date().toISOString(),
+          blacklist_count: blacklist.length,
+          contacts_count: contacts.length,
+          emails_sent: success,
+        }, {
+          onConflict: 'user_id'
+        });
 
-        totalSuccess += success;
-        totalFailure += failure;
-        allGeneratedEmails = allGeneratedEmails.concat(emails);
-
-        // Update progress in database
-        await supabase
-          .from('dashboard_stats')
-          .upsert({
-            user_id: userId,
-            total_leads: contacts.length,
-            processed_leads: totalSuccess + totalFailure,
-            success_rate: totalSuccess > 0 ? (totalSuccess / (totalSuccess + totalFailure)) * 100 : 0,
-            last_processed: new Date().toISOString(),
-            blacklist_count: blacklist.length,
-            contacts_count: contacts.length,
-            emails_sent: totalSuccess,
-          }, {
-            onConflict: 'user_id'
-          });
-      }
+      // Calculate next batch
+      const nextStartRow = startRow + MAX_EMAILS_PER_BATCH;
+      const hasMoreContacts = nextStartRow < filteredContacts.length;
 
       if (!testMode) {
         await supabase
@@ -407,21 +410,25 @@ export async function POST(request: Request) {
           .eq('user_id', userId);
       }
 
-      console.log('Processing completed successfully');
+      console.log('Batch processing completed successfully');
       return NextResponse.json({ 
         success: true,
         stats: {
           total: contacts.length,
-          processed: totalSuccess + totalFailure,
-          success: totalSuccess,
-          failure: totalFailure,
-          rowRange: config.startRow !== undefined || config.endRow !== undefined ? {
-            start: config.startRow ?? 0,
-            end: config.endRow ?? contacts.length
-          } : undefined
+          processed: startRow + success + failure,
+          success,
+          failure,
+          currentBatch: {
+            start: startRow,
+            end: startRow + MAX_EMAILS_PER_BATCH
+          }
         },
+        nextBatch: hasMoreContacts ? {
+          startRow: nextStartRow,
+          remainingContacts: filteredContacts.length - nextStartRow
+        } : null,
         testResults: testMode ? {
-          emails: allGeneratedEmails,
+          emails,
           delayBetweenEmails: config.delayBetweenEmails
         } : undefined
       });
