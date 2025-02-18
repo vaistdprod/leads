@@ -57,7 +57,7 @@ async function logProcessing(supabase: ReturnType<typeof createServerClient<Data
   try {
     const dbStatus = status === 'warning' ? 'error' : status;
     
-    console.log(`[${stage}] ${status}: ${message}`, metadata);
+    console.log(`[${stage}] ${status}: ${message}`);
     await supabase.from('processing_logs').insert({
       user_id: userId,
       stage,
@@ -117,31 +117,29 @@ async function processBatch(
     }
 
     const contact = contacts[i];
-    const currentIndex = startIndex + i;
 
     try {
-      console.log('Processing contact:', contact.email);
-      
+      // Skip contacts that are already blacklisted
+      if (contact.status === 'blacklisted') {
+        continue;
+      }
+
+      // Skip contacts that are already sent
+      if (contact.status === 'sent') {
+        continue;
+      }
+
       if (!contact.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email)) {
-        await logProcessing(supabase, userId, 'verification', 'error', 'Invalid email address', { 
-          contact,
-          error: !contact.email ? 'Missing email' : 'Invalid email format'
-        });
+        await logProcessing(supabase, userId, 'verification', 'error', 'Invalid email address');
         failureCount++;
         continue;
       }
 
-      console.log('Verifying email:', contact.email);
       const isValid = await verifyEmail(contact.email);
-      
       if (!isValid) {
-        await logProcessing(supabase, userId, 'verification', 'warning', `Email verification failed: ${contact.email}`, {
-          email: contact.email,
-          verificationResult: isValid
-        });
+        await logProcessing(supabase, userId, 'verification', 'warning', `Email verification failed: ${contact.email}`);
       }
 
-      console.log('Enriching data for:', contact.email);
       let enrichmentData: EnrichmentData;
       try {
         enrichmentData = await enrichLeadData({
@@ -154,7 +152,6 @@ async function processBatch(
           enrichmentPrompt: settings.enrichment_prompt || undefined
         });
       } catch (error) {
-        console.error('Failed to enrich data:', error);
         enrichmentData = {
           companyInfo: "Informace o společnosti nejsou k dispozici.",
           positionInfo: "Detaily o pozici nejsou k dispozici.",
@@ -165,7 +162,6 @@ async function processBatch(
         };
       }
       
-      console.log('Generating email for:', contact.email);
       let email;
       try {
         email = await generateEmail(
@@ -182,7 +178,6 @@ async function processBatch(
           }
         );
       } catch (error) {
-        console.error('Failed to generate email:', error);
         email = {
           subject: `Introduction from ${settings.impersonated_email}`,
           body: `Dear ${contact.firstName},\n\nI hope this email finds you well. I noticed your role as ${contact.position} at ${contact.company} and wanted to connect.\n\nBest regards,\n${settings.impersonated_email}`
@@ -190,27 +185,18 @@ async function processBatch(
       }
 
       if (!config.testMode) {
-        // Calculate scheduled time with delay
-        const scheduledTime = new Date(Date.now() + (currentIndex * (config.delayBetweenEmails ?? DEFAULT_DELAY) * 1000));
-        
-        // Update status to pending and set scheduled time
+        // Update status to pending
         await updateContactStatus(
           settings.contacts_sheet_id ?? "",
           contact.email,
-          'pending',
-          scheduledTime.toISOString()
+          'pending'
         );
 
-        // Wait until scheduled time
-        const now = Date.now();
-        const waitTime = scheduledTime.getTime() - now;
-        if (waitTime > 0) {
-          console.log(`Waiting ${waitTime/1000} seconds before sending to:`, contact.email);
-          await delay(waitTime);
+        // Wait for the configured delay between emails
+        if (i > 0) {
+          await delay((config.delayBetweenEmails ?? DEFAULT_DELAY) * 1000);
         }
 
-        // Important: We only send to the email address from the sheet, never to any alternative addresses
-        console.log('Sending email to:', contact.email, 'as:', settings.impersonated_email);
         await sendEmail(contact.email, email.subject, email.body, settings.impersonated_email ?? "");
         
         // Update status to sent
@@ -227,8 +213,7 @@ async function processBatch(
           details: {
             enrichment_data: enrichmentData,
             email_subject: email.subject,
-            sent_as: settings.impersonated_email,
-            scheduled_for: scheduledTime.toISOString()
+            sent_as: settings.impersonated_email
           }
         });
 
@@ -236,11 +221,9 @@ async function processBatch(
           user_id: userId,
           email: contact.email,
           subject: email.subject,
-          status: 'sent',
-          scheduled_for: scheduledTime.toISOString()
+          status: 'sent'
         });
       } else {
-        // Store generated email for test mode
         generatedEmails.push({
           to: contact.email,
           subject: email.subject,
@@ -251,11 +234,9 @@ async function processBatch(
 
       successCount++;
       await logProcessing(supabase, userId, 'email', 'success', 
-        config.testMode ? `Test email generated for ${contact.email}` : `Email sent to ${contact.email} as ${settings.impersonated_email}`
+        config.testMode ? `Test email generated for ${contact.email}` : `Email sent to ${contact.email}`
       );
-      console.log('Successfully processed:', contact.email);
     } catch (error) {
-      console.error('Failed to process contact:', contact.email, error);
       failureCount++;
       
       await updateContactStatus(
@@ -264,9 +245,7 @@ async function processBatch(
         'failed'
       );
       
-      await logProcessing(supabase, userId, 'email', 'error', `Failed to process contact: ${contact.email}`, { 
-        error: error instanceof Error ? error.message : String(error)
-      });
+      await logProcessing(supabase, userId, 'email', 'error', `Failed to process contact: ${contact.email}`);
     }
   }
 
@@ -288,7 +267,6 @@ export async function POST(request: Request) {
     }
 
     userId = user.id;
-    console.log('Processing for user:', userId);
 
     // Check rate limit
     if (!checkRateLimit(userId)) {
@@ -306,7 +284,6 @@ export async function POST(request: Request) {
       .single();
 
     if (settingsError) {
-      console.error('Settings error:', settingsError);
       return NextResponse.json({ error: 'Failed to load settings', details: settingsError }, { status: 500 });
     }
 
@@ -333,15 +310,12 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    console.log('Starting blacklist processing...');
     try {
       // Load blacklist first
       const blacklist = await getBlacklist(settings.blacklist_sheet_id ?? "");
       await logProcessing(supabase, userId, 'blacklist', 'success', `Loaded ${blacklist.length} blacklisted emails`);
-      console.log('Blacklist loaded:', blacklist.length, 'emails');
 
       // Load all contacts
-      console.log('Loading contacts...');
       const columnMappings = settings.column_mappings ?? {
         name: 'název',
         email: 'email',
@@ -354,7 +328,6 @@ export async function POST(request: Request) {
       if (!contacts || !Array.isArray(contacts)) {
         throw new Error('Failed to load contacts: Invalid response format');
       }
-      console.log('Contacts loaded:', contacts.length);
 
       // Process blacklist first
       const blacklistedContacts = contacts.filter(contact => 
@@ -379,7 +352,6 @@ export async function POST(request: Request) {
       }
       
       await logProcessing(supabase, userId, 'blacklist', 'success', `Filtered ${contacts.length - filteredContacts.length} blacklisted contacts`);
-      console.log('Filtered contacts:', filteredContacts.length);
 
       // Process a single batch
       const startRow = config.startRow ?? 0;
@@ -423,7 +395,6 @@ export async function POST(request: Request) {
           .eq('user_id', userId);
       }
 
-      console.log('Batch processing completed successfully');
       return NextResponse.json({ 
         success: true,
         stats: {
@@ -446,11 +417,9 @@ export async function POST(request: Request) {
         } : undefined
       });
     } catch (error) {
-      console.error('Blacklist/contacts error:', error);
       throw error;
     }
   } catch (error) {
-    console.error('Processing failed:', error);
     return NextResponse.json(
       { 
         error: error instanceof Error ? error.message : 'Processing failed',

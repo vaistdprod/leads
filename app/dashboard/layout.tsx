@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ModeToggle } from "@/components/ui/mode-toggle";
+import { ProcessingIndicator } from "@/components/ui/processing-indicator";
 
 export default function DashboardLayout({
   children,
@@ -21,7 +22,6 @@ export default function DashboardLayout({
   const handleTabChange = (value: string) => {
     router.push(`/dashboard/${value}`);
   };
-
 
   return (
     <div className="min-h-screen bg-background">
@@ -43,6 +43,7 @@ export default function DashboardLayout({
       <div className="container mx-auto py-8 px-4">
         {children}
       </div>
+      <ProcessingIndicator />
     </div>
   );
 }
