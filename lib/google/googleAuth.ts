@@ -3,7 +3,7 @@ import { getEnvOrThrow } from '@/lib/env/validateEnv';
 
 const SCOPES = [
   'https://www.googleapis.com/auth/gmail.send',
-  'https://www.googleapis.com/auth/spreadsheets.readonly',
+  'https://www.googleapis.com/auth/spreadsheets',
   'https://www.googleapis.com/auth/admin.directory.user.readonly',
 ];
 
@@ -30,7 +30,10 @@ export const getGoogleAuthClient = async (impersonatedUser?: string) => {
       const userClient = new google.auth.JWT({
         email: serviceAccountEmail,
         key: privateKey,
-        scopes: ['https://www.googleapis.com/auth/gmail.send'],
+        scopes: [
+          'https://www.googleapis.com/auth/gmail.send',
+          'https://www.googleapis.com/auth/spreadsheets'
+        ],
         subject: impersonatedUser,
       });
 

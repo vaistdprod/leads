@@ -41,6 +41,7 @@ async function retryOperation<T>(operation: () => Promise<T>, attempts: number =
 function isRetryableError(error: any): boolean {
   // Google Sheets API specific error codes that warrant a retry
   const retryableErrors = [
+    403, // Forbidden (might be temporary due to token expiration)
     429, // Too Many Requests
     500, // Internal Server Error
     503, // Service Unavailable
