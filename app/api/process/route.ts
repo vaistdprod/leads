@@ -185,6 +185,7 @@ async function processBatch(
           }
         );
 
+        // Important: We only send to the email address from the sheet, never to any alternative addresses
         console.log('Sending email to:', contact.email, 'as:', settings.impersonated_email);
         await sendEmail(contact.email, email.subject, email.body, settings.impersonated_email ?? "");
         

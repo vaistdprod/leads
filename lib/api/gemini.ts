@@ -42,28 +42,28 @@ export async function enrichLeadData(input: EnrichmentInput): Promise<Enrichment
   const genAI = new GoogleGenerativeAI(input.geminiApiKey);
   const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-  const defaultPrompt = `
-    You are a lead enrichment assistant. Your task is to analyze this lead and provide insights:
-    Name: ${input.firstName} ${input.lastName}
-    Company: ${input.company}
-    Position: ${input.position}
-    Email: ${input.email}
+  const defaultPrompt = `You are a lead enrichment assistant. Your responses must:
+1. Be in exact JSON format with no additional text
+2. Handle Czech names and companies appropriately
+3. Provide clear Czech messages when information is unavailable
+4. Maintain professional tone
+5. Never search for or suggest alternative contact information
 
-    Provide insights in this exact JSON format (do not include any other text):
-    {
-      "companyInfo": "Brief company background and key information",
-      "positionInfo": "Role responsibilities and typical challenges",
-      "industryTrends": "Current industry trends and challenges",
-      "commonInterests": "Potential talking points based on role/industry",
-      "potentialPainPoints": "Likely business challenges or needs",
-      "relevantNews": "Any recent developments or news"
-    }
+Analyze this lead and provide insights:
+Name: ${input.firstName} ${input.lastName}
+Company: ${input.company}
+Position: ${input.position}
+Email: ${input.email}
 
-    Important: 
-    1. Handle Czech names and companies appropriately
-    2. If information is unavailable, provide a clear message in Czech
-    3. Maintain professional tone
-  `;
+Return in this exact JSON format:
+{
+  "companyInfo": "Brief company background and key information",
+  "positionInfo": "Role responsibilities and typical challenges",
+  "industryTrends": "Current industry trends and challenges",
+  "commonInterests": "Potential talking points based on role/industry",
+  "potentialPainPoints": "Likely business challenges or needs",
+  "relevantNews": "Any recent developments or news"
+}`;
 
   const prompt = input.enrichmentPrompt || defaultPrompt;
 
@@ -142,28 +142,87 @@ export async function generateEmail(contact: { firstName: string; lastName: stri
   const genAI = new GoogleGenerativeAI(config.geminiApiKey);
   const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
-  const defaultPrompt = `
-    You are an email writing assistant. Write a personalized cold email in this exact JSON format (do not include any other text):
-    {
-      "subject": "Brief, engaging subject line",
-      "body": "Complete email body with signature"
-    }
+  const defaultPrompt = `You are an email writing assistant. Your responses must:
+1. Be in exact JSON format with no additional text
+2. Be concise and professional
+3. Focus on value proposition
+4. Include a clear call to action
+5. Never suggest or use alternative contact information
+6. Match the tone and style of these example emails
 
-    The email is for:
-    Name: ${contact.firstName} ${contact.lastName}
-    Company: ${contact.company}
-    Position: ${contact.position}
+Email Writing Guidelines:
+- DO: Use specific metrics and results (e.g., "zvýšení efektivity o 35%", "úspora 40% nákladů")
+- DO: Reference industry-specific challenges from enrichment data
+- DO: Personalize based on their role and company
+- DO: Keep subject lines under 50 characters
+- DO: Use soft call-to-actions for first contact
+- DON'T: Use generic phrases like "hope this email finds you well"
+- DON'T: Make assumptions about their challenges
+- DON'T: Write more than 4-5 lines of body text
+- DON'T: Use pushy or aggressive language
 
-    Use these insights:
-    ${JSON.stringify(enrichmentData, null, 2)}
+Industry-Specific Value Metrics to Reference:
+- IT/Software: Snížení nákladů 30-50%, zrychlení procesů 2-3x
+- Manufacturing: Zvýšení efektivity 25-40%, redukce prostojů o 60%
+- Services: Zlepšení zákaznické spokojenosti o 40%, úspora času 20-30%
+- Healthcare: Zkrácení čekací doby o 50%, zvýšení přesnosti o 35%
+- Finance: Snížení chybovosti o 75%, zrychlení procesů až 4x
 
-    Requirements:
-    1. Keep it concise and professional
-    2. Reference specific insights from the enrichment data
-    3. Focus on value proposition
-    4. Include a clear call to action
-    5. End with a signature from: ${config.senderEmail}
-  `;
+Example Successful Emails:
+
+Example 1 (IT Sector):
+Subject: Inovace v IT infrastruktuře - krátká schůzka?
+Body: Dobrý den pane Nováku,
+
+Všiml jsem si, že ve společnosti ABC aktivně rozvíjíte IT infrastrukturu. Pracuji na podobných projektech s firmami jako je XYZ, kde jsme dokázali snížit náklady na provoz o 40%.
+
+Měl byste 15 minut na krátkou schůzku příští týden? Rád bych Vám ukázal, jak bychom mohli optimalizovat i Vaši infrastrukturu.
+
+S pozdravem,
+Jan Svoboda
+
+Example 2 (Manufacturing):
+Subject: Automatizace procesů - inspirace z automotive
+Body: Dobrý den pane Dvořáku,
+
+Na LinkedInu jsem zaznamenal Váš zájem o automatizaci výrobních procesů. V automotive segmentu jsme nedávno implementovali řešení, které zvýšilo efektivitu výroby o 35%.
+
+Mohu Vám poslat případovou studii? Obsahuje konkrétní postupy, které by mohly být užitečné i pro Vaši firmu.
+
+S přáním hezkého dne,
+Petr Novotný
+
+Example 3 (Services):
+Subject: Optimalizace zákaznické podpory - quick chat?
+Body: Dobrý den paní Svobodová,
+
+Zaujalo mě Vaše působení v oblasti zákaznického servisu ve společnosti ABC. Nedávno jsme pomohli podobné firmě XYZ zkrátit reakční dobu o 65% a zvýšit CSAT o 40%.
+
+Máte příští týden 20 minut na rychlou prezentaci těchto výsledků?
+
+S pozdravem,
+Tomáš Novák
+
+How to Use Enrichment Data:
+1. Reference companyInfo for company-specific challenges
+2. Use industryTrends to show market understanding
+3. Mention commonInterests to build rapport
+4. Address potentialPainPoints with relevant solutions
+5. Reference relevantNews to show research and timing
+
+Write a personalized cold email for:
+Name: ${contact.firstName} ${contact.lastName}
+Company: ${contact.company}
+Position: ${contact.position}
+
+Using these insights:
+${JSON.stringify(enrichmentData, null, 2)}
+
+Return in this exact JSON format:
+{
+  "subject": "Brief, engaging subject line",
+  "body": "Complete email body with signature from ${config.senderEmail}"
+}`;
 
   const prompt = config.emailPrompt || defaultPrompt;
 
