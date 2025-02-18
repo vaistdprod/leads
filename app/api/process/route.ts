@@ -8,6 +8,36 @@ import { verifyEmail } from '@/lib/api/disify';
 import { enrichLeadData, generateEmail, EnrichmentData } from '@/lib/api/gemini';
 import { sendEmail } from '@/lib/google/gmail';
 
+// Simple in-memory rate limiting
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 30; // 30 requests per minute
+const userRequests = new Map<string, { count: number; resetTime: number }>();
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const userLimit = userRequests.get(userId);
+
+  // Clean up expired entries
+  if (userLimit && now > userLimit.resetTime) {
+    userRequests.delete(userId);
+  }
+
+  if (!userLimit) {
+    userRequests.set(userId, {
+      count: 1,
+      resetTime: now + RATE_LIMIT_WINDOW
+    });
+    return true;
+  }
+
+  if (userLimit.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return false;
+  }
+
+  userLimit.count++;
+  return true;
+}
+
 type LogStatus = 'success' | 'error' | 'warning';
 
 interface ProcessingConfig {
@@ -71,8 +101,11 @@ async function processBatch(
     try {
       console.log('Processing contact:', contact.email);
       
-      if (!contact.email) {
-        await logProcessing(supabase, userId, 'verification', 'error', 'Missing email address', { contact });
+      if (!contact.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email)) {
+        await logProcessing(supabase, userId, 'verification', 'error', 'Invalid email address', { 
+          contact,
+          error: !contact.email ? 'Missing email' : 'Invalid email format'
+        });
         failureCount++;
         continue;
       }
@@ -102,12 +135,12 @@ async function processBatch(
       } catch (error) {
         console.error('Failed to enrich data:', error);
         enrichmentData = {
-          companyInfo: "Unable to retrieve company information at this time.",
-          positionInfo: "Position details not available.",
-          industryTrends: "Industry trend data unavailable.",
-          commonInterests: "Common interests could not be determined.",
-          potentialPainPoints: "Pain points analysis unavailable.",
-          relevantNews: "Recent news could not be retrieved."
+          companyInfo: "Informace o společnosti nejsou k dispozici.",
+          positionInfo: "Detaily o pozici nejsou k dispozici.",
+          industryTrends: "Aktuální trendy v oboru nejsou k dispozici.",
+          commonInterests: "Společné zájmy nelze určit.",
+          potentialPainPoints: "Možné problémy nelze identifikovat.",
+          relevantNews: "Žádné relevantní novinky nejsou k dispozici."
         };
       }
       
@@ -139,30 +172,27 @@ async function processBatch(
         // Calculate scheduled time with delay
         const scheduledTime = new Date(Date.now() + (currentIndex * (config.delayBetweenEmails ?? 30) * 1000));
         
-        if (config.updateScheduling) {
-          await updateContact(
-            settings.contacts_sheet_id ?? "",
-            contact.email,
-            {
-              scheduledFor: scheduledTime.toISOString(),
-              status: 'pending'
-            }
-          );
-        }
+        // Always update scheduling information
+        await updateContact(
+          settings.contacts_sheet_id ?? "",
+          contact.email,
+          {
+            scheduledFor: scheduledTime.toISOString(),
+            status: 'pending'
+          }
+        );
 
         console.log('Sending email to:', contact.email, 'as:', settings.impersonated_email);
         await sendEmail(contact.email, email.subject, email.body, settings.impersonated_email ?? "");
         
         // Update status to sent
-        if (config.updateScheduling) {
-          await updateContact(
-            settings.contacts_sheet_id ?? "",
-            contact.email,
-            {
-              status: 'sent'
-            }
-          );
-        }
+        await updateContact(
+          settings.contacts_sheet_id ?? "",
+          contact.email,
+          {
+            status: 'sent'
+          }
+        );
         
         await supabase.from('lead_history').insert({
           user_id: userId,
@@ -202,15 +232,13 @@ async function processBatch(
       console.error('Failed to process contact:', contact.email, error);
       failureCount++;
       
-      if (config.updateScheduling) {
-        await updateContact(
-          settings.contacts_sheet_id ?? "",
-          contact.email,
-          {
-            status: 'failed'
-          }
-        );
-      }
+      await updateContact(
+        settings.contacts_sheet_id ?? "",
+        contact.email,
+        {
+          status: 'failed'
+        }
+      );
       
       await logProcessing(supabase, userId, 'email', 'error', `Failed to process contact: ${contact.email}`, { 
         error: error instanceof Error ? error.message : String(error)
@@ -237,6 +265,14 @@ export async function POST(request: Request) {
 
     userId = user.id;
     console.log('Processing for user:', userId);
+
+    // Check rate limit
+    if (!checkRateLimit(userId)) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' }, 
+        { status: 429 }
+      );
+    }
 
     // Get settings
     const { data: settings, error: settingsError } = await supabase

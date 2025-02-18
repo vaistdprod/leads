@@ -58,6 +58,11 @@ export async function enrichLeadData(input: EnrichmentInput): Promise<Enrichment
       "potentialPainPoints": "Likely business challenges or needs",
       "relevantNews": "Any recent developments or news"
     }
+
+    Important: 
+    1. Handle Czech names and companies appropriately
+    2. If information is unavailable, provide a clear message in Czech
+    3. Maintain professional tone
   `;
 
   const prompt = input.enrichmentPrompt || defaultPrompt;
@@ -69,40 +74,67 @@ export async function enrichLeadData(input: EnrichmentInput): Promise<Enrichment
     
     try {
       // Try to parse as JSON
-      return JSON.parse(text);
+      const parsed = JSON.parse(text);
+      // Validate the structure
+      if (typeof parsed === 'object' && parsed !== null) {
+        return {
+          companyInfo: parsed.companyInfo || "Informace o společnosti nejsou k dispozici.",
+          positionInfo: parsed.positionInfo || "Detaily o pozici nejsou k dispozici.",
+          industryTrends: parsed.industryTrends || "Aktuální trendy v oboru nejsou k dispozici.",
+          commonInterests: parsed.commonInterests || "Společné zájmy nelze určit.",
+          potentialPainPoints: parsed.potentialPainPoints || "Možné problémy nelze identifikovat.",
+          relevantNews: parsed.relevantNews || "Žádné relevantní novinky nejsou k dispozici."
+        };
+      }
+      throw new Error('Invalid JSON structure');
     } catch (e) {
       // If not valid JSON, try to extract JSON from the text
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         try {
-          return JSON.parse(jsonMatch[0]);
+          const parsed = JSON.parse(jsonMatch[0]);
+          return {
+            companyInfo: parsed.companyInfo || "Informace o společnosti nejsou k dispozici.",
+            positionInfo: parsed.positionInfo || "Detaily o pozici nejsou k dispozici.",
+            industryTrends: parsed.industryTrends || "Aktuální trendy v oboru nejsou k dispozici.",
+            commonInterests: parsed.commonInterests || "Společné zájmy nelze určit.",
+            potentialPainPoints: parsed.potentialPainPoints || "Možné problémy nelze identifikovat.",
+            relevantNews: parsed.relevantNews || "Žádné relevantní novinky nejsou k dispozici."
+          };
         } catch {
           // If still can't parse, return structured error
           console.error('Failed to parse enrichment data:', text);
           return {
-            companyInfo: "Unable to retrieve company information at this time.",
-            positionInfo: "Position details not available.",
-            industryTrends: "Industry trend data unavailable.",
-            commonInterests: "Common interests could not be determined.",
-            potentialPainPoints: "Pain points analysis unavailable.",
-            relevantNews: "Recent news could not be retrieved."
+            companyInfo: "Informace o společnosti nejsou k dispozici.",
+            positionInfo: "Detaily o pozici nejsou k dispozici.",
+            industryTrends: "Aktuální trendy v oboru nejsou k dispozici.",
+            commonInterests: "Společné zájmy nelze určit.",
+            potentialPainPoints: "Možné problémy nelze identifikovat.",
+            relevantNews: "Žádné relevantní novinky nejsou k dispozici."
           };
         }
       }
       
       // If no JSON found, return default structure
       return {
-        companyInfo: "Unable to retrieve company information at this time.",
-        positionInfo: "Position details not available.",
-        industryTrends: "Industry trend data unavailable.",
-        commonInterests: "Common interests could not be determined.",
-        potentialPainPoints: "Pain points analysis unavailable.",
-        relevantNews: "Recent news could not be retrieved."
+        companyInfo: "Informace o společnosti nejsou k dispozici.",
+        positionInfo: "Detaily o pozici nejsou k dispozici.",
+        industryTrends: "Aktuální trendy v oboru nejsou k dispozici.",
+        commonInterests: "Společné zájmy nelze určit.",
+        potentialPainPoints: "Možné problémy nelze identifikovat.",
+        relevantNews: "Žádné relevantní novinky nejsou k dispozici."
       };
     }
   } catch (error) {
     console.error('Failed to enrich lead data:', error);
-    throw error;
+    return {
+      companyInfo: "Informace o společnosti nejsou k dispozici.",
+      positionInfo: "Detaily o pozici nejsou k dispozici.",
+      industryTrends: "Aktuální trendy v oboru nejsou k dispozici.",
+      commonInterests: "Společné zájmy nelze určit.",
+      potentialPainPoints: "Možné problémy nelze identifikovat.",
+      relevantNews: "Žádné relevantní novinky nejsou k dispozici."
+    };
   }
 }
 

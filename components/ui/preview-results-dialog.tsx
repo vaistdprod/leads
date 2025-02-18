@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ScrollArea } from "./scroll-area";
 import { Card } from "./card";
 import { Button } from "./button";
+import { EnrichmentData } from "@/lib/api/gemini";
 
 interface PreviewResultsDialogProps {
   open: boolean;
@@ -11,7 +12,7 @@ interface PreviewResultsDialogProps {
       to: string;
       subject: string;
       body: string;
-      enrichmentData: any;
+      enrichmentData: EnrichmentData;
     }>;
     delayBetweenEmails: number;
   };
@@ -32,7 +33,7 @@ export function PreviewResultsDialog({ open, onOpenChange, results, stats }: Pre
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[90vw] max-w-4xl h-[90vh] p-0 gap-0">
+      <DialogContent className="w-[90vw] max-w-4xl h-[90vh] p-0 gap-0 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
         <div className="h-full flex flex-col">
           <div className="p-6 pb-2">
             <DialogHeader>
@@ -44,7 +45,7 @@ export function PreviewResultsDialog({ open, onOpenChange, results, stats }: Pre
           </div>
           
           <div className="px-6 grid grid-cols-2 gap-4 mb-4">
-            <Card className="p-4">
+            <Card className="p-4 bg-gray-50 dark:bg-gray-900">
               <h3 className="font-semibold mb-2">Processing Stats</h3>
               <div className="space-y-1 text-sm">
                 <p>Total Contacts: {stats.total}</p>
@@ -57,7 +58,7 @@ export function PreviewResultsDialog({ open, onOpenChange, results, stats }: Pre
               </div>
             </Card>
             
-            <Card className="p-4">
+            <Card className="p-4 bg-gray-50 dark:bg-gray-900">
               <h3 className="font-semibold mb-2">Timing Configuration</h3>
               <div className="space-y-1 text-sm">
                 <p>Delay Between Emails: {results.delayBetweenEmails} seconds</p>
@@ -70,7 +71,7 @@ export function PreviewResultsDialog({ open, onOpenChange, results, stats }: Pre
           <ScrollArea className="flex-1 px-6">
             <div className="space-y-6 pb-6">
               {results.emails.map((email, index) => (
-                <Card key={index} className="p-4">
+                <Card key={index} className="p-4 bg-gray-50 dark:bg-gray-900">
                   <div className="space-y-4">
                     <div>
                       <h4 className="font-semibold">Email {index + 1}</h4>
@@ -79,12 +80,12 @@ export function PreviewResultsDialog({ open, onOpenChange, results, stats }: Pre
 
                     <div>
                       <h5 className="font-medium">Subject</h5>
-                      <p className="text-sm mt-1 bg-muted p-2 rounded">{email.subject}</p>
+                      <p className="text-sm mt-1 bg-gray-100 dark:bg-gray-800 p-2 rounded">{email.subject}</p>
                     </div>
 
                     <div>
                       <h5 className="font-medium">Body</h5>
-                      <div className="text-sm mt-1 whitespace-pre-wrap bg-muted p-2 rounded">
+                      <div className="text-sm mt-1 whitespace-pre-wrap bg-gray-100 dark:bg-gray-800 p-2 rounded">
                         {email.body}
                       </div>
                     </div>
@@ -93,7 +94,7 @@ export function PreviewResultsDialog({ open, onOpenChange, results, stats }: Pre
                       <h5 className="font-medium">Enrichment Data</h5>
                       <div className="text-sm mt-1 space-y-2">
                         {Object.entries(email.enrichmentData).map(([key, value]) => (
-                          <div key={key} className="bg-muted p-2 rounded">
+                          <div key={key} className="bg-gray-100 dark:bg-gray-800 p-2 rounded">
                             <span className="font-medium">{key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}: </span>
                             <span>{value as string}</span>
                           </div>
