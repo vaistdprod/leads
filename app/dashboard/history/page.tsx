@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { supabase } from '@/lib/supabase/client';
 import { EmailHistory, LeadHistory } from '@/lib/types';
 import { InboxIcon, ClockIcon } from 'lucide-react';
+import { JsonView } from '@/components/ui/json-view';
 
 export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
@@ -108,7 +109,7 @@ export default function HistoryPage() {
                 {emailHistory.map((email) => (
                   <TableRow key={email.id}>
                     <TableCell>
-                      {new Date(email.created_at).toLocaleString()}
+                      {email.created_at ? new Date(email.created_at).toLocaleString() : '-'}
                     </TableCell>
                     <TableCell>{email.subject}</TableCell>
                     <TableCell>
@@ -146,7 +147,7 @@ export default function HistoryPage() {
                 {leadHistory.map((activity) => (
                   <TableRow key={activity.id}>
                     <TableCell>
-                      {new Date(activity.created_at).toLocaleString()}
+                      {activity.created_at ? new Date(activity.created_at).toLocaleString() : '-'}
                     </TableCell>
                     <TableCell>{activity.email}</TableCell>
                     <TableCell>
@@ -154,7 +155,11 @@ export default function HistoryPage() {
                         {activity.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>{activity.details ? JSON.stringify(activity.details) : '-'}</TableCell>
+                    <TableCell>
+                      <div className="max-w-xl">
+                        {activity.details ? <JsonView data={activity.details} /> : '-'}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -387,3 +387,29 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
     ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
+
+export interface EmailHistory {
+  id: string;
+  user_id: string;
+  email: string;
+  subject: string | null;
+  status: string;
+  error: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface LeadHistory {
+  id: string;
+  user_id: string;
+  email: string;
+  status: string;
+  details: {
+    enrichment_data: any;
+    email_subject: string;
+    sent_as: string;
+    scheduled_for: string;
+  } | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
