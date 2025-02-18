@@ -98,6 +98,9 @@ async function processBatch(
     const contact = contacts[i];
     const currentIndex = startIndex + i;
 
+    // Calculate scheduled time with delay
+    const scheduledTime = new Date(Date.now() + (currentIndex * (config.delayBetweenEmails ?? 30) * 1000));
+
     try {
       console.log('Processing contact:', contact.email);
       
