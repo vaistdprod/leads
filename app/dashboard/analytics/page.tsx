@@ -40,11 +40,11 @@ const chartConfig = {
     height: 60,
     width: 60,
     fontSize: 12,
-    stroke: 'var(--border)',
+    stroke: 'var(--color-border)',
   },
   tooltipStyle: {
-    backgroundColor: 'var(--background)',
-    border: '1px solid var(--border)',
+    backgroundColor: 'var(--color-background)',
+    border: '1px solid var(--color-border)',
     borderRadius: '8px',
   },
   lineProps: {
@@ -159,6 +159,27 @@ export default function AnalyticsPage() {
     );
   }
 
+  if (!apiUsage.length && !successRates.length) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="space-y-8">
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">API Usage</h2>
+            <div className="h-[400px] flex items-center justify-center">
+              <p className="text-muted-foreground">No API usage data available yet</p>
+            </div>
+          </Card>
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Success Rates</h2>
+            <div className="h-[400px] flex items-center justify-center">
+              <p className="text-muted-foreground">No success rate data available yet</p>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto py-8">
       <div className="space-y-8">
@@ -196,28 +217,28 @@ export default function AnalyticsPage() {
                 <Line
                   type="monotone"
                   dataKey="gemini"
-                  stroke="hsl(var(--chart-1))"
+                  stroke="var(--color-chart-1)"
                   name="Gemini AI"
                   {...chartConfig.lineProps}
                 />
                 <Line
                   type="monotone"
                   dataKey="gmail"
-                  stroke="hsl(var(--chart-2))"
+                  stroke="var(--color-chart-2)"
                   name="Gmail"
                   {...chartConfig.lineProps}
                 />
                 <Line
                   type="monotone"
                   dataKey="sheets"
-                  stroke="hsl(var(--chart-3))"
+                  stroke="var(--color-chart-3)"
                   name="Google Sheets"
                   {...chartConfig.lineProps}
                 />
                 <Line
                   type="monotone"
                   dataKey="disify"
-                  stroke="hsl(var(--chart-4))"
+                  stroke="var(--color-chart-4)"
                   name="Disify"
                   {...chartConfig.lineProps}
                 />
@@ -259,14 +280,14 @@ export default function AnalyticsPage() {
                 <Legend verticalAlign="top" height={36} />
                 <Bar
                   dataKey="success"
-                  fill="hsl(var(--chart-2))"
+                  fill="var(--color-chart-2)"
                   name="Success"
                   stackId="a"
                   {...chartConfig.barProps}
                 />
                 <Bar
                   dataKey="failure"
-                  fill="hsl(var(--chart-1))"
+                  fill="var(--color-chart-1)"
                   name="Failure"
                   stackId="a"
                   {...chartConfig.barProps}

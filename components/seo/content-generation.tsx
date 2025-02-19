@@ -89,48 +89,56 @@ export function ContentGeneration() {
       
       <Card className="p-6">
         <div className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Topic</label>
-              <Input
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                placeholder="Enter the main topic for your blog post"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Keywords</label>
-              <Input
-                value={keywords}
-                onChange={(e) => setKeywords(e.target.value)}
-                placeholder="Enter keywords (comma-separated)"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Tone</label>
-              <Select value={tone} onValueChange={setTone}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select content tone" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="professional">Professional</SelectItem>
-                  <SelectItem value="casual">Casual</SelectItem>
-                  <SelectItem value="technical">Technical</SelectItem>
-                  <SelectItem value="friendly">Friendly</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <Button 
-            onClick={generateContent} 
-            disabled={loading || !topic.trim()}
-            className="w-full"
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              generateContent();
+            }}
+            className="space-y-6"
           >
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Topic</label>
+                <Input
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  placeholder="Enter the main topic for your blog post"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Keywords</label>
+                <Input
+                  value={keywords}
+                  onChange={(e) => setKeywords(e.target.value)}
+                  placeholder="Enter keywords (comma-separated)"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Tone</label>
+                <Select value={tone} onValueChange={setTone}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select content tone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="professional">Professional</SelectItem>
+                    <SelectItem value="casual">Casual</SelectItem>
+                    <SelectItem value="technical">Technical</SelectItem>
+                    <SelectItem value="friendly">Friendly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <Button 
+              type="submit"
+              disabled={loading || !topic.trim()}
+              className="w-full"
+            >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {!loading && <Wand2 className="mr-2 h-4 w-4" />}
             Generate Content
-          </Button>
+            </Button>
+          </form>
 
           {error && (
             <div className="flex items-center gap-2 p-4 bg-destructive/10 text-destructive rounded-md">

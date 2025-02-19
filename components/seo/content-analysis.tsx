@@ -85,18 +85,25 @@ export function ContentAnalysis() {
       
       <Card className="p-6">
         <div className="space-y-6">
-          <div className="flex gap-4">
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              analyzeContent();
+            }}
+            className="flex gap-4"
+          >
             <Input
+              type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="Enter URL to analyze"
               className="flex-1"
             />
-            <Button onClick={analyzeContent} disabled={loading}>
+            <Button type="submit" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Analyze
             </Button>
-          </div>
+          </form>
 
           {error && (
             <div className="flex items-center gap-2 p-4 bg-destructive/10 text-destructive rounded-md">

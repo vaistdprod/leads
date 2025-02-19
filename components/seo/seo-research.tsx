@@ -32,6 +32,8 @@ export function SeoResearch() {
   const [loading, setLoading] = useState(false);
   const [searchData, setSearchData] = useState<SearchData[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [startDateOpen, setStartDateOpen] = useState(false);
+  const [endDateOpen, setEndDateOpen] = useState(false);
 
   const fetchSearchData = async () => {
     if (!startDate || !endDate) {
@@ -87,7 +89,7 @@ export function SeoResearch() {
           >
             <div className="space-y-2">
               <label className="text-sm font-medium">Start Date</label>
-              <Dialog>
+              <Dialog open={startDateOpen} onOpenChange={setStartDateOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="w-[200px] justify-start">
                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -99,10 +101,7 @@ export function SeoResearch() {
                     selected={startDate}
                     onSelect={(date) => {
                       setStartDate(date);
-                      const dialogElement = document.querySelector('[role="dialog"]');
-                      if (dialogElement instanceof HTMLElement) {
-                        dialogElement.click(); // Close dialog after selection
-                      }
+                      setStartDateOpen(false);
                     }}
                     initialFocus
                   />
@@ -112,7 +111,7 @@ export function SeoResearch() {
 
             <div className="space-y-2">
               <label className="text-sm font-medium">End Date</label>
-              <Dialog>
+              <Dialog open={endDateOpen} onOpenChange={setEndDateOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" className="w-[200px] justify-start">
                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -124,10 +123,7 @@ export function SeoResearch() {
                     selected={endDate}
                     onSelect={(date) => {
                       setEndDate(date);
-                      const dialogElement = document.querySelector('[role="dialog"]');
-                      if (dialogElement instanceof HTMLElement) {
-                        dialogElement.click(); // Close dialog after selection
-                      }
+                      setEndDateOpen(false);
                     }}
                     initialFocus
                     disabled={(date: Date) => startDate ? date < startDate : false}

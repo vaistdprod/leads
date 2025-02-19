@@ -19,25 +19,28 @@ interface SearchPerformanceProps {
 export function SearchPerformance({ onDateRangeChange }: SearchPerformanceProps) {
   const [fromDate, setFromDate] = useState<Date>();
   const [toDate, setToDate] = useState<Date>();
+  const [loading, setLoading] = useState(false);
+  const [fromDateOpen, setFromDateOpen] = useState(false);
+  const [toDateOpen, setToDateOpen] = useState(false);
 
-  const handleFromSelect = (date: Date | undefined) => {
-    setFromDate(date);
-    if (date && toDate && onDateRangeChange) {
-      onDateRangeChange({ from: date, to: toDate });
-    }
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fromDate || !toDate) return;
 
-  const handleToSelect = (date: Date | undefined) => {
-    setToDate(date);
-    if (fromDate && date && onDateRangeChange) {
-      onDateRangeChange({ from: fromDate, to: date });
+    setLoading(true);
+    try {
+      if (onDateRangeChange) {
+        await onDateRangeChange({ from: fromDate, to: toDate });
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex space-x-4">
-        <Dialog>
+      <form onSubmit={handleSubmit} className="flex space-x-4">
+        <Dialog open={fromDateOpen} onOpenChange={setFromDateOpen}>
           <DialogTrigger asChild>
             <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -48,18 +51,15 @@ export function SearchPerformance({ onDateRangeChange }: SearchPerformanceProps)
             <Calendar
               selected={fromDate}
               onSelect={(date) => {
-                handleFromSelect(date);
-                const dialogElement = document.querySelector('[role="dialog"]');
-                if (dialogElement instanceof HTMLElement) {
-                  dialogElement.click(); // Close dialog after selection
-                }
+                setFromDate(date);
+                setFromDateOpen(false);
               }}
               initialFocus
             />
           </DialogContent>
         </Dialog>
 
-        <Dialog>
+        <Dialog open={toDateOpen} onOpenChange={setToDateOpen}>
           <DialogTrigger asChild>
             <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -70,18 +70,19 @@ export function SearchPerformance({ onDateRangeChange }: SearchPerformanceProps)
             <Calendar
               selected={toDate}
               onSelect={(date) => {
-                handleToSelect(date);
-                const dialogElement = document.querySelector('[role="dialog"]');
-                if (dialogElement instanceof HTMLElement) {
-                  dialogElement.click(); // Close dialog after selection
-                }
+                setToDate(date);
+                setToDateOpen(false);
               }}
               initialFocus
               disabled={(date: Date) => fromDate ? date < fromDate : false}
             />
           </DialogContent>
         </Dialog>
-      </div>
+
+        <Button type="submit" disabled={!fromDate || !toDate || loading}>
+          {loading ? "Loading..." : "Fetch Data"}
+        </Button>
+      </form>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="p-4">
