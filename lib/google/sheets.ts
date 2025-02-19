@@ -22,38 +22,66 @@ interface RawContact {
   status: 'pending' | 'sent' | 'failed' | 'blacklist';
 }
 
-const RETRY_ATTEMPTS = 3;
-const RETRY_DELAY = 1000; // 1 second
+const RETRY_ATTEMPTS = 5;
+const BASE_DELAY = 1000; // 1 second
+const MAX_DELAY = 32000; // 32 seconds
 
 async function retryOperation<T>(operation: () => Promise<T>, attempts: number = RETRY_ATTEMPTS): Promise<T> {
-  try {
-    return await operation();
-  } catch (error: any) {
-    if (attempts <= 1 || !isRetryableError(error)) {
-      throw error;
+  let lastError: any;
+  
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      lastError = error;
+      
+      if (!isRetryableError(error)) {
+        throw error;
+      }
+
+      if (attempt === attempts - 1) {
+        throw error;
+      }
+
+      // Exponential backoff with jitter
+      const delay = Math.min(BASE_DELAY * Math.pow(2, attempt), MAX_DELAY);
+      const jitter = Math.random() * 1000; // Add up to 1 second of random jitter
+      const waitTime = delay + jitter;
+      
+      console.log(`API rate limit hit, waiting ${Math.round(waitTime/1000)} seconds before retry ${attempt + 1}/${attempts}`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
     }
-    
-    console.log(`Retrying operation, ${attempts - 1} attempts remaining...`);
-    await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-    return retryOperation(operation, attempts - 1);
   }
+
+  throw lastError;
 }
 
 function isRetryableError(error: any): boolean {
-  const retryableErrors = [
-    403,
-    429,
-    500,
-    503,
-    'ECONNRESET',
-    'ETIMEDOUT'
-  ];
+  // Rate limit errors
+  if (error.code === 429 || error.status === 429 || 
+      error.message?.includes('429') || 
+      error.message?.toLowerCase().includes('quota') ||
+      error.message?.toLowerCase().includes('rate limit')) {
+    return true;
+  }
 
-  return retryableErrors.some(code => 
-    error.code === code || 
-    error.message?.includes(String(code)) ||
-    error.status === code
-  );
+  // Temporary server errors
+  if ([500, 503].includes(error.code) || 
+      [500, 503].includes(error.status) ||
+      error.message?.includes('500') ||
+      error.message?.includes('503')) {
+    return true;
+  }
+
+  // Network errors
+  if (error.code === 'ECONNRESET' || 
+      error.code === 'ETIMEDOUT' ||
+      error.message?.toLowerCase().includes('network') ||
+      error.message?.toLowerCase().includes('timeout')) {
+    return true;
+  }
+
+  return false;
 }
 
 async function validateSheetStructure(sheets: any, sheetId: string, requiredColumns: string[]) {

@@ -18,11 +18,17 @@ export async function OPTIONS() {
 
 export async function POST(req: Request) {
   try {
-    const { startDate, endDate } = await req.json();
+    const { startDate, endDate, siteUrl } = await req.json();
     
+    if (!siteUrl) {
+      return NextResponse.json(
+        { error: 'Site URL is required' },
+        { status: 400 }
+      );
+    }
+
     const auth = await getGoogleAuthClient();
     const searchconsole = google.searchconsole('v1').searchanalytics;
-    const siteUrl = getEnvOrThrow('GOOGLE_SEARCH_CONSOLE_SITE_URL');
 
     console.log('Search Console API: Preparing request', {
       siteUrl,

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { Database } from '@/lib/types';
-import { getBlacklist, getContacts, updateContact } from '@/lib/google/sheets';
+import { getBlacklist, getContacts, updateContacts } from '@/lib/google/sheets';
 import { verifyEmail } from '@/lib/api/disify';
 import { enrichLeadData, generateEmail, EnrichmentData } from '@/lib/api/gemini';
 import { sendEmail } from '@/lib/google/gmail';
@@ -42,16 +42,6 @@ async function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function updateContactStatus(sheetId: string, email: string, status: string) {
-  try {
-    await updateContact(sheetId, email, { status });
-    return true;
-  } catch (error) {
-    console.error('Failed to update contact status:', error);
-    return false;
-  }
-}
-
 async function processBlacklist(contacts: any[], blacklist: string[], sheetId: string) {
   // Normalize blacklist emails and create a Set for faster lookups
   const normalizedBlacklist = new Set(blacklist.map(email => email.toLowerCase().trim()));
@@ -59,24 +49,37 @@ async function processBlacklist(contacts: any[], blacklist: string[], sheetId: s
   // Process each contact
   const processedContacts = [];
   const blacklistedContacts = [];
+  const statusUpdates = [];
 
   for (const contact of contacts) {
     if (!contact.email) continue;
     
     const normalizedEmail = contact.email.toLowerCase().trim();
     if (normalizedBlacklist.has(normalizedEmail)) {
-      // Mark as blacklisted in the sheet
-      await updateContactStatus(sheetId, contact.email, 'blacklist');
+      statusUpdates.push({ email: contact.email, updates: { status: 'blacklist' } });
       blacklistedContacts.push(contact);
     } else {
       processedContacts.push(contact);
     }
   }
 
+  // Batch update all blacklisted contacts at once
+  if (statusUpdates.length > 0) {
+    try {
+      await updateContacts(sheetId, statusUpdates);
+    } catch (error) {
+      console.error('Failed to update blacklisted contacts:', error);
+    }
+  }
+
   console.log(`Blacklist check: ${blacklistedContacts.length} contacts marked as blacklisted`);
   
-  // Return only non-blacklisted contacts
   return processedContacts;
+}
+
+interface StatusUpdate {
+  email: string;
+  updates: { status: string };
 }
 
 async function processBatch(
@@ -90,6 +93,7 @@ async function processBatch(
   let successCount = 0;
   let failureCount = 0;
   let generatedEmails: Array<{ to: string, subject: string, body: string, enrichmentData: EnrichmentData }> = [];
+  let statusUpdates: StatusUpdate[] = [];
 
   for (let i = 0; i < contacts.length; i++) {
     // Check remaining time
@@ -106,8 +110,8 @@ async function processBatch(
     const contact = contacts[i];
 
     try {
-      // Skip if already processed
-      if (contact.status === 'sent' || contact.status === 'blacklisted') {
+      // Only skip contacts that were marked as blacklisted in this run
+      if (contact.status === 'blacklist') {
         continue;
       }
 
@@ -170,8 +174,8 @@ async function processBatch(
       }
 
       if (!config.testMode) {
-        // Mark as pending
-        await updateContactStatus(settings.contacts_sheet_id ?? "", contact.email, 'pending');
+        // Collect pending status update
+        statusUpdates.push({ email: contact.email, updates: { status: 'pending' } });
 
         // Wait between emails
         if (i > 0) {
@@ -181,8 +185,8 @@ async function processBatch(
         // Send email
         await sendEmail(contact.email, email.subject, email.body, settings.impersonated_email ?? "");
         
-        // Mark as sent
-        await updateContactStatus(settings.contacts_sheet_id ?? "", contact.email, 'sent');
+        // Update status to sent
+        statusUpdates.push({ email: contact.email, updates: { status: 'sent' } });
         
         // Record history
         await supabase.from('lead_history').insert({
@@ -217,8 +221,17 @@ async function processBatch(
       successCount++;
     } catch (error) {
       failureCount++;
-      await updateContactStatus(settings.contacts_sheet_id ?? "", contact.email, 'failed');
+      statusUpdates.push({ email: contact.email, updates: { status: 'failed' } });
       await logProcessing(supabase, userId, 'email', 'error', `Failed to process ${contact.email}`);
+    }
+  }
+
+  // Batch update all status changes at once
+  if (statusUpdates.length > 0 && !config.testMode) {
+    try {
+      await updateContacts(settings.contacts_sheet_id ?? "", statusUpdates);
+    } catch (error) {
+      console.error('Failed to batch update contact statuses:', error);
     }
   }
 
@@ -329,6 +342,35 @@ export async function POST(request: Request) {
         const start = config.startRow ?? 0;
         const end = config.endRow ?? processableContacts.length;
         processableContacts = processableContacts.slice(start, end);
+      }
+
+      // Update scheduledFor for this batch
+      if (config.updateScheduling) {
+        const now = new Date().toISOString();
+        const schedulingUpdates = processableContacts.map(contact => ({
+          email: contact.email,
+          updates: { scheduledFor: now }
+        }));
+        
+        try {
+          await updateContacts(settings.contacts_sheet_id ?? "", schedulingUpdates);
+          await logProcessing(
+            supabase,
+            userId,
+            'scheduling',
+            'success',
+            `Updated scheduledFor for ${schedulingUpdates.length} contacts`
+          );
+        } catch (error) {
+          console.error('Failed to update scheduling:', error);
+          await logProcessing(
+            supabase,
+            userId,
+            'scheduling',
+            'error',
+            `Failed to update scheduledFor: ${error instanceof Error ? error.message : 'Unknown error'}`
+          );
+        }
       }
 
       // Process batch

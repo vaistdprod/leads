@@ -28,13 +28,14 @@ interface SearchData {
 export function SeoResearch() {
   const [startDate, setStartDate] = useState<Date>();
   const [endDate, setEndDate] = useState<Date>();
+  const [siteUrl, setSiteUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [searchData, setSearchData] = useState<SearchData[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const fetchSearchData = async () => {
-    if (!startDate || !endDate) {
-      setError('Please select both start and end dates');
+    if (!startDate || !endDate || !siteUrl) {
+      setError('Please fill in all fields (Site URL and date range)');
       return;
     }
 
@@ -50,6 +51,7 @@ export function SeoResearch() {
         body: JSON.stringify({
           startDate: startDate.toISOString().split('T')[0],
           endDate: endDate.toISOString().split('T')[0],
+          siteUrl: siteUrl.startsWith('http') ? siteUrl : `https://${siteUrl}`
         }),
       });
 
@@ -82,8 +84,18 @@ export function SeoResearch() {
               e.preventDefault();
               fetchSearchData();
             }} 
-            className="flex gap-4"
+            className="flex flex-wrap gap-4"
           >
+            <div className="space-y-2 w-full">
+              <label className="text-sm font-medium">Site URL</label>
+              <Input
+                type="text"
+                value={siteUrl}
+                onChange={(e) => setSiteUrl(e.target.value)}
+                placeholder="e.g. https://example.com"
+                className="w-full md:w-[400px]"
+              />
+            </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Start Date</label>
               <div className="relative">
@@ -128,7 +140,7 @@ export function SeoResearch() {
 
             <Button 
               type="submit"
-              disabled={loading || !startDate || !endDate}
+              disabled={loading || !startDate || !endDate || !siteUrl.trim()}
               className="self-end"
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
