@@ -7,7 +7,6 @@ import { verifyEmail } from '@/lib/api/disify';
 import { enrichLeadData, generateEmail, EnrichmentData } from '@/lib/api/gemini';
 import { sendEmail } from '@/lib/google/gmail';
 import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
-import { useProcessingState } from '@/lib/hooks/use-processing-state';
 
 const VERCEL_TIMEOUT = 800000; // 800 seconds
 const DEFAULT_DELAY = 30; // 30 seconds between emails by default
@@ -22,6 +21,7 @@ interface ProcessingConfig {
   delayBetweenEmails?: number;
   testMode?: boolean;
   updateScheduling?: boolean;
+  shouldAbort?: boolean;
 }
 
 async function logProcessing(supabase: ReturnType<typeof createServerClient<Database>>, userId: string, stage: string, status: LogStatus, message: string) {
@@ -96,13 +96,18 @@ async function processBatch(
   let generatedEmails: Array<{ to: string, subject: string, body: string, enrichmentData: EnrichmentData }> = [];
   let statusUpdates: StatusUpdate[] = [];
 
-  // Get processing state
-  const { shouldAbort } = useProcessingState.getState();
-
   for (let i = 0; i < contacts.length; i++) {
     // Check for abort signal
-    if (shouldAbort) {
+    if (config.shouldAbort) {
       await logProcessing(supabase, userId, 'processing', 'warning', 'Processing aborted by user');
+      // Update any pending statuses before breaking
+      if (statusUpdates.length > 0 && !config.testMode) {
+        try {
+          await updateContacts(settings.contacts_sheet_id ?? "", statusUpdates);
+        } catch (error) {
+          console.error('Failed to update contact statuses during abort:', error);
+        }
+      }
       break;
     }
 
@@ -190,6 +195,12 @@ async function processBatch(
         // Wait between emails
         if (i > 0) {
           await delay((config.delayBetweenEmails ?? DEFAULT_DELAY) * 1000);
+        }
+
+        // Check for abort again before sending
+        if (config.shouldAbort) {
+          await logProcessing(supabase, userId, 'processing', 'warning', 'Processing aborted before sending email');
+          break;
         }
 
         // Send email
@@ -317,6 +328,25 @@ export async function POST(request: Request) {
     }
 
     try {
+      // Check if already aborted
+      if (config.shouldAbort) {
+        await logProcessing(supabase, userId, 'processing', 'warning', 'Processing aborted before start');
+        return NextResponse.json({ 
+          success: true,
+          aborted: true,
+          stats: {
+            total: 0,
+            processed: 0,
+            success: 0,
+            failure: 0,
+            currentBatch: {
+              start: 0,
+              end: 0
+            }
+          }
+        });
+      }
+
       // Load blacklist
       const blacklist = await getBlacklist(settings.blacklist_sheet_id ?? "");
       await logProcessing(supabase, userId, 'blacklist', 'success', `Loaded ${blacklist.length} blacklisted emails`);
@@ -345,6 +375,25 @@ export async function POST(request: Request) {
         'success', 
         `Found ${blacklist.length} blacklisted emails, marked ${blacklistedCount} contacts as blacklisted`
       );
+
+      // Check abort after blacklist processing
+      if (config.shouldAbort) {
+        await logProcessing(supabase, userId, 'processing', 'warning', 'Processing aborted after blacklist check');
+        return NextResponse.json({ 
+          success: true,
+          aborted: true,
+          stats: {
+            total: contacts.length,
+            processed: 0,
+            success: 0,
+            failure: 0,
+            currentBatch: {
+              start: 0,
+              end: 0
+            }
+          }
+        });
+      }
 
       // Apply row range filtering
       let processableContacts = filteredContacts;
@@ -385,6 +434,25 @@ export async function POST(request: Request) {
         }
       }
 
+      // Check abort after scheduling
+      if (config.shouldAbort) {
+        await logProcessing(supabase, userId, 'processing', 'warning', 'Processing aborted after scheduling');
+        return NextResponse.json({ 
+          success: true,
+          aborted: true,
+          stats: {
+            total: contacts.length,
+            processed: 0,
+            success: 0,
+            failure: 0,
+            currentBatch: {
+              start: 0,
+              end: 0
+            }
+          }
+        });
+      }
+
       // Process batch
       const startRow = config.startRow ?? 0;
       const batchContacts = processableContacts.slice(0, MAX_EMAILS_PER_BATCH);
@@ -400,8 +468,8 @@ export async function POST(request: Request) {
       );
 
       // Check if processing was aborted
-      const { shouldAbort } = useProcessingState.getState();
-      if (shouldAbort) {
+      if (config.shouldAbort) {
+        await logProcessing(supabase, userId, 'processing', 'warning', 'Processing aborted after batch');
         return NextResponse.json({ 
           success: true,
           aborted: true,

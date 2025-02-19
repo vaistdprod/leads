@@ -18,7 +18,7 @@ import {
 } from "./alert-dialog";
 
 export function ProcessingIndicator() {
-  const { isProcessing, totalContacts, processedContacts, progress, abort } = useProcessingState();
+  const { isProcessing, totalContacts, processedContacts, progress, abort, reset } = useProcessingState();
   const [showConfirm, setShowConfirm] = useState(false);
 
   if (!isProcessing) return null;
@@ -65,7 +65,7 @@ export function ProcessingIndicator() {
           <AlertDialogHeader>
             <AlertDialogTitle>Abort Processing?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will stop processing after the current contact is finished. Already processed contacts will not be affected.
+              This will stop processing after the current contact is finished. Already processed contacts will not be affected. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

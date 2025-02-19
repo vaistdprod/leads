@@ -15,6 +15,7 @@ interface ProcessConfigDialogProps {
 
 interface ProcessResult {
   success: boolean;
+  aborted?: boolean;
   stats: {
     total: number;
     processed: number;
@@ -37,6 +38,7 @@ export interface ProcessConfig {
   delayBetweenEmails: number;
   testMode: boolean;
   updateScheduling: boolean;
+  shouldAbort?: boolean;
 }
 
 export function ProcessConfigDialog({ onProcess, isTest = false }: ProcessConfigDialogProps) {
@@ -47,6 +49,7 @@ export function ProcessConfigDialog({ onProcess, isTest = false }: ProcessConfig
     setProcessing, 
     setTotalContacts, 
     setProcessedContacts,
+    abort,
     reset 
   } = useProcessingState();
   
@@ -82,9 +85,13 @@ export function ProcessConfigDialog({ onProcess, isTest = false }: ProcessConfig
       while (result.nextBatch && !shouldAbort) {
         currentConfig = {
           ...currentConfig,
-          startRow: result.nextBatch.startRow
+          startRow: result.nextBatch.startRow,
+          shouldAbort
         };
         result = await onProcess(currentConfig);
+        if (result.aborted) {
+          break;
+        }
         setProcessedContacts(result.stats.processed);
       }
 
