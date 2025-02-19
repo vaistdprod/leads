@@ -78,7 +78,13 @@ export function SeoResearch() {
       
       <Card className="p-6">
         <div className="space-y-4">
-          <div className="flex gap-4">
+          <form 
+            onSubmit={(e) => {
+              e.preventDefault();
+              fetchSearchData();
+            }} 
+            className="flex gap-4"
+          >
             <div className="space-y-2">
               <label className="text-sm font-medium">Start Date</label>
               <Dialog>
@@ -131,14 +137,14 @@ export function SeoResearch() {
             </div>
 
             <Button 
-              onClick={fetchSearchData}
+              type="submit"
               disabled={loading || !startDate || !endDate}
               className="self-end"
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Fetch Data
             </Button>
-          </div>
+          </form>
 
           {error && (
             <div className="p-4 bg-destructive/10 text-destructive rounded-md">

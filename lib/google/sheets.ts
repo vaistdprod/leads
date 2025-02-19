@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import { getGoogleAuthClient } from './googleAuth';
+import { trackApiUsage } from '../api/tracking';
 
 export interface Contact {
   firstName: string;
@@ -39,12 +40,11 @@ async function retryOperation<T>(operation: () => Promise<T>, attempts: number =
 }
 
 function isRetryableError(error: any): boolean {
-  // Google Sheets API specific error codes that warrant a retry
   const retryableErrors = [
-    403, // Forbidden (might be temporary due to token expiration)
-    429, // Too Many Requests
-    500, // Internal Server Error
-    503, // Service Unavailable
+    403,
+    429,
+    500,
+    503,
     'ECONNRESET',
     'ETIMEDOUT'
   ];
@@ -59,7 +59,7 @@ function isRetryableError(error: any): boolean {
 async function validateSheetStructure(sheets: any, sheetId: string, requiredColumns: string[]) {
   const { data } = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetId,
-    range: '1:1', // First row only
+    range: '1:1',
   });
 
   if (!data.values || data.values.length === 0) {
@@ -77,51 +77,61 @@ async function validateSheetStructure(sheets: any, sheetId: string, requiredColu
 }
 
 export async function getBlacklist(sheetId: string): Promise<string[]> {
+  const startTime = Date.now();
+  let status = 200;
+
   return retryOperation(async () => {
     try {
       const auth = await getGoogleAuthClient();
       const sheets = google.sheets({ version: 'v4', auth });
 
       await validateSheetStructure(sheets, sheetId, ['email']);
-
-      // Get headers first to find email column
       const headers = await validateSheetStructure(sheets, sheetId, ['email']);
       const emailColumnLetter = String.fromCharCode(65 + headers.indexOf('email'));
       
       const { data } = await sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: `${emailColumnLetter}:${emailColumnLetter}`, // Use correct column
+        range: `${emailColumnLetter}:${emailColumnLetter}`,
       });
 
-      if (!data.values) {
-        console.log('No data found in blacklist sheet');
-        return [];
-      }
-
-      // Skip header row and filter out empty values
-      const emails = data.values
-        ?.slice(1) // Skip header row
+      const emails = (data.values || [])
+        .slice(1)
         .flat()
         .filter(email => email && typeof email === 'string')
         .map(email => email.toLowerCase().trim())
-        .filter(email => email !== 'email'); // Remove any 'email' text that might be in data
+        .filter(email => email !== 'email');
 
-      console.log('Blacklist data:', { emails });
+      await trackApiUsage('sheets', 'getBlacklist', status, Date.now() - startTime, {
+        success: true,
+        sheetId,
+        emailCount: emails.length
+      });
+
       return emails;
     } catch (error) {
+      status = 500;
       console.error('Failed to get blacklist:', error);
+
+      await trackApiUsage('sheets', 'getBlacklist', status, Date.now() - startTime, {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        sheetId
+      });
+
       throw error;
     }
   });
 }
 
 export async function getContacts(sheetId: string, columnMappings: Record<string, string>): Promise<Contact[]> {
+  const startTime = Date.now();
+  let status = 200;
+
   return retryOperation(async () => {
     try {
       const auth = await getGoogleAuthClient();
       const sheets = google.sheets({ version: 'v4', auth });
 
-      // Use column mappings from settings
       const requiredColumns = Object.values(columnMappings);
       const headers = await validateSheetStructure(sheets, sheetId, requiredColumns);
 
@@ -131,13 +141,16 @@ export async function getContacts(sheetId: string, columnMappings: Record<string
       });
 
       if (!data.values || data.values.length < 2) {
-        console.log('No data found in contacts sheet');
+        await trackApiUsage('sheets', 'getContacts', status, Date.now() - startTime, {
+          success: true,
+          sheetId,
+          contactCount: 0
+        });
         return [];
       }
 
       const [, ...rows] = data.values;
 
-      // Find required column indices using mappings
       const nameIndex = headers.indexOf(columnMappings.name);
       const emailIndex = headers.indexOf(columnMappings.email);
       const companyIndex = headers.findIndex((h: string) => h === columnMappings.company);
@@ -167,10 +180,23 @@ export async function getContacts(sheetId: string, columnMappings: Record<string
         })
         .filter((contact): contact is RawContact => contact !== null);
 
-      console.log('Contacts data:', { contacts });
+      await trackApiUsage('sheets', 'getContacts', status, Date.now() - startTime, {
+        success: true,
+        sheetId,
+        contactCount: contacts.length
+      });
+
       return contacts;
     } catch (error) {
+      status = 500;
       console.error('Failed to get contacts:', error);
+
+      await trackApiUsage('sheets', 'getContacts', status, Date.now() - startTime, {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        sheetId
+      });
+
       throw error;
     }
   });
@@ -182,19 +208,25 @@ interface BatchUpdate {
 }
 
 export async function updateContacts(sheetId: string, updates: BatchUpdate[]) {
+  const startTime = Date.now();
+  let status = 200;
+
   return retryOperation(async () => {
     try {
       const auth = await getGoogleAuthClient();
       const sheets = google.sheets({ version: 'v4', auth });
 
-      // First get the sheet data to find the rows
       const { data } = await sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
         range: 'A:K',
       });
 
       if (!data.values || data.values.length < 2) {
-        console.warn('No data found in sheet');
+        await trackApiUsage('sheets', 'updateContacts', status, Date.now() - startTime, {
+          success: true,
+          sheetId,
+          updatedCount: 0
+        });
         return;
       }
 
@@ -209,14 +241,12 @@ export async function updateContacts(sheetId: string, updates: BatchUpdate[]) {
       const statusIndex = normalizedHeaders.indexOf('status');
 
       if (emailIndex === -1) {
-        console.warn('Email column not found');
-        return;
+        throw new Error('Email column not found');
       }
 
       const batchRequests = updates.flatMap(update => {
         const rowIndex = (data.values as string[][]).findIndex((row, index) => 
-          index > 0 && // Skip header row
-          row[emailIndex]?.toLowerCase().trim() === update.email.toLowerCase().trim()
+          index > 0 && row[emailIndex]?.toLowerCase().trim() === update.email.toLowerCase().trim()
         );
 
         if (rowIndex === -1) {
@@ -243,7 +273,6 @@ export async function updateContacts(sheetId: string, updates: BatchUpdate[]) {
         return requests;
       });
 
-      // Execute batch update
       if (batchRequests.length > 0) {
         await sheets.spreadsheets.values.batchUpdate({
           spreadsheetId: sheetId,
@@ -252,16 +281,31 @@ export async function updateContacts(sheetId: string, updates: BatchUpdate[]) {
             data: batchRequests
           }
         });
-        console.log('Updated contacts:', updates);
       }
+
+      await trackApiUsage('sheets', 'updateContacts', status, Date.now() - startTime, {
+        success: true,
+        sheetId,
+        updatedCount: batchRequests.length,
+        updateTypes: updates.map(u => Object.keys(u.updates))
+      });
+
     } catch (error) {
+      status = 500;
       console.error('Failed to update contacts:', error);
+
+      await trackApiUsage('sheets', 'updateContacts', status, Date.now() - startTime, {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        sheetId,
+        updateCount: updates.length
+      });
+
       throw error;
     }
   });
 }
 
-// Maintain backward compatibility
 export async function updateContact(sheetId: string, email: string, updates: { scheduledFor?: string; status?: string }) {
   return updateContacts(sheetId, [{ email, updates }]);
 }

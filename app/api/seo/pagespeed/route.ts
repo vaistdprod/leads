@@ -137,13 +137,15 @@ export async function POST(request: Request) {
 
     console.log('PageSpeed API: Successfully retrieved data');
 
-    // Extract relevant metrics
+    // Extract and format metrics
     const {
       lighthouseResult: {
         categories,
         audits,
         configSettings,
         timing: { total: analysisTime },
+        stackPacks,
+        environment,
       },
     } = data;
 
@@ -162,10 +164,21 @@ export async function POST(request: Request) {
         timeToInteractive: audits['interactive']?.numericValue,
         totalBlockingTime: audits['total-blocking-time']?.numericValue,
         cumulativeLayoutShift: audits['cumulative-layout-shift']?.numericValue,
+        maxPotentialFid: audits['max-potential-fid']?.numericValue,
+        serverResponseTime: audits['server-response-time']?.numericValue,
+        mainThreadWork: audits['mainthread-work-breakdown']?.numericValue,
+        bootupTime: audits['bootup-time']?.numericValue,
       },
       details: {
         deviceEmulation: configSettings.emulatedFormFactor,
         analysisTime: analysisTime,
+        networkInfo: environment?.networkUserAgent,
+        cpu: environment?.benchmarkIndex,
+        userAgent: environment?.hostUserAgent,
+        stackPacks: stackPacks?.map((pack: any) => ({
+          name: pack.name,
+          descriptions: pack.descriptions,
+        })),
       },
       audits: {
         performance: Object.entries(audits)
@@ -178,6 +191,10 @@ export async function POST(request: Request) {
             displayValue: audit.displayValue,
             numericValue: audit.numericValue,
             warnings: audit.warnings,
+            details: audit.details,
+            scoreDisplayMode: audit.scoreDisplayMode,
+            errorMessage: audit.errorMessage,
+            explanation: audit.explanation,
           })),
         accessibility: Object.entries(audits)
           .filter(([_, audit]: [string, any]) => audit.group === 'accessibility')
@@ -188,6 +205,10 @@ export async function POST(request: Request) {
             score: audit.score,
             displayValue: audit.displayValue,
             warnings: audit.warnings,
+            details: audit.details,
+            scoreDisplayMode: audit.scoreDisplayMode,
+            errorMessage: audit.errorMessage,
+            explanation: audit.explanation,
           })),
         bestPractices: Object.entries(audits)
           .filter(([_, audit]: [string, any]) => audit.group === 'best-practices')
@@ -198,6 +219,10 @@ export async function POST(request: Request) {
             score: audit.score,
             displayValue: audit.displayValue,
             warnings: audit.warnings,
+            details: audit.details,
+            scoreDisplayMode: audit.scoreDisplayMode,
+            errorMessage: audit.errorMessage,
+            explanation: audit.explanation,
           })),
         seo: Object.entries(audits)
           .filter(([_, audit]: [string, any]) => audit.group === 'seo')
@@ -208,6 +233,10 @@ export async function POST(request: Request) {
             score: audit.score,
             displayValue: audit.displayValue,
             warnings: audit.warnings,
+            details: audit.details,
+            scoreDisplayMode: audit.scoreDisplayMode,
+            errorMessage: audit.errorMessage,
+            explanation: audit.explanation,
           })),
       },
     };

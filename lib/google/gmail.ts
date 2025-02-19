@@ -1,7 +1,11 @@
 import { google } from 'googleapis';
 import { getGoogleAuthClient } from './googleAuth';
+import { trackApiUsage } from '../api/tracking';
 
 async function getUserInfo(impersonatedEmail: string) {
+  const startTime = Date.now();
+  let status = 200;
+
   try {
     // Use admin client to get user info
     const adminAuth = await getGoogleAuthClient();
@@ -18,13 +22,28 @@ async function getUserInfo(impersonatedEmail: string) {
       user.thumbnailPhotoUrl.includes('ALV-') || 
       user.thumbnailPhotoUrl.includes('AAAAA');
 
-    return {
+    const userInfo = {
       email: user.primaryEmail,
       name: user.name?.fullName || user.name?.givenName || user.primaryEmail?.split('@')[0],
       photoUrl: isPlaceholderPhoto ? null : user.thumbnailPhotoUrl,
     };
+
+    await trackApiUsage('gmail', 'getUserInfo', status, Date.now() - startTime, {
+      success: true,
+      impersonatedEmail
+    });
+
+    return userInfo;
   } catch (error) {
+    status = 500;
     console.error('Failed to get user info:', error);
+    
+    await trackApiUsage('gmail', 'getUserInfo', status, Date.now() - startTime, {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      impersonatedEmail
+    });
+
     // Fallback to basic info from email
     const name = impersonatedEmail.split('@')[0].split('.')
       .map(part => part.charAt(0).toUpperCase() + part.slice(1))
@@ -38,9 +57,6 @@ async function getUserInfo(impersonatedEmail: string) {
   }
 }
 
-// Rest of the file remains the same...
-
-
 function encodeHeader(text: string): string {
   // Convert to Base64 with UTF-8 encoding
   const base64 = Buffer.from(text, 'utf8').toString('base64');
@@ -48,6 +64,9 @@ function encodeHeader(text: string): string {
 }
 
 export async function sendEmail(to: string, subject: string, body: string, impersonatedEmail?: string) {
+  const startTime = Date.now();
+  let status = 200;
+
   try {
     if (!impersonatedEmail) {
       throw new Error('Impersonated email is required');
@@ -109,9 +128,26 @@ export async function sendEmail(to: string, subject: string, body: string, imper
     });
 
     console.log('Email sent successfully:', result.data);
+
+    await trackApiUsage('gmail', 'sendEmail', status, Date.now() - startTime, {
+      success: true,
+      to,
+      impersonatedEmail,
+      messageId: result.data.id
+    });
+
     return result.data;
   } catch (error) {
+    status = 500;
     console.error('Failed to send email:', error);
+
+    await trackApiUsage('gmail', 'sendEmail', status, Date.now() - startTime, {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      to,
+      impersonatedEmail
+    });
+
     throw new Error(`Failed to send email: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

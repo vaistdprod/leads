@@ -95,7 +95,13 @@ export function WebsiteAnalysis({ onAnalyze }: WebsiteAnalysisProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-4">
+      <form 
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleAnalyze();
+        }} 
+        className="flex gap-4"
+      >
         <Input
           type="url"
           placeholder="Enter website URL"
@@ -103,7 +109,7 @@ export function WebsiteAnalysis({ onAnalyze }: WebsiteAnalysisProps) {
           onChange={(e) => setUrl(e.target.value)}
           className="flex-1"
         />
-        <Button onClick={handleAnalyze} disabled={analyzing || !url}>
+        <Button type="submit" disabled={analyzing || !url}>
           {analyzing ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -113,7 +119,7 @@ export function WebsiteAnalysis({ onAnalyze }: WebsiteAnalysisProps) {
             "Analyze"
           )}
         </Button>
-      </div>
+      </form>
 
       {error && (
         <div className="text-red-500 text-sm">{error}</div>
@@ -163,32 +169,116 @@ export function WebsiteAnalysis({ onAnalyze }: WebsiteAnalysisProps) {
                   {formatTime(results.performance.metrics.timeToInteractive)}
                 </p>
               </Card>
+
+              <Card className="p-4">
+                <h3 className="font-medium mb-2">Total Blocking Time</h3>
+                <p className="text-2xl font-bold">
+                  {formatTime(results.performance.metrics.totalBlockingTime)}
+                </p>
+              </Card>
+
+              <Card className="p-4">
+                <h3 className="font-medium mb-2">Server Response Time</h3>
+                <p className="text-2xl font-bold">
+                  {formatTime(results.performance.metrics.serverResponseTime)}
+                </p>
+              </Card>
+
+              <Card className="p-4">
+                <h3 className="font-medium mb-2">Main Thread Work</h3>
+                <p className="text-2xl font-bold">
+                  {formatTime(results.performance.metrics.mainThreadWork)}
+                </p>
+              </Card>
+
+              <Card className="p-4">
+                <h3 className="font-medium mb-2">JavaScript Bootup Time</h3>
+                <p className="text-2xl font-bold">
+                  {formatTime(results.performance.metrics.bootupTime)}
+                </p>
+              </Card>
+
+              <Card className="p-4">
+                <h3 className="font-medium mb-2">Cumulative Layout Shift</h3>
+                <p className="text-2xl font-bold">
+                  {results.performance.metrics.cumulativeLayoutShift.toFixed(3)}
+                </p>
+              </Card>
             </div>
+
+            <Card className="p-6">
+              <h3 className="text-lg font-medium mb-4">Environment Details</h3>
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium">Device Emulation</h4>
+                  <p className="text-muted-foreground">{results.performance.details.deviceEmulation}</p>
+                </div>
+                <div>
+                  <h4 className="font-medium">Network Info</h4>
+                  <p className="text-muted-foreground">{results.performance.details.networkInfo}</p>
+                </div>
+                <div>
+                  <h4 className="font-medium">CPU/Memory Power</h4>
+                  <p className="text-muted-foreground">Benchmark Index: {results.performance.details.cpu}</p>
+                </div>
+                {results.performance.details.stackPacks?.map((pack: any) => (
+                  <div key={pack.name}>
+                    <h4 className="font-medium">{pack.name} Recommendations</h4>
+                    <ul className="list-disc pl-5 mt-2 space-y-2">
+                      {Object.entries(pack.descriptions).map(([id, desc]: [string, any]) => (
+                        <li key={id} className="text-muted-foreground">{desc}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </Card>
 
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Performance Audits</h3>
-              {results.performance.audits.performance.map((audit: any) => (
-                <Card key={audit.id} className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="font-medium">{audit.title}</h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {audit.description}
-                      </p>
-                      {audit.displayValue && (
-                        <p className="text-sm font-medium mt-2">
-                          {audit.displayValue}
+              <div className="grid gap-4">
+                {results.performance.audits.performance.map((audit: any) => (
+                  <Card key={audit.id} className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2">
+                        <h4 className="font-medium">{audit.title}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {audit.description}
                         </p>
+                        {audit.displayValue && (
+                          <p className="text-sm font-medium">
+                            {audit.displayValue}
+                          </p>
+                        )}
+                        {audit.explanation && (
+                          <p className="text-sm text-muted-foreground">
+                            {audit.explanation}
+                          </p>
+                        )}
+                        {audit.warnings?.length > 0 && (
+                          <div className="bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 p-3 rounded-md">
+                            <ul className="list-disc pl-5 space-y-1">
+                              {audit.warnings.map((warning: string, i: number) => (
+                                <li key={i} className="text-sm">{warning}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {audit.errorMessage && (
+                          <div className="bg-destructive/10 text-destructive p-3 rounded-md">
+                            <p className="text-sm">{audit.errorMessage}</p>
+                          </div>
+                        )}
+                      </div>
+                      {audit.score !== null && (
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white ${getScoreColor(audit.score * 100)}`}>
+                          {formatScore(audit.score * 100)}
+                        </div>
                       )}
                     </div>
-                    {audit.score !== null && (
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white ${getScoreColor(audit.score * 100)}`}>
-                        {formatScore(audit.score * 100)}
-                      </div>
-                    )}
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                ))}
+              </div>
             </div>
           </TabsContent>
 
