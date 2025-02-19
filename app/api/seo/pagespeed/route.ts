@@ -44,45 +44,52 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log('PageSpeed API: Fetching user');
+    // Try to get API key from environment variable first
+    let apiKey = process.env.PAGESPEED_API_KEY;
+    console.log('PageSpeed API: Checking environment variable');
 
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.error('PageSpeed API error: User not authenticated');
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    // If not in env, try to get from database
+    if (!apiKey) {
+      console.log('PageSpeed API: Environment variable not found, checking database');
+      
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('PageSpeed API error: User not authenticated');
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+
+      // Get PageSpeed API key from settings for current user
+      const { data: settings, error: settingsError } = await supabase
+        .from('settings')
+        .select('pagespeed_api_key')
+        .eq('user_id', user.id)
+        .single();
+
+      if (settingsError) {
+        console.error('PageSpeed API error: Failed to fetch settings', settingsError);
+        return NextResponse.json(
+          { error: 'Failed to fetch PageSpeed API settings' },
+          { status: 500 }
+        );
+      }
+
+      apiKey = settings?.pagespeed_api_key;
     }
 
-    console.log('PageSpeed API: Fetching settings');
-
-    // Get PageSpeed API key from settings for current user
-    const { data: settings, error: settingsError } = await supabase
-      .from('settings')
-      .select('pagespeed_api_key')
-      .eq('user_id', user.id)
-      .single();
-
-    if (settingsError) {
-      console.error('PageSpeed API error: Failed to fetch settings', settingsError);
-      return NextResponse.json(
-        { error: 'Failed to fetch PageSpeed API settings' },
-        { status: 500 }
-      );
-    }
-
-    if (!settings?.pagespeed_api_key) {
+    if (!apiKey) {
       console.error('PageSpeed API error: API key not configured');
       return NextResponse.json(
-        { error: 'PageSpeed API key not configured' },
+        { error: 'PageSpeed API key not configured in environment or settings' },
         { status: 400 }
       );
     }
 
     console.log('PageSpeed API: Calling Google PageSpeed API');
-    const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&key=${settings.pagespeed_api_key}&strategy=mobile&category=performance&category=accessibility&category=best-practices&category=seo`;
+    const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&key=${apiKey}&strategy=mobile&category=performance&category=accessibility&category=best-practices&category=seo`;
     
     const response = await fetch(apiUrl);
     const data = await response.json();
@@ -171,7 +178,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json(performanceMetrics);
   } catch (error) {
-    console.error('PageSpeed API error:', error);
+    console.error('PageSpeed API error:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json(
       { 
         error: error instanceof Error ? error.message : 'Failed to analyze page speed',

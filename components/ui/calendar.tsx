@@ -2,21 +2,21 @@
 
 import * as React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { DayPicker } from 'react-day-picker';
-import type { DayPickerProps } from 'react-day-picker';
+import { DayPicker, DayClickEventHandler } from 'react-day-picker';
+import type { DayPickerSingleProps, ClassNames } from 'react-day-picker';
 
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 
 type CalendarProps = {
   className?: string;
-  classNames?: DayPickerProps['classNames'];
+  classNames?: Partial<ClassNames>;
   showOutsideDays?: boolean;
   selected?: Date;
   onSelect?: (date: Date | undefined) => void;
   disabled?: (date: Date) => boolean;
   initialFocus?: boolean;
-} & Omit<DayPickerProps, 'mode' | 'selected' | 'onSelect' | 'disabled' | 'initialFocus'>;
+} & Omit<DayPickerSingleProps, 'mode' | 'selected' | 'onSelect' | 'disabled' | 'initialFocus' | 'className' | 'classNames' | 'onDayClick'>;
 
 function Calendar({
   className,
@@ -28,9 +28,17 @@ function Calendar({
   initialFocus,
   ...props
 }: CalendarProps) {
+  const handleDayClick: DayClickEventHandler = (day, modifiers, e) => {
+    e.preventDefault();
+    if (onSelect) {
+      onSelect(modifiers.selected ? undefined : day);
+    }
+  };
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
+      disabled={disabled}
+      initialFocus={initialFocus}
       className={cn('p-3', className)}
       classNames={{
         months: 'flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0',
@@ -74,7 +82,7 @@ function Calendar({
       }}
       mode="single"
       selected={selected}
-      onSelect={onSelect}
+      onDayClick={handleDayClick}
       {...props}
     />
   );
