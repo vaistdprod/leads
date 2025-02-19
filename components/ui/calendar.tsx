@@ -29,7 +29,9 @@ function Calendar({
   ...props
 }: CalendarProps) {
   const handleDayClick: DayClickEventHandler = (day, modifiers, e) => {
-    e.preventDefault();
+    if (e) {
+      e.preventDefault();
+    }
     if (onSelect) {
       onSelect(modifiers.selected ? undefined : day);
     }
