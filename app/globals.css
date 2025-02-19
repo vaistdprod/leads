@@ -60,16 +60,30 @@
     --color-ring: oklch(0.831 0 0);
   }
 
-  /* Button improvements */
+  /* Button and tab improvements */
   .button, button, [type='button'], [type='submit'] {
     transition: all 0.2s ease-in-out;
     outline: 2px solid transparent;
     outline-offset: 1px;
   }
 
-  /* Remove borders from tab buttons */
+  /* Tab list improvements */
+  [role="tablist"] {
+    padding: 0 !important;
+  }
+
   [role="tab"] {
     border: none !important;
+    box-shadow: none !important;
+    transition: background-color 0.2s ease-in-out;
+  }
+
+  [role="tab"][data-state="active"] {
+    background-color: oklch(0.95 0 0 / 0.1);
+  }
+
+  .dark [role="tab"][data-state="active"] {
+    background-color: oklch(1 0 0 / 0.1);
   }
 
   /* Settings gear icon alignment */
@@ -89,25 +103,33 @@
   .dark button:not([role="tab"]), 
   .dark [type='button']:not([role="tab"]), 
   .dark [type='submit']:not([role="tab"]) {
-    border: 1px solid oklch(0.2 0 0);
+    border: 1px solid oklch(0.3 0 0);
   }
 
   .button:hover, button:hover, [type='button']:hover, [type='submit']:hover {
     opacity: 0.9;
     border-color: var(--color-ring);
-    box-shadow: 0 0 10px oklch(0.5 0.1 0 / 0.1);
+    box-shadow: 0 0 10px oklch(0.5 0.2 0 / 0.2);
   }
 
   .dark .button:hover, 
   .dark button:hover, 
   .dark [type='button']:hover, 
   .dark [type='submit']:hover {
-    box-shadow: 0 0 15px oklch(0.7 0.2 0 / 0.2);
+    box-shadow: 0 0 15px oklch(0.8 0.2 0 / 0.3);
+    border-color: oklch(0.6 0 0);
   }
 
   .button:focus, button:focus, [type='button']:focus, [type='submit']:focus {
     outline-color: var(--color-ring);
     border-color: var(--color-ring);
+  }
+
+  .dark .button:focus,
+  .dark button:focus,
+  .dark [type='button']:focus,
+  .dark [type='submit']:focus {
+    border-color: oklch(0.6 0 0);
   }
 
   /* Slider improvements */

@@ -27,18 +27,18 @@ const mockTrafficData = [
 ];
 
 const mockKeywordData = [
-  { keyword: 'web development', clicks: 450, impressions: 5000 },
-  { keyword: 'software solutions', clicks: 380, impressions: 4200 },
-  { keyword: 'digital transformation', clicks: 320, impressions: 3800 },
-  { keyword: 'cloud services', clicks: 290, impressions: 3500 },
-  { keyword: 'IT consulting', clicks: 250, impressions: 3000 },
+  { keyword: 'vývoj webových aplikací', clicks: 450, impressions: 5000 },
+  { keyword: 'softwarová řešení', clicks: 380, impressions: 4200 },
+  { keyword: 'digitální transformace', clicks: 320, impressions: 3800 },
+  { keyword: 'cloudové služby', clicks: 290, impressions: 3500 },
+  { keyword: 'IT poradenství', clicks: 250, impressions: 3000 },
 ];
 
 const mockContentPerformance = [
-  { title: 'Getting Started with Cloud Computing', views: 1200, engagement: 75 },
-  { title: 'Digital Transformation Guide', views: 980, engagement: 82 },
-  { title: 'Web Development Best Practices', views: 850, engagement: 68 },
-  { title: 'IT Security Essentials', views: 720, engagement: 71 },
+  { title: 'Začínáme s cloudovým řešením', views: 1200, engagement: 75 },
+  { title: 'Průvodce digitální transformací', views: 980, engagement: 82 },
+  { title: 'Nejlepší postupy vývoje webu', views: 850, engagement: 68 },
+  { title: 'Základy IT bezpečnosti', views: 720, engagement: 71 },
 ];
 
 const COLORS = [
@@ -52,57 +52,68 @@ const COLORS = [
 export function Reports() {
   const [timeRange, setTimeRange] = useState('3m');
 
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString('cs-CZ', {
+      year: 'numeric',
+      month: 'long'
+    });
+  };
+
+  const formatNumber = (num: number) => {
+    return num.toLocaleString('cs-CZ');
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h2 className="text-2xl font-bold">Reports</h2>
+          <h2 className="text-2xl font-bold">Reporty</h2>
           <p className="text-muted-foreground">
-            View detailed analytics and performance reports
+            Zobrazit podrobné analytické a výkonnostní reporty
           </p>
         </div>
         <Select value={timeRange} onValueChange={setTimeRange}>
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select time range" />
+            <SelectValue placeholder="Vybrat časové období" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="1m">Last Month</SelectItem>
-            <SelectItem value="3m">Last 3 Months</SelectItem>
-            <SelectItem value="6m">Last 6 Months</SelectItem>
-            <SelectItem value="1y">Last Year</SelectItem>
+            <SelectItem value="1m">Poslední měsíc</SelectItem>
+            <SelectItem value="3m">Poslední 3 měsíce</SelectItem>
+            <SelectItem value="6m">Posledních 6 měsíců</SelectItem>
+            <SelectItem value="1y">Poslední rok</SelectItem>
           </SelectContent>
         </Select>
       </div>
       
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="seo">SEO Performance</TabsTrigger>
-          <TabsTrigger value="content">Content Performance</TabsTrigger>
+          <TabsTrigger value="overview">Přehled</TabsTrigger>
+          <TabsTrigger value="seo">SEO Výkon</TabsTrigger>
+          <TabsTrigger value="content">Výkon obsahu</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
           <div className="grid gap-6 md:grid-cols-2">
             <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Traffic Overview</h3>
+              <h3 className="text-lg font-semibold mb-4">Přehled návštěvnosti</h3>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={mockTrafficData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
+                    <XAxis dataKey="date" tickFormatter={formatDate} />
+                    <YAxis tickFormatter={formatNumber} />
                     <Tooltip />
                     <Line
                       type="monotone"
                       dataKey="pageviews"
                       stroke="hsl(var(--chart-1))"
-                      name="Page Views"
+                      name="Zobrazení stránky"
                     />
                     <Line
                       type="monotone"
                       dataKey="visitors"
                       stroke="hsl(var(--chart-2))"
-                      name="Visitors"
+                      name="Návštěvníci"
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -110,15 +121,15 @@ export function Reports() {
             </Card>
 
             <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Top Keywords</h3>
+              <h3 className="text-lg font-semibold mb-4">Nejlepší klíčová slova</h3>
               <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={mockKeywordData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="keyword" />
-                    <YAxis />
+                    <YAxis tickFormatter={formatNumber} />
                     <Tooltip />
-                    <Bar dataKey="clicks" fill="hsl(var(--chart-1))" name="Clicks" />
+                    <Bar dataKey="clicks" fill="hsl(var(--chart-1))" name="Kliknutí" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -129,26 +140,26 @@ export function Reports() {
         <TabsContent value="seo">
           <div className="grid gap-6 md:grid-cols-2">
             <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Keyword Performance</h3>
+              <h3 className="text-lg font-semibold mb-4">Výkon klíčových slov</h3>
               <div className="h-[400px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={mockKeywordData}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="keyword" />
-                    <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" />
+                    <YAxis yAxisId="left" tickFormatter={formatNumber} />
+                    <YAxis yAxisId="right" orientation="right" tickFormatter={formatNumber} />
                     <Tooltip />
                     <Bar
                       yAxisId="left"
                       dataKey="clicks"
                       fill="hsl(var(--chart-1))"
-                      name="Clicks"
+                      name="Kliknutí"
                     />
                     <Bar
                       yAxisId="right"
                       dataKey="impressions"
                       fill="hsl(var(--chart-2))"
-                      name="Impressions"
+                      name="Zobrazení"
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -156,7 +167,7 @@ export function Reports() {
             </Card>
 
             <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Click Distribution</h3>
+              <h3 className="text-lg font-semibold mb-4">Distribuce kliknutí</h3>
               <div className="h-[400px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
@@ -184,15 +195,15 @@ export function Reports() {
         <TabsContent value="content">
           <div className="space-y-6">
             <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">Content Performance</h3>
+              <h3 className="text-lg font-semibold mb-4">Výkon obsahu</h3>
               <div className="h-[400px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={mockContentPerformance} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
+                    <XAxis type="number" tickFormatter={formatNumber} />
                     <YAxis dataKey="title" type="category" width={200} />
                     <Tooltip />
-                    <Bar dataKey="views" fill="hsl(var(--chart-1))" name="Views">
+                    <Bar dataKey="views" fill="hsl(var(--chart-1))" name="Zobrazení">
                       {mockContentPerformance.map((entry, index) => (
                         <Cell
                           key={`cell-${index}`}
@@ -207,7 +218,7 @@ export function Reports() {
 
             <div className="grid gap-6 md:grid-cols-2">
               <Card className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Engagement Metrics</h3>
+                <h3 className="text-lg font-semibold mb-4">Metriky zapojení</h3>
                 <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -231,19 +242,19 @@ export function Reports() {
               </Card>
 
               <Card className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Performance Summary</h3>
+                <h3 className="text-lg font-semibold mb-4">Souhrn výkonu</h3>
                 <div className="space-y-4">
                   {mockContentPerformance.map((content, index) => (
                     <div key={index} className="flex items-center justify-between">
                       <div className="space-y-1">
                         <p className="font-medium">{content.title}</p>
                         <p className="text-sm text-muted-foreground">
-                          {content.views.toLocaleString()} views
+                          {formatNumber(content.views)} zobrazení
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="font-medium">{content.engagement}%</p>
-                        <p className="text-sm text-muted-foreground">engagement</p>
+                        <p className="text-sm text-muted-foreground">zapojení</p>
                       </div>
                     </div>
                   ))}
