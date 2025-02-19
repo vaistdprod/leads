@@ -7,6 +7,7 @@ import { verifyEmail } from '@/lib/api/disify';
 import { enrichLeadData, generateEmail, EnrichmentData } from '@/lib/api/gemini';
 import { sendEmail } from '@/lib/google/gmail';
 import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
+import { useProcessingState } from '@/lib/hooks/use-processing-state';
 
 const VERCEL_TIMEOUT = 800000; // 800 seconds
 const DEFAULT_DELAY = 30; // 30 seconds between emails by default
@@ -95,7 +96,16 @@ async function processBatch(
   let generatedEmails: Array<{ to: string, subject: string, body: string, enrichmentData: EnrichmentData }> = [];
   let statusUpdates: StatusUpdate[] = [];
 
+  // Get processing state
+  const { shouldAbort } = useProcessingState.getState();
+
   for (let i = 0; i < contacts.length; i++) {
+    // Check for abort signal
+    if (shouldAbort) {
+      await logProcessing(supabase, userId, 'processing', 'warning', 'Processing aborted by user');
+      break;
+    }
+
     // Check remaining time
     const timeElapsed = Date.now() - batchStartTime;
     const remainingTime = VERCEL_TIMEOUT - timeElapsed;
@@ -346,10 +356,12 @@ export async function POST(request: Request) {
 
       // Update scheduledFor for this batch
       if (config.updateScheduling) {
-        const now = new Date().toISOString();
+        const now = new Date();
+        // Add 1 hour for GMT+1
+        now.setHours(now.getHours() + 1);
         const schedulingUpdates = processableContacts.map(contact => ({
           email: contact.email,
-          updates: { scheduledFor: now }
+          updates: { scheduledFor: now.toISOString() }
         }));
         
         try {
@@ -386,6 +398,25 @@ export async function POST(request: Request) {
         userId,
         batchStartTime
       );
+
+      // Check if processing was aborted
+      const { shouldAbort } = useProcessingState.getState();
+      if (shouldAbort) {
+        return NextResponse.json({ 
+          success: true,
+          aborted: true,
+          stats: {
+            total: contacts.length,
+            processed: startRow + success + failure,
+            success,
+            failure,
+            currentBatch: {
+              start: startRow,
+              end: startRow + success + failure
+            }
+          }
+        });
+      }
 
       // Update stats
       await supabase

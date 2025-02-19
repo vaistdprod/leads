@@ -42,10 +42,15 @@ export interface ProcessConfig {
 export function ProcessConfigDialog({ onProcess, isTest = false }: ProcessConfigDialogProps) {
   const [open, setOpen] = useState(false);
   const { 
-    isProcessing, 
+    isProcessing,
+    shouldAbort,
+    progress,
+    totalContacts,
+    processedContacts,
     setProcessing, 
     setTotalContacts, 
-    setProcessedContacts, 
+    setProcessedContacts,
+    abort,
     reset 
   } = useProcessingState();
   
@@ -78,7 +83,7 @@ export function ProcessConfigDialog({ onProcess, isTest = false }: ProcessConfig
       setProcessedContacts(result.stats.processed);
 
       // Continue processing remaining batches
-      while (result.nextBatch) {
+      while (result.nextBatch && !shouldAbort) {
         currentConfig = {
           ...currentConfig,
           startRow: result.nextBatch.startRow
@@ -106,22 +111,47 @@ export function ProcessConfigDialog({ onProcess, isTest = false }: ProcessConfig
 
   return (
     <>
-      <Button
-        variant={isTest ? "outline" : "default"}
-        className={isTest ? "hover:bg-accent" : "hover:bg-primary/90"}
-        disabled={isProcessing}
-        onClick={() => handleOpenChange(true)}
-        aria-label={isTest ? "Configure test run" : "Configure processing"}
-      >
-        {isProcessing ? (
-          <>
-            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-            {isTest ? "Testing..." : "Processing..."}
-          </>
-        ) : (
-          isTest ? "Test Run" : "Process Contacts"
+      <div className="space-y-2">
+        <Button
+          variant={isTest ? "outline" : "default"}
+          className={isTest ? "hover:bg-accent" : "hover:bg-primary/90"}
+          disabled={isProcessing}
+          onClick={() => handleOpenChange(true)}
+          aria-label={isTest ? "Configure test run" : "Configure processing"}
+        >
+          {isProcessing ? (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              {isTest ? "Testing..." : "Processing..."}
+            </>
+          ) : (
+            isTest ? "Test Run" : "Process Contacts"
+          )}
+        </Button>
+
+        {isProcessing && (
+          <div className="space-y-1">
+            <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-primary transition-all duration-300" 
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>{processedContacts} / {totalContacts || '?'} contacts</span>
+              <span>{Math.round(progress)}%</span>
+            </div>
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              className="w-full"
+              onClick={abort}
+            >
+              Abort Processing
+            </Button>
+          </div>
         )}
-      </Button>
+      </div>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="sm:max-w-[425px] p-0">

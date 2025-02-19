@@ -272,31 +272,35 @@ export async function updateContacts(sheetId: string, updates: BatchUpdate[]) {
         throw new Error('Email column not found');
       }
 
+      // Find all occurrences of each email
       const batchRequests = updates.flatMap(update => {
-        const rowIndex = (data.values as string[][]).findIndex((row, index) => 
-          index > 0 && row[emailIndex]?.toLowerCase().trim() === update.email.toLowerCase().trim()
-        );
+        const requests: { range: string; values: string[][] }[] = [];
+        
+        // Find all rows with this email
+        (data.values || []).forEach((row, index) => {
+          if (index === 0) return; // Skip header row
+          
+          const rowEmail = row[emailIndex];
+          if (rowEmail && rowEmail.toLowerCase().trim() === update.email.toLowerCase().trim()) {
+            if (update.updates.scheduledFor && scheduledForIndex !== -1) {
+              // Convert to GMT+1 and format as ISO string with timezone
+              const date = new Date(update.updates.scheduledFor);
+              const gmtPlus1 = new Date(date.getTime() + (3600000)); // Add 1 hour for GMT+1
+              
+              requests.push({
+                range: `${String.fromCharCode(65 + scheduledForIndex)}${index + 1}`,
+                values: [[gmtPlus1.toISOString()]]
+              });
+            }
 
-        if (rowIndex === -1) {
-          console.warn('Contact not found:', update.email);
-          return [];
-        }
-
-        const requests = [];
-
-        if (update.updates.scheduledFor && scheduledForIndex !== -1) {
-          requests.push({
-            range: `${String.fromCharCode(65 + scheduledForIndex)}${rowIndex + 1}`,
-            values: [[update.updates.scheduledFor]]
-          });
-        }
-
-        if (update.updates.status && statusIndex !== -1) {
-          requests.push({
-            range: `${String.fromCharCode(65 + statusIndex)}${rowIndex + 1}`,
-            values: [[update.updates.status]]
-          });
-        }
+            if (update.updates.status && statusIndex !== -1) {
+              requests.push({
+                range: `${String.fromCharCode(65 + statusIndex)}${index + 1}`,
+                values: [[update.updates.status]]
+              });
+            }
+          }
+        });
 
         return requests;
       });
