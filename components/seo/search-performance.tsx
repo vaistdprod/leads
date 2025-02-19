@@ -3,16 +3,16 @@
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 interface SearchPerformanceProps {
   onDateRangeChange?: (range: { from: Date; to: Date }) => void;
 }
 
 export function SearchPerformance({ onDateRangeChange }: SearchPerformanceProps) {
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [fromDate, setFromDate] = useState<Date | null>(null);
+  const [toDate, setToDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,52 +22,47 @@ export function SearchPerformance({ onDateRangeChange }: SearchPerformanceProps)
     setLoading(true);
     try {
       if (onDateRangeChange) {
-        await onDateRangeChange({
-          from: new Date(fromDate),
-          to: new Date(toDate)
-        });
+        await onDateRangeChange({ from: fromDate, to: toDate });
       }
     } finally {
       setLoading(false);
     }
   };
 
-  // Get today's date in YYYY-MM-DD format for max attribute
-  const today = new Date().toISOString().split('T')[0];
-
   return (
     <div className="space-y-4">
       <form onSubmit={handleSubmit} className="flex flex-wrap gap-4 items-end">
-        <div className="space-y-2">
-          <Label htmlFor="fromDate">From date</Label>
-          <Input
-            id="fromDate"
-            type="date"
-            value={fromDate}
-            onChange={(e) => {
-              setFromDate(e.target.value);
-              // Reset toDate if it's before fromDate
-              if (toDate && toDate < e.target.value) {
-                setToDate('');
+        <div>
+          <DatePicker
+            selected={fromDate}
+            onChange={(date: Date | null) => {
+              setFromDate(date);
+              if (toDate && date && date > toDate) {
+                setToDate(null);
               }
             }}
-            max={today}
-            required
-            className="w-[240px]"
+            selectsStart
+            startDate={fromDate || undefined}
+            endDate={toDate || undefined}
+            maxDate={new Date()}
+            placeholderText="From date"
+            dateFormat="MMM d, yyyy"
+            className="w-[240px] flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="toDate">To date</Label>
-          <Input
-            id="toDate"
-            type="date"
-            value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
-            min={fromDate}
-            max={today}
-            required
-            className="w-[240px]"
+        <div>
+          <DatePicker
+            selected={toDate}
+            onChange={(date: Date | null) => setToDate(date)}
+            selectsEnd
+            startDate={fromDate || undefined}
+            endDate={toDate || undefined}
+            minDate={fromDate || undefined}
+            maxDate={new Date()}
+            placeholderText="To date"
+            dateFormat="MMM d, yyyy"
+            className="w-[240px] flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>
 
