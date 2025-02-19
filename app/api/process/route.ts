@@ -53,25 +53,30 @@ async function updateContactStatus(sheetId: string, email: string, status: strin
 }
 
 async function processBlacklist(contacts: any[], blacklist: string[], sheetId: string) {
-  // Normalize blacklist emails
-  const normalizedBlacklist = blacklist.map(email => email.toLowerCase().trim());
+  // Normalize blacklist emails and create a Set for faster lookups
+  const normalizedBlacklist = new Set(blacklist.map(email => email.toLowerCase().trim()));
   
-  // Find contacts that match blacklist
-  const blacklistedContacts = contacts.filter(contact => {
-    if (!contact.email) return false;
-    return normalizedBlacklist.includes(contact.email.toLowerCase().trim());
-  });
+  // Process each contact
+  const processedContacts = [];
+  const blacklistedContacts = [];
 
-  // Update blacklisted contacts status
-  for (const contact of blacklistedContacts) {
-    await updateContactStatus(sheetId, contact.email, 'blacklisted');
+  for (const contact of contacts) {
+    if (!contact.email) continue;
+    
+    const normalizedEmail = contact.email.toLowerCase().trim();
+    if (normalizedBlacklist.has(normalizedEmail)) {
+      // Mark as blacklisted in the sheet
+      await updateContactStatus(sheetId, contact.email, 'blacklist');
+      blacklistedContacts.push(contact);
+    } else {
+      processedContacts.push(contact);
+    }
   }
 
-  // Return non-blacklisted contacts
-  return contacts.filter(contact => {
-    if (!contact.email) return false;
-    return !normalizedBlacklist.includes(contact.email.toLowerCase().trim());
-  });
+  console.log(`Blacklist check: ${blacklistedContacts.length} contacts marked as blacklisted`);
+  
+  // Return only non-blacklisted contacts
+  return processedContacts;
 }
 
 async function processBatch(
@@ -309,7 +314,14 @@ export async function POST(request: Request) {
 
       // Process blacklist first
       const filteredContacts = await processBlacklist(contacts, blacklist, settings.contacts_sheet_id ?? "");
-      await logProcessing(supabase, userId, 'blacklist', 'success', `Marked ${contacts.length - filteredContacts.length} blacklisted contacts`);
+      const blacklistedCount = contacts.length - filteredContacts.length;
+      await logProcessing(
+        supabase, 
+        userId, 
+        'blacklist', 
+        'success', 
+        `Found ${blacklist.length} blacklisted emails, marked ${blacklistedCount} contacts as blacklisted`
+      );
 
       // Apply row range filtering
       let processableContacts = filteredContacts;

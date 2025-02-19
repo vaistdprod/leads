@@ -8,7 +8,7 @@ export interface Contact {
   company: string;
   position: string;
   scheduledFor?: string;
-  status?: 'pending' | 'sent' | 'failed';
+  status: 'pending' | 'sent' | 'failed' | 'blacklist';
 }
 
 interface RawContact {
@@ -18,7 +18,7 @@ interface RawContact {
   company: string;
   position: string;
   scheduledFor: string | undefined;
-  status: 'pending' | 'sent' | 'failed';
+  status: 'pending' | 'sent' | 'failed' | 'blacklist';
 }
 
 const RETRY_ATTEMPTS = 3;
@@ -84,9 +84,13 @@ export async function getBlacklist(sheetId: string): Promise<string[]> {
 
       await validateSheetStructure(sheets, sheetId, ['email']);
 
+      // Get headers first to find email column
+      const headers = await validateSheetStructure(sheets, sheetId, ['email']);
+      const emailColumnLetter = String.fromCharCode(65 + headers.indexOf('email'));
+      
       const { data } = await sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        range: 'A:A',
+        range: `${emailColumnLetter}:${emailColumnLetter}`, // Use correct column
       });
 
       if (!data.values) {
@@ -94,11 +98,13 @@ export async function getBlacklist(sheetId: string): Promise<string[]> {
         return [];
       }
 
-      // Filter out empty values and convert to lowercase
+      // Skip header row and filter out empty values
       const emails = data.values
+        ?.slice(1) // Skip header row
         .flat()
         .filter(email => email && typeof email === 'string')
-        .map(email => email.toLowerCase().trim());
+        .map(email => email.toLowerCase().trim())
+        .filter(email => email !== 'email'); // Remove any 'email' text that might be in data
 
       console.log('Blacklist data:', { emails });
       return emails;
@@ -154,7 +160,7 @@ export async function getContacts(sheetId: string, columnMappings: Record<string
             company: row[companyIndex]?.trim() || 'Unknown Company',
             position: row[positionIndex]?.trim() || 'Unknown Position',
             scheduledFor: row[scheduledForIndex]?.trim(),
-            status: (row[statusIndex]?.trim().toLowerCase() || 'pending') as 'pending' | 'sent' | 'failed'
+            status: ((row[statusIndex]?.trim().toLowerCase() || 'pending') === 'blacklisted' ? 'blacklist' : (row[statusIndex]?.trim().toLowerCase() || 'pending')) as Contact['status']
           };
 
           return rawContact;
