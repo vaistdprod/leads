@@ -1,25 +1,18 @@
 "use client";
 
 import { useState } from 'react';
-import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { CalendarIcon } from "lucide-react";
-import { format, isAfter, isBefore, startOfDay } from "date-fns";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface SearchPerformanceProps {
   onDateRangeChange?: (range: { from: Date; to: Date }) => void;
 }
 
 export function SearchPerformance({ onDateRangeChange }: SearchPerformanceProps) {
-  const [fromDate, setFromDate] = useState<Date>();
-  const [toDate, setToDate] = useState<Date>();
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,81 +22,60 @@ export function SearchPerformance({ onDateRangeChange }: SearchPerformanceProps)
     setLoading(true);
     try {
       if (onDateRangeChange) {
-        await onDateRangeChange({ from: fromDate, to: toDate });
+        await onDateRangeChange({
+          from: new Date(fromDate),
+          to: new Date(toDate)
+        });
       }
     } finally {
       setLoading(false);
     }
   };
 
+  // Get today's date in YYYY-MM-DD format for max attribute
+  const today = new Date().toISOString().split('T')[0];
+
   return (
     <div className="space-y-4">
-      <form onSubmit={handleSubmit} className="flex flex-wrap gap-4">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                "w-[240px] justify-start text-left font-normal",
-                !fromDate && "text-muted-foreground"
-              )}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {fromDate ? format(fromDate, "PPP") : <span>From date</span>}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={fromDate}
-              onSelect={(date) => {
-                if (date) {
-                  const selectedDate = startOfDay(date);
-                  setFromDate(selectedDate);
-                  // If toDate exists and is before the new fromDate, reset it
-                  if (toDate && isBefore(toDate, selectedDate)) {
-                    setToDate(undefined);
-                  }
-                }
-              }}
-              disabled={(date) => isAfter(date, new Date())}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
-
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                "w-[240px] justify-start text-left font-normal",
-                !toDate && "text-muted-foreground"
-              )}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {toDate ? format(toDate, "PPP") : <span>To date</span>}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={toDate}
-              onSelect={(date) => {
-                if (date) {
-                  setToDate(startOfDay(date));
-                }
-              }}
-              disabled={(date) => 
-                isAfter(date, new Date()) || 
-                (fromDate ? isBefore(date, fromDate) : false)
+      <form onSubmit={handleSubmit} className="flex flex-wrap gap-4 items-end">
+        <div className="space-y-2">
+          <Label htmlFor="fromDate">From date</Label>
+          <Input
+            id="fromDate"
+            type="date"
+            value={fromDate}
+            onChange={(e) => {
+              setFromDate(e.target.value);
+              // Reset toDate if it's before fromDate
+              if (toDate && toDate < e.target.value) {
+                setToDate('');
               }
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
+            }}
+            max={today}
+            required
+            className="w-[240px]"
+          />
+        </div>
 
-        <Button type="submit" disabled={!fromDate || !toDate || loading}>
+        <div className="space-y-2">
+          <Label htmlFor="toDate">To date</Label>
+          <Input
+            id="toDate"
+            type="date"
+            value={toDate}
+            onChange={(e) => setToDate(e.target.value)}
+            min={fromDate}
+            max={today}
+            required
+            className="w-[240px]"
+          />
+        </div>
+
+        <Button 
+          type="submit" 
+          disabled={!fromDate || !toDate || loading}
+          className="mb-0.5"
+        >
           {loading ? "Loading..." : "Fetch Data"}
         </Button>
       </form>
