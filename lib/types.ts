@@ -6,297 +6,186 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type Database = {
+export interface Database {
   public: {
     Tables: {
-      api_usage: {
-        Row: {
-          created_at: string | null
-          details: Json | null
-          duration: number
-          endpoint: string
-          id: string
-          service: string
-          status: number
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          details?: Json | null
-          duration: number
-          endpoint: string
-          id?: string
-          service: string
-          status: number
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          details: Json | null
-          duration?: number
-          endpoint?: string
-          id?: string
-          service?: string
-          status?: number
-          user_id?: string
-        }
-        Relationships: []
-      }
-      dashboard_stats: {
-        Row: {
-          blacklist_count: number | null
-          contacts_count: number | null
-          created_at: string | null
-          emails_queued: number | null
-          emails_sent: number | null
-          id: string
-          last_processed: string | null
-          processed_leads: number | null
-          success_rate: number | null
-          total_leads: number | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          blacklist_count?: number | null
-          contacts_count?: number | null
-          created_at?: string | null
-          emails_queued?: number | null
-          emails_sent?: number | null
-          id?: string
-          last_processed?: string | null
-          processed_leads?: number | null
-          success_rate?: number | null
-          total_leads?: number | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          blacklist_count?: number | null
-          contacts_count?: number | null
-          created_at?: string | null
-          emails_queued?: number | null
-          emails_sent?: number | null
-          id?: string
-          last_processed?: string | null
-          processed_leads?: number | null
-          success_rate?: number | null
-          total_leads?: number | null
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      email_history: {
-        Row: {
-          created_at: string | null
-          email: string
-          error: string | null
-          id: string
-          status: string
-          subject: string | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          email: string
-          error?: string | null
-          id?: string
-          status: string
-          subject?: string | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          email?: string
-          error?: string | null
-          id?: string
-          status?: string
-          subject?: string | null
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      function_logs: {
-        Row: {
-          created_at: string | null
-          error_message: string | null
-          function_name: string
-          id: string
-          input_params: Json | null
-        }
-        Insert: {
-          created_at?: string | null
-          error_message?: string | null
-          function_name: string
-          id?: string
-          input_params?: Json | null
-        }
-        Update: {
-          created_at?: string | null
-          error_message?: string | null
-          function_name?: string
-          id?: string
-          input_params?: Json | null
-        }
-        Relationships: []
-      }
-      lead_history: {
-        Row: {
-          created_at: string | null
-          details: Json | null
-          email: string
-          id: string
-          status: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          details?: Json | null
-          email: string
-          id?: string
-          status: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          details?: Json | null
-          email?: string
-          id?: string
-          status?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      processing_logs: {
-        Row: {
-          created_at: string | null
-          details: Json | null
-          duration: number | null
-          id: string
-          leads_processed: number | null
-          leads_success: number | null
-          status: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          details?: Json | null
-          duration?: number | null
-          id?: string
-          leads_processed?: number | null
-          leads_success?: number | null
-          status: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          details: Json | null
-          duration?: number | null
-          id?: string
-          leads_processed?: number | null
-          leads_success?: number | null
-          status?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       settings: {
         Row: {
-          auto_execution_enabled: boolean | null
+          id: string
+          user_id: string
+          created_at: string
+          updated_at: string
+          gemini_api_key: string | null
+          pagespeed_api_key: string | null
           blacklist_sheet_id: string | null
           contacts_sheet_id: string | null
-          created_at: string | null
-          cron_schedule: string | null
-          email_prompt: string | null
-          enrichment_prompt: string | null
-          gemini_api_key: string | null
-          id: string
           impersonated_email: string | null
-          model: string | null
+          column_mappings: Json | null
           temperature: number | null
           top_k: number | null
           top_p: number | null
-          updated_at: string | null
           use_google_search: boolean | null
-          user_id: string
-          column_mappings: {
-            name: string
-            email: string
-            company: string
-            position: string
-            scheduledFor: string
-            status: string
-          } | null
-          seo_settings: {
-            analysis: {
-              autoAnalyze: boolean
-              crawlDepth: number
-              includeImages: boolean
-              checkBrokenLinks: boolean
-              analysisInterval: string
-              maxPagesPerScan: number
-            }
-            content: {
-              temperature: number
-              maxTokens: number
-              language: string
-              tone: string
-              includeSources: boolean
-            }
-            notifications: {
-              emailAlerts: boolean
-              weeklyReport: boolean
-              performanceAlerts: boolean
-              alertThreshold: number
-            }
-          } | null
+          enrichment_prompt: string | null
+          email_prompt: string | null
         }
         Insert: {
-          auto_execution_enabled?: boolean | null
+          id?: string
+          user_id: string
+          created_at?: string
+          updated_at?: string
+          gemini_api_key?: string | null
+          pagespeed_api_key?: string | null
           blacklist_sheet_id?: string | null
           contacts_sheet_id?: string | null
-          created_at?: string | null
-          cron_schedule?: string | null
-          email_prompt?: string | null
-          enrichment_prompt?: string | null
-          gemini_api_key?: string | null
-          id?: string
           impersonated_email?: string | null
-          model?: string | null
+          column_mappings?: Json | null
           temperature?: number | null
           top_k?: number | null
           top_p?: number | null
-          updated_at?: string | null
           use_google_search?: boolean | null
-          user_id: string
+          enrichment_prompt?: string | null
+          email_prompt?: string | null
         }
         Update: {
-          auto_execution_enabled?: boolean | null
+          id?: string
+          user_id?: string
+          created_at?: string
+          updated_at?: string
+          gemini_api_key?: string | null
+          pagespeed_api_key?: string | null
           blacklist_sheet_id?: string | null
           contacts_sheet_id?: string | null
-          created_at?: string | null
-          cron_schedule?: string | null
-          email_prompt?: string | null
-          enrichment_prompt?: string | null
-          gemini_api_key?: string | null
-          id?: string
           impersonated_email?: string | null
-          model?: string | null
+          column_mappings?: Json | null
           temperature?: number | null
           top_k?: number | null
           top_p?: number | null
-          updated_at?: string | null
           use_google_search?: boolean | null
-          user_id?: string
+          enrichment_prompt?: string | null
+          email_prompt?: string | null
         }
-        Relationships: []
+      }
+      processing_logs: {
+        Row: {
+          id: string
+          user_id: string
+          created_at: string
+          stage: string
+          status: string
+          message: string
+          metadata: Json | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          created_at?: string
+          stage: string
+          status: string
+          message: string
+          metadata?: Json | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          created_at?: string
+          stage?: string
+          status?: string
+          message?: string
+          metadata?: Json | null
+        }
+      }
+      lead_history: {
+        Row: {
+          id: string
+          user_id: string
+          created_at: string
+          email: string
+          status: string
+          details: Json | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          created_at?: string
+          email: string
+          status: string
+          details?: Json | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          created_at?: string
+          email?: string
+          status?: string
+          details?: Json | null
+        }
+      }
+      email_history: {
+        Row: {
+          id: string
+          user_id: string
+          created_at: string
+          email: string
+          subject: string
+          status: string
+          scheduled_for: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          created_at?: string
+          email: string
+          subject: string
+          status: string
+          scheduled_for?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          created_at?: string
+          email?: string
+          subject?: string
+          status?: string
+          scheduled_for?: string | null
+        }
+      }
+      dashboard_stats: {
+        Row: {
+          id: string
+          user_id: string
+          created_at: string
+          total_leads: number
+          processed_leads: number
+          success_rate: number
+          last_processed: string | null
+          blacklist_count: number
+          contacts_count: number
+          emails_sent: number
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          created_at?: string
+          total_leads: number
+          processed_leads: number
+          success_rate: number
+          last_processed?: string | null
+          blacklist_count: number
+          contacts_count: number
+          emails_sent: number
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          created_at?: string
+          total_leads?: number
+          processed_leads?: number
+          success_rate?: number
+          last_processed?: string | null
+          blacklist_count?: number
+          contacts_count?: number
+          emails_sent?: number
+        }
       }
     }
     Views: {
@@ -308,131 +197,5 @@ export type Database = {
     Enums: {
       [_ in never]: never
     }
-    CompositeTypes: {
-      [_ in never]: never
-    }
   }
-}
-
-type PublicSchema = Database[Extract<keyof Database, "public">]
-
-export type Tables<
-  PublicTableNameOrOptions extends
-    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-        Database[PublicTableNameOrOptions["schema"]]["Views"])
-    : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
-    }
-    ? R
-    : never
-  : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
-        PublicSchema["Views"])
-    ? (PublicSchema["Tables"] &
-        PublicSchema["Views"])[PublicTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
-    : never
-
-export type TablesInsert<
-  PublicTableNameOrOptions extends
-    | keyof PublicSchema["Tables"]
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
-    }
-    ? I
-    : never
-  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
-    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
-    : never
-
-export type TablesUpdate<
-  PublicTableNameOrOptions extends
-    | keyof PublicSchema["Tables"]
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
-    }
-    ? U
-    : never
-  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
-    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
-    : never
-
-export type Enums<
-  PublicEnumNameOrOptions extends
-    | keyof PublicSchema["Enums"]
-    | { schema: keyof Database },
-  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
-> = PublicEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
-    ? PublicSchema["Enums"][PublicEnumNameOrOptions]
-    : never
-
-export type CompositeTypes<
-  PublicCompositeTypeNameOrOptions extends
-    | keyof PublicSchema["CompositeTypes"]
-    | { schema: keyof Database },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database
-  }
-    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
-    ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
-
-export interface EmailHistory {
-  id: string;
-  user_id: string;
-  email: string;
-  subject: string | null;
-  status: string;
-  error: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-}
-
-export interface LeadHistory {
-  id: string;
-  user_id: string;
-  email: string;
-  status: string;
-  details: {
-    enrichment_data: any;
-    email_subject: string;
-    sent_as: string;
-    scheduled_for: string;
-  } | null;
-  created_at: string | null;
-  updated_at: string | null;
 }

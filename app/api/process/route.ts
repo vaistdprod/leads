@@ -1,72 +1,37 @@
 import { NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 import { Database } from '@/lib/types';
 import { getBlacklist, getContacts, updateContact } from '@/lib/google/sheets';
 import { verifyEmail } from '@/lib/api/disify';
 import { enrichLeadData, generateEmail, EnrichmentData } from '@/lib/api/gemini';
 import { sendEmail } from '@/lib/google/gmail';
-
-// Simple in-memory rate limiting
-const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 30; // 30 requests per minute
-const userRequests = new Map<string, { count: number; resetTime: number }>();
-
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const userLimit = userRequests.get(userId);
-
-  // Clean up expired entries
-  if (userLimit && now > userLimit.resetTime) {
-    userRequests.delete(userId);
-  }
-
-  if (!userLimit) {
-    userRequests.set(userId, {
-      count: 1,
-      resetTime: now + RATE_LIMIT_WINDOW
-    });
-    return true;
-  }
-
-  if (userLimit.count >= RATE_LIMIT_MAX_REQUESTS) {
-    return false;
-  }
-
-  userLimit.count++;
-  return true;
-}
-
-type LogStatus = 'success' | 'error' | 'warning';
-
-interface ProcessingConfig {
-  startRow?: number;
-  endRow?: number;
-  delayBetweenEmails?: number; // in seconds
-  testMode?: boolean;
-  updateScheduling?: boolean;
-}
+import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
 
 const VERCEL_TIMEOUT = 800000; // 800 seconds
 const DEFAULT_DELAY = 30; // 30 seconds between emails by default
 const MAX_EMAILS_PER_BATCH = 15; // Process max 15 emails per batch
 const PROCESSING_TIME_PER_EMAIL = 20000; // 20 seconds per email for processing
 
-async function logProcessing(supabase: ReturnType<typeof createServerClient<Database>>, userId: string, stage: string, status: LogStatus, message: string, metadata?: any) {
+type LogStatus = 'success' | 'error' | 'warning';
+
+interface ProcessingConfig {
+  startRow?: number;
+  endRow?: number;
+  delayBetweenEmails?: number;
+  testMode?: boolean;
+  updateScheduling?: boolean;
+}
+
+async function logProcessing(supabase: ReturnType<typeof createServerClient<Database>>, userId: string, stage: string, status: LogStatus, message: string) {
   try {
-    const dbStatus = status === 'warning' ? 'error' : status;
-    
     console.log(`[${stage}] ${status}: ${message}`);
     await supabase.from('processing_logs').insert({
       user_id: userId,
       stage,
-      status: dbStatus,
+      status: status === 'warning' ? 'error' : status,
       message,
-      metadata: {
-        ...metadata,
-        level: status,
-      },
+      metadata: { level: status },
     });
   } catch (error) {
     console.error('Failed to log processing:', error);
@@ -77,18 +42,36 @@ async function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function updateContactStatus(sheetId: string, email: string, status: string, scheduledFor?: string) {
+async function updateContactStatus(sheetId: string, email: string, status: string) {
   try {
-    const updates: any = { status };
-    if (scheduledFor) {
-      updates.scheduledFor = scheduledFor;
-    }
-    await updateContact(sheetId, email, updates);
+    await updateContact(sheetId, email, { status });
     return true;
   } catch (error) {
     console.error('Failed to update contact status:', error);
     return false;
   }
+}
+
+async function processBlacklist(contacts: any[], blacklist: string[], sheetId: string) {
+  // Normalize blacklist emails
+  const normalizedBlacklist = blacklist.map(email => email.toLowerCase().trim());
+  
+  // Find contacts that match blacklist
+  const blacklistedContacts = contacts.filter(contact => {
+    if (!contact.email) return false;
+    return normalizedBlacklist.includes(contact.email.toLowerCase().trim());
+  });
+
+  // Update blacklisted contacts status
+  for (const contact of blacklistedContacts) {
+    await updateContactStatus(sheetId, contact.email, 'blacklisted');
+  }
+
+  // Return non-blacklisted contacts
+  return contacts.filter(contact => {
+    if (!contact.email) return false;
+    return !normalizedBlacklist.includes(contact.email.toLowerCase().trim());
+  });
 }
 
 async function processBatch(
@@ -97,7 +80,6 @@ async function processBatch(
   config: ProcessingConfig,
   supabase: any,
   userId: string,
-  startIndex: number,
   batchStartTime: number
 ): Promise<{ success: number; failure: number; emails: any[] }> {
   let successCount = 0;
@@ -105,41 +87,39 @@ async function processBatch(
   let generatedEmails: Array<{ to: string, subject: string, body: string, enrichmentData: EnrichmentData }> = [];
 
   for (let i = 0; i < contacts.length; i++) {
-    // Check if we're approaching the timeout
+    // Check remaining time
     const timeElapsed = Date.now() - batchStartTime;
     const remainingTime = VERCEL_TIMEOUT - timeElapsed;
     const remainingEmails = contacts.length - i;
     const estimatedTimeNeeded = remainingEmails * PROCESSING_TIME_PER_EMAIL;
 
     if (remainingTime < estimatedTimeNeeded) {
-      console.log('Approaching Vercel timeout, stopping batch processing');
+      console.log('Approaching timeout, stopping batch');
       break;
     }
 
     const contact = contacts[i];
 
     try {
-      // Skip contacts that are already blacklisted
-      if (contact.status === 'blacklisted') {
+      // Skip if already processed
+      if (contact.status === 'sent' || contact.status === 'blacklisted') {
         continue;
       }
 
-      // Skip contacts that are already sent
-      if (contact.status === 'sent') {
-        continue;
-      }
-
+      // Validate email
       if (!contact.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact.email)) {
-        await logProcessing(supabase, userId, 'verification', 'error', 'Invalid email address');
+        await logProcessing(supabase, userId, 'verification', 'error', `Invalid email: ${contact.email}`);
         failureCount++;
         continue;
       }
 
+      // Verify email
       const isValid = await verifyEmail(contact.email);
       if (!isValid) {
-        await logProcessing(supabase, userId, 'verification', 'warning', `Email verification failed: ${contact.email}`);
+        await logProcessing(supabase, userId, 'verification', 'warning', `Verification failed: ${contact.email}`);
       }
 
+      // Generate email content
       let enrichmentData: EnrichmentData;
       try {
         enrichmentData = await enrichLeadData({
@@ -161,7 +141,7 @@ async function processBatch(
           relevantNews: "Žádné relevantní novinky nejsou k dispozici."
         };
       }
-      
+
       let email;
       try {
         email = await generateEmail(
@@ -185,27 +165,21 @@ async function processBatch(
       }
 
       if (!config.testMode) {
-        // Update status to pending
-        await updateContactStatus(
-          settings.contacts_sheet_id ?? "",
-          contact.email,
-          'pending'
-        );
+        // Mark as pending
+        await updateContactStatus(settings.contacts_sheet_id ?? "", contact.email, 'pending');
 
-        // Wait for the configured delay between emails
+        // Wait between emails
         if (i > 0) {
           await delay((config.delayBetweenEmails ?? DEFAULT_DELAY) * 1000);
         }
 
+        // Send email
         await sendEmail(contact.email, email.subject, email.body, settings.impersonated_email ?? "");
         
-        // Update status to sent
-        await updateContactStatus(
-          settings.contacts_sheet_id ?? "",
-          contact.email,
-          'sent'
-        );
+        // Mark as sent
+        await updateContactStatus(settings.contacts_sheet_id ?? "", contact.email, 'sent');
         
+        // Record history
         await supabase.from('lead_history').insert({
           user_id: userId,
           email: contact.email,
@@ -223,6 +197,8 @@ async function processBatch(
           subject: email.subject,
           status: 'sent'
         });
+
+        await logProcessing(supabase, userId, 'email', 'success', `Email sent to ${contact.email}`);
       } else {
         generatedEmails.push({
           to: contact.email,
@@ -230,22 +206,14 @@ async function processBatch(
           body: email.body,
           enrichmentData
         });
+        await logProcessing(supabase, userId, 'email', 'success', `Test email generated for ${contact.email}`);
       }
 
       successCount++;
-      await logProcessing(supabase, userId, 'email', 'success', 
-        config.testMode ? `Test email generated for ${contact.email}` : `Email sent to ${contact.email}`
-      );
     } catch (error) {
       failureCount++;
-      
-      await updateContactStatus(
-        settings.contacts_sheet_id ?? "",
-        contact.email,
-        'failed'
-      );
-      
-      await logProcessing(supabase, userId, 'email', 'error', `Failed to process contact: ${contact.email}`);
+      await updateContactStatus(settings.contacts_sheet_id ?? "", contact.email, 'failed');
+      await logProcessing(supabase, userId, 'email', 'error', `Failed to process ${contact.email}`);
     }
   }
 
@@ -253,28 +221,45 @@ async function processBatch(
 }
 
 export async function POST(request: Request) {
-  const cookieStore = cookies();
-  const supabase = createServerSupabaseClient(cookieStore);
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get: (name) => {
+          const cookie = cookieStore.get(name);
+          return cookie?.value;
+        },
+        set: (name, value, options) => {
+          try {
+            cookieStore.set({ name, value, ...options } as ResponseCookie);
+          } catch (error) {
+            console.error('Error setting cookie:', error);
+          }
+        },
+        remove: (name, options) => {
+          try {
+            cookieStore.delete(name);
+          } catch (error) {
+            console.error('Error removing cookie:', error);
+          }
+        },
+      },
+    }
+  );
   let userId: string;
 
   try {
     const config: ProcessingConfig = await request.json();
     const testMode = config.testMode ?? false;
 
+    // Get user
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
-
     userId = user.id;
-
-    // Check rate limit
-    if (!checkRateLimit(userId)) {
-      return NextResponse.json(
-        { error: 'Too many requests. Please try again later.' }, 
-        { status: 429 }
-      );
-    }
 
     // Get settings
     const { data: settings, error: settingsError } = await supabase
@@ -283,12 +268,8 @@ export async function POST(request: Request) {
       .eq('user_id', userId)
       .single();
 
-    if (settingsError) {
-      return NextResponse.json({ error: 'Failed to load settings', details: settingsError }, { status: 500 });
-    }
-
-    if (!settings) {
-      return NextResponse.json({ error: 'Settings not found' }, { status: 404 });
+    if (settingsError || !settings) {
+      return NextResponse.json({ error: 'Failed to load settings' }, { status: 500 });
     }
 
     // Validate required settings
@@ -304,18 +285,15 @@ export async function POST(request: Request) {
       .map(([key]) => key);
 
     if (missingSettings.length > 0) {
-      return NextResponse.json({ 
-        error: 'Missing required settings', 
-        missing: missingSettings 
-      }, { status: 400 });
+      return NextResponse.json({ error: 'Missing settings', missing: missingSettings }, { status: 400 });
     }
 
     try {
-      // Load blacklist first
+      // Load blacklist
       const blacklist = await getBlacklist(settings.blacklist_sheet_id ?? "");
       await logProcessing(supabase, userId, 'blacklist', 'success', `Loaded ${blacklist.length} blacklisted emails`);
 
-      // Load all contacts
+      // Load contacts
       const columnMappings = settings.column_mappings ?? {
         name: 'název',
         email: 'email',
@@ -326,36 +304,24 @@ export async function POST(request: Request) {
       };
       const contacts = await getContacts(settings.contacts_sheet_id ?? "", columnMappings);
       if (!contacts || !Array.isArray(contacts)) {
-        throw new Error('Failed to load contacts: Invalid response format');
+        throw new Error('Failed to load contacts');
       }
 
       // Process blacklist first
-      const blacklistedContacts = contacts.filter(contact => 
-        contact.email && blacklist.includes(contact.email.toLowerCase().trim())
-      );
+      const filteredContacts = await processBlacklist(contacts, blacklist, settings.contacts_sheet_id ?? "");
+      await logProcessing(supabase, userId, 'blacklist', 'success', `Marked ${contacts.length - filteredContacts.length} blacklisted contacts`);
 
-      // Update all blacklisted contacts at once
-      await Promise.all(blacklistedContacts.map(contact => 
-        updateContactStatus(settings.contacts_sheet_id ?? "", contact.email, 'blacklisted')
-      ));
-      
-      // Filter out blacklisted contacts
-      let filteredContacts = contacts.filter(contact => 
-        contact.email && !blacklist.includes(contact.email.toLowerCase().trim())
-      );
-      
-      // Apply row range filtering if specified
+      // Apply row range filtering
+      let processableContacts = filteredContacts;
       if (config.startRow !== undefined || config.endRow !== undefined) {
         const start = config.startRow ?? 0;
-        const end = config.endRow ?? filteredContacts.length;
-        filteredContacts = filteredContacts.slice(start, end);
+        const end = config.endRow ?? processableContacts.length;
+        processableContacts = processableContacts.slice(start, end);
       }
-      
-      await logProcessing(supabase, userId, 'blacklist', 'success', `Filtered ${contacts.length - filteredContacts.length} blacklisted contacts`);
 
-      // Process a single batch
+      // Process batch
       const startRow = config.startRow ?? 0;
-      const batchContacts = filteredContacts.slice(startRow, startRow + MAX_EMAILS_PER_BATCH);
+      const batchContacts = processableContacts.slice(0, MAX_EMAILS_PER_BATCH);
       const batchStartTime = Date.now();
       
       const { success, failure, emails } = await processBatch(
@@ -364,11 +330,10 @@ export async function POST(request: Request) {
         config,
         supabase,
         userId,
-        startRow,
         batchStartTime
       );
 
-      // Update progress in database
+      // Update stats
       await supabase
         .from('dashboard_stats')
         .upsert({
@@ -386,7 +351,7 @@ export async function POST(request: Request) {
 
       // Calculate next batch
       const nextStartRow = startRow + MAX_EMAILS_PER_BATCH;
-      const hasMoreContacts = nextStartRow < filteredContacts.length;
+      const hasMoreContacts = nextStartRow < processableContacts.length;
 
       if (!testMode) {
         await supabase
@@ -409,7 +374,7 @@ export async function POST(request: Request) {
         },
         nextBatch: hasMoreContacts ? {
           startRow: nextStartRow,
-          remainingContacts: filteredContacts.length - nextStartRow
+          remainingContacts: processableContacts.length - nextStartRow
         } : null,
         testResults: testMode ? {
           emails,
