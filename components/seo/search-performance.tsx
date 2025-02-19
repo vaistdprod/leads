@@ -7,10 +7,10 @@ import { Card } from "@/components/ui/card";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface SearchPerformanceProps {
   onDateRangeChange?: (range: { from: Date; to: Date }) => void;
@@ -37,38 +37,50 @@ export function SearchPerformance({ onDateRangeChange }: SearchPerformanceProps)
   return (
     <div className="space-y-4">
       <div className="flex space-x-4">
-        <Popover>
-          <PopoverTrigger asChild>
+        <Dialog>
+          <DialogTrigger asChild>
             <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
               <CalendarIcon className="mr-2 h-4 w-4" />
               {fromDate ? format(fromDate, "PPP") : <span>From date</span>}
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
+          </DialogTrigger>
+          <DialogContent className="p-0">
             <Calendar
               selected={fromDate}
-              onSelect={handleFromSelect}
+              onSelect={(date) => {
+                handleFromSelect(date);
+                const dialogElement = document.querySelector('[role="dialog"]');
+                if (dialogElement instanceof HTMLElement) {
+                  dialogElement.click(); // Close dialog after selection
+                }
+              }}
               initialFocus
             />
-          </PopoverContent>
-        </Popover>
+          </DialogContent>
+        </Dialog>
 
-        <Popover>
-          <PopoverTrigger asChild>
+        <Dialog>
+          <DialogTrigger asChild>
             <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
               <CalendarIcon className="mr-2 h-4 w-4" />
               {toDate ? format(toDate, "PPP") : <span>To date</span>}
             </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
+          </DialogTrigger>
+          <DialogContent className="p-0">
             <Calendar
               selected={toDate}
-              onSelect={handleToSelect}
+              onSelect={(date) => {
+                handleToSelect(date);
+                const dialogElement = document.querySelector('[role="dialog"]');
+                if (dialogElement instanceof HTMLElement) {
+                  dialogElement.click(); // Close dialog after selection
+                }
+              }}
               initialFocus
               disabled={(date: Date) => fromDate ? date < fromDate : false}
             />
-          </PopoverContent>
-        </Popover>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

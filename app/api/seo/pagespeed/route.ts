@@ -36,10 +36,16 @@ export async function POST(request: Request) {
     
     const { url } = await request.json();
     
-    if (!url) {
-      console.error('PageSpeed API error: URL is required');
+    // Validate URL format
+    try {
+      const parsedUrl = new URL(url);
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        throw new Error('Invalid URL protocol');
+      }
+    } catch (error) {
+      console.error('PageSpeed API error: Invalid URL format', { url });
       return NextResponse.json(
-        { error: 'URL is required' },
+        { error: 'Invalid URL format. Please provide a valid http/https URL.' },
         { status: 400 }
       );
     }
@@ -88,15 +94,45 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log('PageSpeed API: Calling Google PageSpeed API');
+    console.log('PageSpeed API: Calling Google PageSpeed API', { url });
     const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&key=${apiKey}&strategy=mobile&category=performance&category=accessibility&category=best-practices&category=seo`;
     
-    const response = await fetch(apiUrl);
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    });
+    
     const data = await response.json();
 
     if (!response.ok) {
-      console.error('PageSpeed API error: Google API request failed', data.error);
+      console.error('PageSpeed API error: Google API request failed', {
+        status: response.status,
+        error: data.error,
+        url: url
+      });
+      
+      if (response.status === 429) {
+        return NextResponse.json(
+          { error: 'Rate limit exceeded. Please try again later.' },
+          { status: 429 }
+        );
+      }
+      
+      if (response.status === 400) {
+        return NextResponse.json(
+          { error: 'Invalid request. The URL might not be accessible.' },
+          { status: 400 }
+        );
+      }
+      
       throw new Error(data.error?.message || 'PageSpeed API request failed');
+    }
+
+    if (!data.lighthouseResult) {
+      console.error('PageSpeed API error: No lighthouse result', { data });
+      throw new Error('Failed to get performance metrics');
     }
 
     console.log('PageSpeed API: Successfully retrieved data');

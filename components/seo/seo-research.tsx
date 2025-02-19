@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -81,41 +81,53 @@ export function SeoResearch() {
           <div className="flex gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Start Date</label>
-              <Popover>
-                <PopoverTrigger asChild>
+              <Dialog>
+                <DialogTrigger asChild>
                   <Button variant="outline" className="w-[200px] justify-start">
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {startDate ? format(startDate, 'PPP') : 'Pick a date'}
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                </DialogTrigger>
+                <DialogContent className="p-0">
                   <Calendar
                     selected={startDate}
-                    onSelect={setStartDate}
+                    onSelect={(date) => {
+                      setStartDate(date);
+                      const dialogElement = document.querySelector('[role="dialog"]');
+                      if (dialogElement instanceof HTMLElement) {
+                        dialogElement.click(); // Close dialog after selection
+                      }
+                    }}
                     initialFocus
                   />
-                </PopoverContent>
-              </Popover>
+                </DialogContent>
+              </Dialog>
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium">End Date</label>
-              <Popover>
-                <PopoverTrigger asChild>
+              <Dialog>
+                <DialogTrigger asChild>
                   <Button variant="outline" className="w-[200px] justify-start">
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {endDate ? format(endDate, 'PPP') : 'Pick a date'}
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                </DialogTrigger>
+                <DialogContent className="p-0">
                   <Calendar
                     selected={endDate}
-                    onSelect={setEndDate}
+                    onSelect={(date) => {
+                      setEndDate(date);
+                      const dialogElement = document.querySelector('[role="dialog"]');
+                      if (dialogElement instanceof HTMLElement) {
+                        dialogElement.click(); // Close dialog after selection
+                      }
+                    }}
                     initialFocus
                     disabled={(date: Date) => startDate ? date < startDate : false}
                   />
-                </PopoverContent>
-              </Popover>
+                </DialogContent>
+              </Dialog>
             </div>
 
             <Button 
