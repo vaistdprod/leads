@@ -24,6 +24,12 @@ export async function POST(req: Request) {
     const searchconsole = google.searchconsole('v1').searchanalytics;
     const siteUrl = getEnvOrThrow('GOOGLE_SEARCH_CONSOLE_SITE_URL');
 
+    console.log('Search Console API: Preparing request', {
+      siteUrl,
+      startDate,
+      endDate,
+    });
+
     const response = await searchconsole.query({
       auth,
       siteUrl,
@@ -32,7 +38,17 @@ export async function POST(req: Request) {
         endDate,
         dimensions: ['query'],
         rowLimit: 100,
+        dimensionFilterGroups: [{
+          filters: [{
+            dimension: 'country',
+            expression: 'cze'  // Filter for Czech Republic
+          }]
+        }],
       },
+    });
+
+    console.log('Search Console API: Response received', {
+      rowCount: response.data.rows?.length || 0,
     });
 
     return NextResponse.json(
@@ -46,7 +62,11 @@ export async function POST(req: Request) {
       }
     );
   } catch (error) {
-    console.error('Search Console API error:', error);
+    console.error('Search Console API error:', {
+      error,
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json(
       { error: 'Failed to fetch search data' },
       { 

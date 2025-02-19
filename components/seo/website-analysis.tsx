@@ -40,14 +40,22 @@ export function WebsiteAnalysis({ onAnalyze }: WebsiteAnalysisProps) {
         }),
       ]);
 
-      if (!analysisResponse.ok || !pagespeedResponse.ok) {
-        throw new Error("Failed to analyze website");
-      }
-
       const [analysisData, pagespeedData] = await Promise.all([
         analysisResponse.json(),
         pagespeedResponse.json(),
       ]);
+
+      if (!analysisResponse.ok) {
+        throw new Error(analysisData.error || "Failed to analyze website");
+      }
+
+      if (!pagespeedResponse.ok) {
+        throw new Error(pagespeedData.error || "Failed to analyze page speed");
+      }
+
+      if (pagespeedData.error) {
+        throw new Error(pagespeedData.error);
+      }
 
       const combinedResults = {
         ...analysisData,
@@ -59,7 +67,13 @@ export function WebsiteAnalysis({ onAnalyze }: WebsiteAnalysisProps) {
         onAnalyze(combinedResults);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to analyze website");
+      const errorMessage = err instanceof Error ? err.message : "Failed to analyze website";
+      console.error('Website analysis error:', {
+        error: err,
+        message: errorMessage,
+        url,
+      });
+      setError(errorMessage);
     } finally {
       setAnalyzing(false);
     }

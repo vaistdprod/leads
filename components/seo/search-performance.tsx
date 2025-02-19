@@ -46,7 +46,6 @@ export function SearchPerformance({ onDateRangeChange }: SearchPerformanceProps)
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
-              mode="single"
               selected={fromDate}
               onSelect={handleFromSelect}
               initialFocus
@@ -63,11 +62,10 @@ export function SearchPerformance({ onDateRangeChange }: SearchPerformanceProps)
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
-              mode="single"
               selected={toDate}
               onSelect={handleToSelect}
               initialFocus
-              disabled={(date) => fromDate ? date < fromDate : false}
+              disabled={(date: Date) => fromDate ? date < fromDate : false}
             />
           </PopoverContent>
         </Popover>

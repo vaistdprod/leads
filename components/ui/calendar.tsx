@@ -3,16 +3,29 @@
 import * as React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { DayPicker } from 'react-day-picker';
+import type { DayPickerProps } from 'react-day-picker';
 
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 
-export type CalendarProps = React.ComponentProps<typeof DayPicker>;
+type CalendarProps = {
+  className?: string;
+  classNames?: DayPickerProps['classNames'];
+  showOutsideDays?: boolean;
+  selected?: Date;
+  onSelect?: (date: Date | undefined) => void;
+  disabled?: (date: Date) => boolean;
+  initialFocus?: boolean;
+} & Omit<DayPickerProps, 'mode' | 'selected' | 'onSelect' | 'disabled' | 'initialFocus'>;
 
 function Calendar({
   className,
   classNames,
   showOutsideDays = true,
+  selected,
+  onSelect,
+  disabled,
+  initialFocus,
   ...props
 }: CalendarProps) {
   return (
@@ -59,6 +72,9 @@ function Calendar({
         day_hidden: 'invisible',
         ...classNames,
       }}
+      mode="single"
+      selected={selected}
+      onSelect={onSelect}
       {...props}
     />
   );

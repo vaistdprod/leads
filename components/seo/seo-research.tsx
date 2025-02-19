@@ -90,7 +90,6 @@ export function SeoResearch() {
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
                   <Calendar
-                    mode="single"
                     selected={startDate}
                     onSelect={setStartDate}
                     initialFocus
@@ -110,10 +109,10 @@ export function SeoResearch() {
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
                   <Calendar
-                    mode="single"
                     selected={endDate}
                     onSelect={setEndDate}
                     initialFocus
+                    disabled={(date: Date) => startDate ? date < startDate : false}
                   />
                 </PopoverContent>
               </Popover>
