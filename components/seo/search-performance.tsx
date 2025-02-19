@@ -5,12 +5,13 @@ import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
+import { format, isAfter, isBefore, startOfDay } from "date-fns";
 import {
-  Dialog,
-  DialogContent,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 interface SearchPerformanceProps {
   onDateRangeChange?: (range: { from: Date; to: Date }) => void;
@@ -20,8 +21,6 @@ export function SearchPerformance({ onDateRangeChange }: SearchPerformanceProps)
   const [fromDate, setFromDate] = useState<Date>();
   const [toDate, setToDate] = useState<Date>();
   const [loading, setLoading] = useState(false);
-  const [fromDateOpen, setFromDateOpen] = useState(false);
-  const [toDateOpen, setToDateOpen] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,45 +38,70 @@ export function SearchPerformance({ onDateRangeChange }: SearchPerformanceProps)
 
   return (
     <div className="space-y-4">
-      <form onSubmit={handleSubmit} className="flex space-x-4">
-        <Dialog open={fromDateOpen} onOpenChange={setFromDateOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
+      <form onSubmit={handleSubmit} className="flex flex-wrap gap-4">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "w-[240px] justify-start text-left font-normal",
+                !fromDate && "text-muted-foreground"
+              )}
+            >
               <CalendarIcon className="mr-2 h-4 w-4" />
               {fromDate ? format(fromDate, "PPP") : <span>From date</span>}
             </Button>
-          </DialogTrigger>
-          <DialogContent className="p-0">
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
             <Calendar
+              mode="single"
               selected={fromDate}
               onSelect={(date) => {
-                setFromDate(date);
-                setFromDateOpen(false);
+                if (date) {
+                  const selectedDate = startOfDay(date);
+                  setFromDate(selectedDate);
+                  // If toDate exists and is before the new fromDate, reset it
+                  if (toDate && isBefore(toDate, selectedDate)) {
+                    setToDate(undefined);
+                  }
+                }
               }}
+              disabled={(date) => isAfter(date, new Date())}
               initialFocus
             />
-          </DialogContent>
-        </Dialog>
+          </PopoverContent>
+        </Popover>
 
-        <Dialog open={toDateOpen} onOpenChange={setToDateOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "w-[240px] justify-start text-left font-normal",
+                !toDate && "text-muted-foreground"
+              )}
+            >
               <CalendarIcon className="mr-2 h-4 w-4" />
               {toDate ? format(toDate, "PPP") : <span>To date</span>}
             </Button>
-          </DialogTrigger>
-          <DialogContent className="p-0">
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
             <Calendar
+              mode="single"
               selected={toDate}
               onSelect={(date) => {
-                setToDate(date);
-                setToDateOpen(false);
+                if (date) {
+                  setToDate(startOfDay(date));
+                }
               }}
+              disabled={(date) => 
+                isAfter(date, new Date()) || 
+                (fromDate ? isBefore(date, fromDate) : false)
+              }
               initialFocus
-              disabled={(date: Date) => fromDate ? date < fromDate : false}
             />
-          </DialogContent>
-        </Dialog>
+          </PopoverContent>
+        </Popover>
 
         <Button type="submit" disabled={!fromDate || !toDate || loading}>
           {loading ? "Loading..." : "Fetch Data"}
