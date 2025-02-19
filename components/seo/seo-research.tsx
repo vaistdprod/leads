@@ -4,10 +4,9 @@ import { useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar } from "@/components/ui/calendar";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { CalendarIcon, Loader2 } from "lucide-react";
-import { format } from "date-fns";
+import { Loader2 } from "lucide-react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import {
   LineChart,
   Line,
@@ -32,8 +31,6 @@ export function SeoResearch() {
   const [loading, setLoading] = useState(false);
   const [searchData, setSearchData] = useState<SearchData[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [startDateOpen, setStartDateOpen] = useState(false);
-  const [endDateOpen, setEndDateOpen] = useState(false);
 
   const fetchSearchData = async () => {
     if (!startDate || !endDate) {
@@ -51,8 +48,8 @@ export function SeoResearch() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          startDate: format(startDate, 'yyyy-MM-dd'),
-          endDate: format(endDate, 'yyyy-MM-dd'),
+          startDate: startDate.toISOString().split('T')[0],
+          endDate: endDate.toISOString().split('T')[0],
         }),
       });
 
@@ -89,47 +86,44 @@ export function SeoResearch() {
           >
             <div className="space-y-2">
               <label className="text-sm font-medium">Start Date</label>
-              <Dialog open={startDateOpen} onOpenChange={setStartDateOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="w-[200px] justify-start">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {startDate ? format(startDate, 'PPP') : 'Pick a date'}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="p-0">
-                  <Calendar
-                    selected={startDate}
-                    onSelect={(date) => {
-                      setStartDate(date);
-                      setStartDateOpen(false);
-                    }}
-                    initialFocus
-                  />
-                </DialogContent>
-              </Dialog>
+              <div className="relative">
+                <DatePicker
+                  selected={startDate}
+                  onChange={(date: Date | null) => {
+                    setStartDate(date || undefined);
+                    if (endDate && date && date > endDate) {
+                      setEndDate(undefined);
+                    }
+                  }}
+                  selectsStart
+                  startDate={startDate}
+                  endDate={endDate}
+                  maxDate={new Date()}
+                  dateFormat="MMM d, yyyy"
+                  placeholderText="Pick a date"
+                  className="w-[200px] flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  portalId="root"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium">End Date</label>
-              <Dialog open={endDateOpen} onOpenChange={setEndDateOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" className="w-[200px] justify-start">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? format(endDate, 'PPP') : 'Pick a date'}
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="p-0">
-                  <Calendar
-                    selected={endDate}
-                    onSelect={(date) => {
-                      setEndDate(date);
-                      setEndDateOpen(false);
-                    }}
-                    initialFocus
-                    disabled={(date: Date) => startDate ? date < startDate : false}
-                  />
-                </DialogContent>
-              </Dialog>
+              <div className="relative">
+                <DatePicker
+                  selected={endDate}
+                  onChange={(date: Date | null) => setEndDate(date || undefined)}
+                  selectsEnd
+                  startDate={startDate}
+                  endDate={endDate}
+                  minDate={startDate}
+                  maxDate={new Date()}
+                  dateFormat="MMM d, yyyy"
+                  placeholderText="Pick a date"
+                  className="w-[200px] flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  portalId="root"
+                />
+              </div>
             </div>
 
             <Button 
