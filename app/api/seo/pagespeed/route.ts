@@ -42,13 +42,23 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get PageSpeed API key from settings
-    const { data: settings } = await supabase
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Get PageSpeed API key from settings for current user
+    const { data: settings, error: settingsError } = await supabase
       .from('settings')
       .select('pagespeed_api_key')
+      .eq('user_id', user.id)
       .single();
 
-    if (!settings?.pagespeed_api_key) {
+    if (settingsError || !settings?.pagespeed_api_key) {
       return NextResponse.json(
         { error: 'PageSpeed API key not configured' },
         { status: 400 }

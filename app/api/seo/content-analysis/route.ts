@@ -15,10 +15,19 @@ export async function OPTIONS() {
   );
 }
 
-const tokenizer = new natural.WordTokenizer();
+// Custom tokenizer that preserves Czech characters
+function customTokenize(text: string): string[] {
+  // This regex matches words including Czech characters
+  return text.match(/[\p{L}\p{N}]+/gu) || [];
+}
+
 const TfIdf = natural.TfIdf;
 const tfidf = new TfIdf();
-const analyzer = new natural.SentimentAnalyzer('English', natural.PorterStemmer, 'afinn');
+
+// Custom word processing that preserves Czech characters
+function processWord(word: string): string {
+  return word.toLowerCase();
+}
 
 interface ContentMetrics {
   wordCount: number;
@@ -29,20 +38,17 @@ interface ContentMetrics {
   sentiment: number;
 }
 
+// Simplified syllable counting for Czech words
 function countSyllables(word: string): number {
-  word = word.toLowerCase();
-  if (word.length <= 3) return 1;
-  
-  word = word.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, '');
-  word = word.replace(/^y/, '');
-  
-  const syllableCount = word.match(/[aeiouy]{1,2}/g);
-  return syllableCount ? syllableCount.length : 1;
+  // Czech syllables are typically marked by vowels (including long vowels)
+  const vowels = word.match(/[aáeéěiíoóuúůyý]/gi);
+  return vowels ? vowels.length : 1;
 }
 
 function calculateReadability(text: string): number {
-  const words = tokenizer.tokenize(text) || [];
-  const sentences = text.split(/[.!?]+/).filter(Boolean);
+  const words = customTokenize(text);
+  // Split on sentence endings, including Czech quotation marks
+  const sentences = text.split(/[.!?„"]+/).filter(Boolean);
   
   if (words.length === 0 || sentences.length === 0) return 0;
   
@@ -50,21 +56,28 @@ function calculateReadability(text: string): number {
     return count + countSyllables(word);
   }, 0);
   
-  // Flesch Reading Ease score
+  // Modified readability score for Czech text
   const score = 206.835 - 1.015 * (words.length / sentences.length) - 84.6 * (syllables / words.length);
   return Math.min(Math.max(0, score), 100);
 }
 
 function extractTopKeywords(text: string, count: number = 10): { word: string; score: number }[] {
-  tfidf.addDocument(text);
-  const terms: { word: string; score: number }[] = [];
+  const words = customTokenize(text).map(processWord);
+  const wordFreq: { [key: string]: number } = {};
   
-  tfidf.listTerms(0).forEach(item => {
-    terms.push({ word: item.term, score: item.tfidf });
+  // Count word frequencies
+  words.forEach(word => {
+    if (word.length > 2) {
+      wordFreq[word] = (wordFreq[word] || 0) + 1;
+    }
   });
   
-  return terms
-    .filter(term => term.word.length > 2)
+  // Convert to array and sort by frequency
+  return Object.entries(wordFreq)
+    .map(([word, freq]) => ({
+      word,
+      score: freq / words.length // Normalize by text length
+    }))
     .sort((a, b) => b.score - a.score)
     .slice(0, count);
 }
@@ -101,8 +114,8 @@ export async function POST(req: Request) {
       .trim()
       .replace(/\s+/g, ' ');
     
-    const words = tokenizer.tokenize(mainContent) || [];
-    const sentences = mainContent.split(/[.!?]+/).filter(Boolean);
+    const words = customTokenize(mainContent);
+    const sentences = mainContent.split(/[.!?„"]+/).filter(Boolean);
     
     const metrics: ContentMetrics = {
       wordCount: words.length,
@@ -110,7 +123,7 @@ export async function POST(req: Request) {
       averageWordLength: words.reduce((sum, word) => sum + word.length, 0) / words.length,
       readabilityScore: calculateReadability(mainContent),
       topKeywords: extractTopKeywords(mainContent),
-      sentiment: analyzer.getSentiment(words),
+      sentiment: 0, // Sentiment analysis disabled for Czech text
     };
 
     return NextResponse.json(

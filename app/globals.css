@@ -63,17 +63,50 @@
   /* Button improvements */
   .button, button, [type='button'], [type='submit'] {
     transition: all 0.2s ease-in-out;
+    outline: 2px solid transparent;
     outline-offset: 1px;
+  }
+
+  /* Remove borders from tab buttons */
+  [role="tab"] {
+    border: none !important;
+  }
+
+  /* Settings gear icon alignment */
+  button svg[data-icon="settings"] {
+    margin: auto;
+  }
+
+  /* Button hover and focus states */
+  .button:not([role="tab"]), 
+  button:not([role="tab"]), 
+  [type='button']:not([role="tab"]), 
+  [type='submit']:not([role="tab"]) {
     border: 1px solid var(--color-border);
+  }
+
+  .dark .button:not([role="tab"]), 
+  .dark button:not([role="tab"]), 
+  .dark [type='button']:not([role="tab"]), 
+  .dark [type='submit']:not([role="tab"]) {
+    border: 1px solid oklch(0.2 0 0);
   }
 
   .button:hover, button:hover, [type='button']:hover, [type='submit']:hover {
     opacity: 0.9;
     border-color: var(--color-ring);
+    box-shadow: 0 0 10px oklch(0.5 0.1 0 / 0.1);
+  }
+
+  .dark .button:hover, 
+  .dark button:hover, 
+  .dark [type='button']:hover, 
+  .dark [type='submit']:hover {
+    box-shadow: 0 0 15px oklch(0.7 0.2 0 / 0.2);
   }
 
   .button:focus, button:focus, [type='button']:focus, [type='submit']:focus {
-    outline: 2px solid var(--color-ring);
+    outline-color: var(--color-ring);
     border-color: var(--color-ring);
   }
 
