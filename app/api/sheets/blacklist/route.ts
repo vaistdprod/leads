@@ -1,11 +1,25 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { createServerSupabaseClient } from '@/lib/supabase/server';
+import { isDevelopment } from '@/lib/env';
 import { getGoogleAuthClient } from '@/lib/google/googleAuth';
 import { google } from 'googleapis';
 
 export const dynamic = 'force-dynamic';
 
+// Mock data for development
+const mockBlacklist = [
+  'blacklisted1@example.com',
+  'blacklisted2@example.com',
+  'spam@example.com'
+];
+
 export async function GET(request: Request) {
   try {
+    if (isDevelopment) {
+      console.log('Using mock blacklist data');
+      return NextResponse.json({ emails: mockBlacklist });
+    }
 
     const { searchParams } = new URL(request.url);
     const sheetId = searchParams.get('sheetId');
