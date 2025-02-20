@@ -24,5 +24,3 @@ export function validateEnv() {
     throw error;
   }
 }
-
-export const isDevelopment = process.env.NODE_ENV === 'development';

@@ -1,3 +1,6 @@
+export type EmailHistory = Database['public']['Tables']['email_history']['Row'];
+export type LeadHistory = Database['public']['Tables']['lead_history']['Row'];
+
 export type Json =
   | string
   | number

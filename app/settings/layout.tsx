@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 

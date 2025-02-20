@@ -1,35 +1,8 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { isDevelopment } from '@/lib/env';
 import { getGoogleAuthClient } from '@/lib/google/googleAuth';
 import { google } from 'googleapis';
 
 export const dynamic = 'force-dynamic';
-
-// Mock data for development
-const mockContacts = [
-  {
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john@example.com',
-    company: 'Acme Inc',
-    position: 'CEO',
-    phone: '+1234567890',
-    scheduledFor: '2025-02-18T10:00:00Z',
-    status: 'pending'
-  },
-  {
-    firstName: 'Jane',
-    lastName: 'Smith',
-    email: 'jane@example.com',
-    company: 'Tech Corp',
-    position: 'CTO',
-    phone: '+0987654321',
-    scheduledFor: '2025-02-18T10:30:00Z',
-    status: 'pending'
-  }
-];
 
 interface SheetContact {
   název?: string;
@@ -73,10 +46,6 @@ function processContact(rawContact: SheetContact): ProcessedContact | null {
 
 export async function GET(request: Request) {
   try {
-    if (isDevelopment) {
-      console.log('Using mock contacts data');
-      return NextResponse.json({ contacts: mockContacts });
-    }
 
     const { searchParams } = new URL(request.url);
     const sheetId = searchParams.get('sheetId');

@@ -251,7 +251,7 @@ export default function AnalyticsPage() {
           <h2 className="text-xl font-semibold mb-4">Success Rates</h2>
           <div className="h-[400px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={successRates} margin={chartConfig.margin}>
+              <LineChart data={successRates} margin={chartConfig.margin}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="date"
@@ -278,21 +278,21 @@ export default function AnalyticsPage() {
                 />
                 <Tooltip contentStyle={chartConfig.tooltipStyle} />
                 <Legend verticalAlign="top" height={36} />
-                <Bar
+                <Line
+                  type="monotone"
                   dataKey="success"
-                  fill="var(--color-chart-2)"
+                  stroke="var(--color-chart-2)"
                   name="Success"
-                  stackId="a"
-                  {...chartConfig.barProps}
+                  {...chartConfig.lineProps}
                 />
-                <Bar
+                <Line
+                  type="monotone"
                   dataKey="failure"
-                  fill="var(--color-chart-1)"
+                  stroke="var(--color-chart-1)"
                   name="Failure"
-                  stackId="a"
-                  {...chartConfig.barProps}
+                  {...chartConfig.lineProps}
                 />
-              </BarChart>
+              </LineChart>
             </ResponsiveContainer>
           </div>
         </Card>
