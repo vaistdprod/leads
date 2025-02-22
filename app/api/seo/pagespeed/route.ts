@@ -3,6 +3,79 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { ResponseCookie } from 'next/dist/compiled/@edge-runtime/cookies';
 
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+const RATE_LIMIT_DELAY = 60 * 1000; // 1 minute in milliseconds
+
+async function getPageSpeedResults(url: string, strategy: 'mobile' | 'desktop', apiKey: string) {
+  const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&key=${apiKey}&strategy=${strategy}&category=performance&category=accessibility&category=best-practices&category=seo`;
+  
+  const response = await fetch(apiUrl, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+    },
+  });
+  
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.error?.message || `PageSpeed API request failed for ${strategy}`);
+  }
+
+  const data = await response.json();
+  if (!data.lighthouseResult) {
+    throw new Error(`Failed to get ${strategy} performance metrics`);
+  }
+
+  const {
+    lighthouseResult: {
+      categories,
+      audits,
+      configSettings,
+      timing: { total: analysisTime },
+      stackPacks,
+      environment,
+    },
+  } = data;
+
+  return {
+    scores: {
+      performance: categories.performance?.score * 100,
+      accessibility: categories.accessibility?.score * 100,
+      bestPractices: categories['best-practices']?.score * 100,
+      seo: categories.seo?.score * 100,
+    },
+    metrics: {
+      firstContentfulPaint: audits['first-contentful-paint']?.numericValue,
+      speedIndex: audits['speed-index']?.numericValue,
+      largestContentfulPaint: audits['largest-contentful-paint']?.numericValue,
+      timeToInteractive: audits['interactive']?.numericValue,
+      totalBlockingTime: audits['total-blocking-time']?.numericValue,
+      cumulativeLayoutShift: audits['cumulative-layout-shift']?.numericValue,
+      maxPotentialFid: audits['max-potential-fid']?.numericValue,
+      serverResponseTime: audits['server-response-time']?.numericValue,
+    },
+    opportunities: Object.entries(audits)
+      .filter(([_, audit]: [string, any]) => 
+        audit.score !== null && 
+        audit.score < 0.9 && 
+        audit.details?.type === 'opportunity'
+      )
+      .map(([id, audit]: [string, any]) => ({
+        id,
+        title: audit.title,
+        description: audit.description,
+        score: audit.score,
+        savings: audit.details?.overallSavingsMs || null,
+      })),
+    details: {
+      deviceEmulation: configSettings.emulatedFormFactor,
+      analysisTime,
+      networkInfo: environment?.networkUserAgent,
+      cpu: environment?.benchmarkIndex,
+    }
+  };
+}
+
 export async function POST(request: Request) {
   console.log('PageSpeed API request received');
   try {
@@ -95,153 +168,54 @@ export async function POST(request: Request) {
     }
 
     console.log('PageSpeed API: Calling Google PageSpeed API', { url });
-    const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&key=${apiKey}&strategy=mobile&category=performance&category=accessibility&category=best-practices&category=seo`;
-    
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-    
-    const data = await response.json();
+    // Check cache first
+    const { data: cachedResult } = await supabase
+      .from('pagespeed_cache')
+      .select('*')
+      .eq('url', url)
+      .single();
 
-    if (!response.ok) {
-      console.error('PageSpeed API error: Google API request failed', {
-        status: response.status,
-        error: data.error,
-        url: url
+    if (cachedResult && (Date.now() - new Date(cachedResult.analyzed_at).getTime() < CACHE_DURATION)) {
+      console.log('Returning cached results for', url);
+      return NextResponse.json({
+        mobile: cachedResult.mobile_results,
+        desktop: cachedResult.desktop_results,
+        cached: true,
+        analyzed_at: cachedResult.analyzed_at
       });
-      
-      if (response.status === 429) {
-        return NextResponse.json(
-          { error: 'Rate limit exceeded. Please try again later.' },
-          { status: 429 }
-        );
-      }
-      
-      if (response.status === 400) {
-        return NextResponse.json(
-          { error: 'Invalid request. The URL might not be accessible.' },
-          { status: 400 }
-        );
-      }
-      
-      throw new Error(data.error?.message || 'PageSpeed API request failed');
     }
 
-    if (!data.lighthouseResult) {
-      console.error('PageSpeed API error: No lighthouse result', { data });
-      throw new Error('Failed to get performance metrics');
-    }
+    // Get mobile results
+    console.log('Getting mobile results for', url);
+    const mobileResults = await getPageSpeedResults(url, 'mobile', apiKey);
 
-    console.log('PageSpeed API: Successfully retrieved data');
+    // Wait for rate limit
+    await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY));
 
-    // Extract and format metrics
-    const {
-      lighthouseResult: {
-        categories,
-        audits,
-        configSettings,
-        timing: { total: analysisTime },
-        stackPacks,
-        environment,
-      },
-    } = data;
+    // Get desktop results
+    console.log('Getting desktop results for', url);
+    const desktopResults = await getPageSpeedResults(url, 'desktop', apiKey);
 
-    // Format performance metrics
-    const performanceMetrics = {
-      scores: {
-        performance: categories.performance?.score * 100,
-        accessibility: categories.accessibility?.score * 100,
-        bestPractices: categories['best-practices']?.score * 100,
-        seo: categories.seo?.score * 100,
-      },
-      metrics: {
-        firstContentfulPaint: audits['first-contentful-paint']?.numericValue,
-        speedIndex: audits['speed-index']?.numericValue,
-        largestContentfulPaint: audits['largest-contentful-paint']?.numericValue,
-        timeToInteractive: audits['interactive']?.numericValue,
-        totalBlockingTime: audits['total-blocking-time']?.numericValue,
-        cumulativeLayoutShift: audits['cumulative-layout-shift']?.numericValue,
-        maxPotentialFid: audits['max-potential-fid']?.numericValue,
-        serverResponseTime: audits['server-response-time']?.numericValue,
-        mainThreadWork: audits['mainthread-work-breakdown']?.numericValue,
-        bootupTime: audits['bootup-time']?.numericValue,
-      },
-      details: {
-        deviceEmulation: configSettings.emulatedFormFactor,
-        analysisTime: analysisTime,
-        networkInfo: environment?.networkUserAgent,
-        cpu: environment?.benchmarkIndex,
-        userAgent: environment?.hostUserAgent,
-        stackPacks: stackPacks?.map((pack: any) => ({
-          name: pack.name,
-          descriptions: pack.descriptions,
-        })),
-      },
-      audits: {
-        performance: Object.entries(audits)
-          .filter(([_, audit]: [string, any]) => audit.group === 'performance')
-          .map(([id, audit]: [string, any]) => ({
-            id,
-            title: audit.title,
-            description: audit.description,
-            score: audit.score,
-            displayValue: audit.displayValue,
-            numericValue: audit.numericValue,
-            warnings: audit.warnings,
-            details: audit.details,
-            scoreDisplayMode: audit.scoreDisplayMode,
-            errorMessage: audit.errorMessage,
-            explanation: audit.explanation,
-          })),
-        accessibility: Object.entries(audits)
-          .filter(([_, audit]: [string, any]) => audit.group === 'accessibility')
-          .map(([id, audit]: [string, any]) => ({
-            id,
-            title: audit.title,
-            description: audit.description,
-            score: audit.score,
-            displayValue: audit.displayValue,
-            warnings: audit.warnings,
-            details: audit.details,
-            scoreDisplayMode: audit.scoreDisplayMode,
-            errorMessage: audit.errorMessage,
-            explanation: audit.explanation,
-          })),
-        bestPractices: Object.entries(audits)
-          .filter(([_, audit]: [string, any]) => audit.group === 'best-practices')
-          .map(([id, audit]: [string, any]) => ({
-            id,
-            title: audit.title,
-            description: audit.description,
-            score: audit.score,
-            displayValue: audit.displayValue,
-            warnings: audit.warnings,
-            details: audit.details,
-            scoreDisplayMode: audit.scoreDisplayMode,
-            errorMessage: audit.errorMessage,
-            explanation: audit.explanation,
-          })),
-        seo: Object.entries(audits)
-          .filter(([_, audit]: [string, any]) => audit.group === 'seo')
-          .map(([id, audit]: [string, any]) => ({
-            id,
-            title: audit.title,
-            description: audit.description,
-            score: audit.score,
-            displayValue: audit.displayValue,
-            warnings: audit.warnings,
-            details: audit.details,
-            scoreDisplayMode: audit.scoreDisplayMode,
-            errorMessage: audit.errorMessage,
-            explanation: audit.explanation,
-          })),
-      },
+    // Cache results
+    const results = {
+      mobile: mobileResults,
+      desktop: desktopResults,
+      cached: false,
+      analyzed_at: new Date().toISOString()
     };
 
-    return NextResponse.json(performanceMetrics);
+    await supabase
+      .from('pagespeed_cache')
+      .upsert({
+        url,
+        mobile_results: mobileResults,
+        desktop_results: desktopResults,
+        analyzed_at: results.analyzed_at
+      }, {
+        onConflict: 'url'
+      });
+
+    return NextResponse.json(results);
   } catch (error) {
     console.error('PageSpeed API error:', {
       error,

@@ -83,6 +83,38 @@ interface StatusUpdate {
   updates: { status: string };
 }
 
+async function extractWebsite(company: string): Promise<string | null> {
+  // Simple heuristic to extract domain from company name
+  // Remove special characters and spaces, add .com
+  const domain = company
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .trim();
+  return domain ? `https://www.${domain}.com` : null;
+}
+
+async function getPageSpeedMetrics(url: string, supabase: any): Promise<any> {
+  try {
+    const response = await fetch('/api/seo/pagespeed', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ url }),
+    });
+
+    if (!response.ok) {
+      console.error('Failed to get PageSpeed metrics:', await response.text());
+      return null;
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error getting PageSpeed metrics:', error);
+    return null;
+  }
+}
+
 async function processBatch(
   contacts: any[],
   settings: any,
@@ -143,11 +175,25 @@ async function processBatch(
         await logProcessing(supabase, userId, 'verification', 'warning', `Verification failed: ${contact.email}`);
       }
 
+      // Extract and analyze website
+      const website = await extractWebsite(contact.company);
+      let pageSpeedMetrics = null;
+      
+      if (website) {
+        pageSpeedMetrics = await getPageSpeedMetrics(website, supabase);
+        // Wait for rate limit if we got metrics
+        if (pageSpeedMetrics) {
+          await delay(60000); // Wait 1 minute between PageSpeed API calls
+        }
+      }
+
       // Generate email content
       let enrichmentData: EnrichmentData;
       try {
         enrichmentData = await enrichLeadData({
           ...contact,
+          website,
+          pageSpeedMetrics,
           geminiApiKey: settings.gemini_api_key ?? "",
           temperature: settings.temperature || 0.7,
           topK: settings.top_k || 40,

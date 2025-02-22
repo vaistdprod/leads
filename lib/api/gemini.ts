@@ -1,12 +1,59 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { trackApiUsage } from './tracking';
 
+interface PageSpeedMetrics {
+  mobile: {
+    scores: {
+      performance: number;
+      accessibility: number;
+      bestPractices: number;
+      seo: number;
+    };
+    metrics: {
+      firstContentfulPaint: number;
+      speedIndex: number;
+      largestContentfulPaint: number;
+      timeToInteractive: number;
+      totalBlockingTime: number;
+      cumulativeLayoutShift: number;
+    };
+    opportunities: Array<{
+      title: string;
+      description: string;
+      savings: number | null;
+    }>;
+  };
+  desktop: {
+    scores: {
+      performance: number;
+      accessibility: number;
+      bestPractices: number;
+      seo: number;
+    };
+    metrics: {
+      firstContentfulPaint: number;
+      speedIndex: number;
+      largestContentfulPaint: number;
+      timeToInteractive: number;
+      totalBlockingTime: number;
+      cumulativeLayoutShift: number;
+    };
+    opportunities: Array<{
+      title: string;
+      description: string;
+      savings: number | null;
+    }>;
+  };
+}
+
 interface EnrichmentInput {
   firstName: string;
   lastName: string;
   email: string;
   company: string;
   position: string;
+  website?: string;
+  pageSpeedMetrics?: PageSpeedMetrics;
   geminiApiKey: string;
   temperature?: number;
   topK?: number;
@@ -36,7 +83,12 @@ export interface EnrichmentData {
   commonInterests?: string;
   potentialPainPoints?: string;
   relevantNews?: string;
-  [key: string]: string | undefined;
+  performanceInsights?: {
+    summary: string;
+    opportunities: string[];
+    businessImpact: string;
+  };
+  [key: string]: any;
 }
 
 export async function enrichLeadData(input: EnrichmentInput): Promise<EnrichmentData> {
@@ -65,6 +117,16 @@ Name: ${input.firstName} ${input.lastName}
 Company: ${input.company}
 Position: ${input.position}
 Email: ${input.email}
+${input.website ? `Website: ${input.website}` : ''}
+
+${input.pageSpeedMetrics ? `
+Website Performance Metrics:
+Mobile Performance Score: ${input.pageSpeedMetrics.mobile.scores.performance}
+Desktop Performance Score: ${input.pageSpeedMetrics.desktop.scores.performance}
+Mobile Loading Speed: ${Math.round(input.pageSpeedMetrics.mobile.metrics.largestContentfulPaint / 1000)}s
+Desktop Loading Speed: ${Math.round(input.pageSpeedMetrics.desktop.metrics.largestContentfulPaint / 1000)}s
+Key Opportunities: ${input.pageSpeedMetrics.mobile.opportunities.slice(0, 3).map(o => o.title).join(', ')}
+` : ''}
 
 Return EXACTLY this JSON structure with Czech content (no other text, no markdown):
 {
@@ -73,7 +135,12 @@ Return EXACTLY this JSON structure with Czech content (no other text, no markdow
   "industryTrends": "Aktuální trendy a výzvy v oboru",
   "commonInterests": "Možné společné zájmy na základě role/oboru",
   "potentialPainPoints": "Pravděpodobné obchodní výzvy nebo potřeby",
-  "relevantNews": "Aktuální vývoj nebo novinky"
+  "relevantNews": "Aktuální vývoj nebo novinky"${input.pageSpeedMetrics ? `,
+  "performanceInsights": {
+    "summary": "Shrnutí výkonu webu a jeho dopadu na byznys",
+    "opportunities": ["Konkrétní příležitosti ke zlepšení"],
+    "businessImpact": "Obchodní dopad současného výkonu webu"
+  }` : ''}
 }`;
 
   const prompt = input.enrichmentPrompt || defaultPrompt;
@@ -169,13 +236,15 @@ export async function generateEmail(contact: { firstName: string; lastName: stri
     }
   });
 
-  const defaultPrompt = `You are an email writing assistant. Your responses must:
+  const defaultPrompt = `You are an email writing assistant specializing in performance-driven outreach. Your responses must:
 1. Be in exact JSON format with no additional text
 2. Be concise and professional
-3. Focus on value proposition
-4. Include a clear call to action
-5. Never suggest or use alternative contact information
-6. Match the tone and style of these example emails
+3. Focus on data-driven value propositions
+4. Include specific performance metrics when available
+5. Provide clear, actionable insights
+6. Include a compelling call to action
+7. Never suggest or use alternative contact information
+8. Use Czech language and adapt to Czech business culture
 
 Write a personalized cold email for:
 Name: ${contact.firstName} ${contact.lastName}
@@ -185,10 +254,25 @@ Position: ${contact.position}
 Using these insights:
 ${JSON.stringify(enrichmentData, null, 2)}
 
+Consider these guidelines for performance-based messaging:
+- If mobile performance score is below 70, emphasize mobile-first importance
+- If desktop performance is significantly better than mobile, highlight mobile optimization opportunities
+- For high-traffic potential sites, focus on conversion impact
+- For e-commerce positions, emphasize loading time's impact on sales
+- For marketing roles, focus on SEO and visibility benefits
+- For technical roles, highlight specific technical improvements
+- For executive roles, focus on business impact and ROI
+
 Return in this exact JSON format:
 {
-  "subject": "Brief, engaging subject line",
-  "body": "Complete email body with signature from ${config.senderEmail}"
+  "subject": "Brief, engaging subject line focusing on performance opportunity",
+  "body": "Complete email body with:
+  1. Personal connection point
+  2. Specific performance insights
+  3. Business impact statement
+  4. Clear value proposition
+  5. Call to action
+  Signature from ${config.senderEmail}"
 }`;
 
   const prompt = config.emailPrompt || defaultPrompt;
